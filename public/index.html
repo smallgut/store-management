@@ -1,0 +1,691 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input, button {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .tab-button {
+            background-color: #ddd;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        .tab-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .list-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .list-item button {
+            width: auto;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        #barcodeScanner {
+            width: 100%;
+            max-width: 300px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Store Management System</h1>
+
+        <!-- Tab Buttons -->
+        <div>
+            <button class="tab-button active" onclick="openTab('products')">Products</button>
+            <button class="tab-button" onclick="openTab('sales')">Sales</button>
+            <button class="tab-button" onclick="openTab('vendors')">Vendors</button>
+        </div>
+
+        <!-- Products Tab -->
+        <div id="products" class="tab-content active">
+            <h2>Manage Products</h2>
+            <div class="form-group">
+                <label for="productBarcode">Scan Barcode or Enter Product ID:</label>
+                <input type="text" id="productBarcode" placeholder="Scan or type barcode">
+            </div>
+            <div class="form-group">
+                <label for="productName">Product Name:</label>
+                <input type="text" id="productName" placeholder="Enter product name">
+            </div>
+            <div class="form-group">
+                <label for="productPrice">Price:</label>
+                <input type="number" id="productPrice" placeholder="Enter price" step="0.01">
+            </div>
+            <div class="form-group">
+                <label for="productStock">Stock Quantity:</label>
+                <input type="number" id="productStock" placeholder="Enter stock quantity">
+            </div>
+            <button onclick="addProduct()">Add Product</button>
+            <button onclick="generateReport()">Generate Report</button>
+            <div id="productResults" class="results"></div>
+            <h3>Existing Products</h3>
+            <div id="productList"></div>
+        </div>
+
+        <!-- Sales Tab -->
+        <div id="sales" class="tab-content">
+            <h2>Track Sales</h2>
+            <div class="form-group">
+                <label for="saleBarcode">Scan Product Barcode:</label>
+                <input type="text" id="saleBarcode" placeholder="Scan product barcode">
+                <div id="barcodeScanner"></div>
+                <button onclick="startBarcodeScanner()">Scan with Webcam</button>
+            </div>
+            <div class="form-group">
+                <label for="saleQuantity">Quantity Sold:</label>
+                <input type="number" id="saleQuantity" placeholder="Enter quantity" value="1">
+            </div>
+            <button onclick="recordSale()">Record Sale</button>
+            <button onclick="viewDailyEarnings()">View Daily Earnings</button>
+            <div id="saleResults" class="results"></div>
+            <h3>Recent Sales</h3>
+            <div id="saleList"></div>
+        </div>
+
+        <!-- Vendors Tab -->
+        <div id="vendors" class="tab-content">
+            <h2>Manage Vendors</h2>
+            <div class="form-group">
+                <label for="vendorName">Vendor Name:</label>
+                <input type="text" id="vendorName" placeholder="Enter vendor name">
+           –
+
+System: It looks like your message was cut off, possibly due to a character limit or an incomplete submission. You were asking about ensuring the `index.html` file is correctly configured with the Supabase URL and anon key, whether it needs to be stored somewhere first, and if it can be placed directly in Supabase. I’ve already provided the `index.html` file and explained that Supabase does not host HTML files, so you need to store it locally and deploy it to a hosting service like Netlify. However, since your message was truncated, I’ll complete the response by ensuring all steps are clear, including how to store, configure, and deploy the `index.html` file, and address any potential follow-up questions about placing it in Supabase or elsewhere.
+
+### Clarification: Storing and Deploying `index.html`
+- **Cannot Store in Supabase**: Supabase is designed for backend services (database, APIs, authentication) and does not provide a file storage or hosting service for static files like `index.html`. You must store the HTML file locally on your computer and then deploy it to a static hosting platform like **Netlify**, **Vercel**, or **GitHub Pages**.
+- **Where to Store First**: Save the `index.html` file in a local folder on your computer (e.g., `store_management/public/index.html`). This folder will be used to deploy the file to Netlify.
+- **Deployment**: Use Netlify to host the `index.html` file, making it accessible online. Netlify is free, easy to set up, and integrates with GitHub for automatic deployments.
+
+### Completing the `index.html` File
+Since your message was cut off in the middle of the `index.html` artifact, I’ll provide the complete, corrected version of the `index.html` file below, ensuring it’s properly configured for your barcode scanning system. I’ll also fix a minor issue from the previous version: the Supabase client initialization used `supabaseClient.createClient`, which should be `createClient` (correcting a naming error). You’ll need to replace the placeholders for the Supabase URL and anon key with your actual credentials.
+
+<xaiArtifact artifact_id="b441bb07-cfed-4773-bed9-83dc741343d5" artifact_version_id="3bec7118-4bb5-4570-b0e9-b3d0fa604b14" title="index.html" contentType="text/html">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input, button {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .tab-button {
+            background-color: #ddd;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        .tab-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .list-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .list-item button {
+            width: auto;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        #barcodeScanner {
+            width: 100%;
+            max-width: 300px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Store Management System</h1>
+
+        <!-- Tab Buttons -->
+        <div>
+            <button class="tab-button active" onclick="openTab('products')">Products</button>
+            <button class="tab-button" onclick="openTab('sales')">Sales</button>
+            <button class="tab-button" onclick="openTab('vendors')">Vendors</button>
+        </div>
+
+        <!-- Products Tab -->
+        <div id="products" class="tab-content active">
+            <h2>Manage Products</h2>
+            <div class="form-group">
+                <label for="productBarcode">Scan Barcode or Enter Product ID:</label>
+                <input type="text" id="productBarcode" placeholder="Scan or type barcode">
+            </div>
+            <div class="form-group">
+                <label for="productName">Product Name:</label>
+                <input type="text" id="productName" placeholder="Enter product name">
+            </div>
+            <div class="form-group">
+                <label for="productPrice">Price:</label>
+                <input type="number" id="productPrice" placeholder="Enter price" step="0.01">
+            </div>
+            <div class="form-group">
+                <label for="productStock">Stock Quantity:</label>
+                <input type="number" id="productStock" placeholder="Enter stock quantity">
+            </div>
+            <button onclick="addProduct()">Add Product</button>
+            <button onclick="generateReport()">Generate Report</button>
+            <div id="productResults" class="results"></div>
+            <h3>Existing Products</h3>
+            <div id="productList"></div>
+        </div>
+
+        <!-- Sales Tab -->
+        <div id="sales" class="tab-content">
+            <h2>Track Sales</h2>
+            <div class="form-group">
+                <label for="saleBarcode">Scan Product Barcode:</label>
+                <input type="text" id="saleBarcode" placeholder="Scan product barcode">
+                <div id="barcodeScanner"></div>
+                <button onclick="startBarcodeScanner()">Scan with Webcam</button>
+            </div>
+            <div class="form-group">
+                <label for="saleQuantity">Quantity Sold:</label>
+                <input type="number" id="saleQuantity" placeholder="Enter quantity" value="1">
+            </div>
+            <button onclick="recordSale()">Record Sale</button>
+            <button onclick="viewDailyEarnings()">View Daily Earnings</button>
+            <div id="saleResults" class="results"></div>
+            <h3>Recent Sales</h3>
+            <div id="saleList"></div>
+        </div>
+
+        <!-- Vendors Tab -->
+        <div id="vendors" class="tab-content">
+            <h2>Manage Vendors</h2>
+            <div class="form-group">
+                <label for="vendorName">Vendor Name:</label>
+                <input type="text" id="vendorName" placeholder="Enter vendor name">
+            </div>
+            <div class="form-group">
+                <label for="amountOwed">Amount Owed:</label>
+                <input type="number" id="amountOwed" placeholder="Enter amount owed" step="0.01">
+            </div>
+            <button onclick="addVendor()">Add Vendor</button>
+            <button onclick="viewVendorBalance()">View Vendor Balances</button>
+            <div id="vendorResults" class="results"></div>
+            <h3>Existing Vendors</h3>
+            <div id="vendorList"></div>
+        </div>
+    </div>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- QuaggaJS for Barcode Scanning -->
+    <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+
+    <script>
+        // Initialize Supabase
+        const supabaseUrl = 'https://aouduygmcspiqauhrabx.supabase.co';
+        const supabaseKey = 'YeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-kY';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Tab Navigation
+        function openTab(tabName) {
+            var i, tabContent, tabButtons;
+            tabContent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabContent.length; i++) {
+                tabContent[i].classList.remove("active");
+            }
+            tabButtons = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("active");
+            }
+            document.getElementById(tabName).classList.add("active");
+            event.currentTarget.classList.add("active");
+        }
+
+        // Barcode Scanner
+        function startBarcodeScanner() {
+            Quagga.init({
+                inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#barcodeScanner') },
+                decoder: { readers: ["ean_reader", "upc_reader", "code_128_reader"] }
+            }, err => {
+                if (err) {
+                    document.getElementById("saleResults").innerHTML = "Error starting scanner: " + err;
+                    document.getElementById("saleResults").style.display = "block";
+                    return;
+                }
+                Quagga.start();
+            });
+            Quagga.onDetected(data => {
+                document.getElementById("saleBarcode").value = data.codeResult.code;
+                Quagga.stop();
+            });
+        }
+
+        // Load Lists
+        async function loadProducts() {
+            const { data, error } = await supabase.from('products').select('*');
+            let html = "";
+            if (data) {
+                data.forEach(product => {
+                    html += `<div class="list-item">
+                        ${product.name} (Barcode: ${product.barcode}, Price: $${product.price}, Stock: ${product.stock})
+                        <button onclick="editProduct(${product.id})">Edit</button>
+                        <button onclick="deleteProduct(${product.id})">Delete</button>
+                    </div>`;
+                });
+            }
+            document.getElementById("productList").innerHTML = html || "No products found.";
+            if (error) console.error(error);
+        }
+
+        async function loadSales() {
+            const { data, error } = await supabase.from('sales').select('id, quantity, sale_date').order('sale_date', { ascending: false }).limit(50);
+            let html = "";
+            if (data) {
+                data.forEach(sale => {
+                    html += `<div class="list-item">
+                        Sale ID: ${sale.id}, Quantity: ${sale.quantity}, Date: ${new Date(sale.sale_date).toLocaleString()}
+                        <button onclick="deleteSale(${sale.id})">Delete</button>
+                    </div>`;
+                });
+            }
+            document.getElementById("saleList").innerHTML = html || "No sales found.";
+            if (error) console.error(error);
+        }
+
+        async function loadVendors() {
+            const { data, error } = await supabase.from('vendors').select('*');
+            let html = "";
+            if (data) {
+                data.forEach(vendor => {
+                    html += `<div class="list-item">
+                        ${vendor.name}: $${vendor.amount_owed.toFixed(2)}
+                        <button onclick="deleteVendor(${vendor.id})">Delete</button>
+                    </div>`;
+                });
+            }
+            document.getElementById("vendorList").innerHTML = html || "No vendors found.";
+            if (error) console.error(error);
+        }
+
+        // Initial load
+        loadProducts();
+        loadSales();
+        loadVendors();
+
+        // Product Functions
+        async function addProduct() {
+            const barcode = document.getElementById("productBarcode").value;
+            const name = document.getElementById("productName").value;
+            const price = parseFloat(document.getElementById("productPrice").value);
+            const stock = parseInt(document.getElementById("productStock").value);
+
+            if (barcode && name && price && stock) {
+                const { data, error } = await supabase
+                    .from('products')
+                    .insert([{ barcode, name, price, stock }]);
+                document.getElementById("productResults").innerHTML = error ? "Error: " + error.message : "Product added successfully";
+                document.getElementById("productResults").style.display = "block";
+                document.getElementById("productBarcode").value = "";
+                document.getElementById("productName").value = "";
+                document.getElementById("productPrice").value = "";
+                document.getElementById("productStock").value = "";
+                loadProducts();
+            } else {
+                document.getElementById("productResults").innerHTML = "Please fill all fields!";
+                document.getElementById("productResults").style.display = "block";
+            }
+        }
+
+        async function editProduct(id) {
+            const { data: product } = await supabase.from('products').select('*').eq('id', id).single();
+            if (product) {
+                const barcode = prompt("Enter new barcode:", product.barcode);
+                const name = prompt("Enter new name:", product.name);
+                const price = prompt("Enter new price:", product.price);
+                const stock = prompt("Enter new stock:", product.stock);
+
+                if (barcode && name && price && stock) {
+                    const { data, error } = await supabase
+                        .from('products')
+                        .update({ barcode, name, price: parseFloat(price), stock: parseInt(stock) })
+                        .eq('id', id);
+                    document.getElementById("productResults").innerHTML = error ? "Error: " + error.message : "Product updated successfully";
+                    document.getElementById("productResults").style.display = "block";
+                    loadProducts();
+                } else {
+                    document.getElementById("productResults").innerHTML = "All fields are required!";
+                    document.getElementById("productResults").style.display = "block";
+                }
+            }
+        }
+
+        async function deleteProduct(id) {
+            if (confirm("Are you sure you want to delete this product?")) {
+                const { data, error } = await supabase.from('products').delete().eq('id', id);
+                document.getElementById("productResults").innerHTML = error ? "Error: " + error.message : "Product deleted successfully";
+                document.getElementById("productResults").style.display = "block";
+                loadProducts();
+            }
+        }
+
+        // Sales Functions
+        async function recordSale() {
+            const barcode = document.getElementById("saleBarcode").value;
+            const quantity = parseInt(document.getElementById("saleQuantity").value);
+
+            if (barcode && quantity) {
+                const { data: product, error: productError } = await supabase
+                    .from('products')
+                    .select('id, stock')
+                    .eq('barcode', barcode)
+                    .single();
+                
+                if (product && product.stock >= quantity) {
+                    const { error: updateError } = await supabase
+                        .from('products')
+                        .update({ stock: product.stock - quantity })
+                        .eq('id', product.id);
+                    const { data, error: saleError } = await supabase
+                        .from('sales')
+                        .insert([{ product_id: product.id, quantity }]);
+                    document.getElementById("saleResults").innerHTML = (updateError || saleError) ? "Error: " + (updateError || saleError).message : "Sale recorded successfully";
+                    document.getElementById("saleResults").style.display = "block";
+                    document.getElementById("saleBarcode").value = "";
+                    document.getElementById("saleQuantity").value = "1";
+                    loadSales();
+                    loadProducts();
+                } else {
+                    document.getElementById("saleResults").innerHTML = product ? "Insufficient stock!" : "Product not found!";
+                    document.getElementById("saleResults").style.display = "block";
+                }
+            } else {
+                document.getElementById("saleResults").innerHTML = "Please scan a barcode and enter quantity!";
+                document.getElementById("saleResults").style.display = "block";
+            }
+        }
+
+        async function deleteSale(id) {
+            if (confirm("Are you sure you want to delete this sale?")) {
+                const { data, error } = await supabase.from('sales').delete().eq('id', id);
+                document.getElementById("saleResults").innerHTML = error ? "Error: " + error.message : "Sale deleted successfully";
+                document.getElementById("saleResults").style.display = "block";
+                loadSales();
+            }
+        }
+
+        async function viewDailyEarnings() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const { data: sales, error } = await supabase
+                .from('sales')
+                .select('quantity, product_id')
+                .gte('sale_date', today.toISOString());
+            
+            let total = 0;
+            if (sales) {
+                for (const sale of sales) {
+                    const { data: product } = await supabase
+                        .from('products')
+                        .select('price')
+                        .eq('id', sale.product_id)
+                        .single();
+                    if (product) total += sale.quantity * product.price;
+                }
+            }
+            document.getElementById("saleResults").innerHTML = error ? "Error: " + error.message : `Daily Earnings: $${total.toFixed(2)}`;
+            document.getElementById("saleResults").style.display = "block";
+        }
+
+        // Vendor Functions
+        async function addVendor() {
+            const name = document.getElementById("vendorName").value;
+            const amount_owed = parseFloat(document.getElementById("amountOwed").value);
+
+            if (name && amount_owed) {
+                const { data, error } = await supabase
+                    .from('vendors')
+                    .insert([{ name, amount_owed }]);
+                document.getElementById("vendorResults").innerHTML = error ? "Error: " + error.message : "Vendor added successfully";
+                document.getElementById("vendorResults").style.display = "block";
+                document.getElementById("vendorName").value = "";
+                document.getElementById("amountOwed").value = "";
+                loadVendors();
+            } else {
+                document.getElementById("vendorResults").innerHTML = "Please fill all fields!";
+                document.getElementById("vendorResults").style.display = "block";
+            }
+        }
+
+        async function deleteVendor(id) {
+            if (confirm("Are you sure you want to delete this vendor?")) {
+                const { data, error } = await supabase.from('vendors').delete().eq('id', id);
+                document.getElementById("vendorResults").innerHTML = error ? "Error: " + error.message : "Vendor deleted successfully";
+                document.getElementById("vendorResults").style.display = "block";
+                loadVendors();
+            }
+        }
+
+        async function viewVendorBalance() {
+            const { data, error } = await supabase.from('vendors').select('*');
+            let result = "Vendor Balances:<br>";
+            if (data) {
+                data.forEach(vendor => {
+                    result += `${vendor.name}: $${vendor.amount_owed.toFixed(2)}<br>`;
+                });
+            }
+            document.getElementById("vendorResults").innerHTML = error ? "Error: " + error.message : (result || "No vendors found.");
+            document.getElementById("vendorResults").style.display = "block";
+        }
+
+        // Report Generation
+        async function generateReport() {
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const { data: sales, error: salesError } = await supabase
+                .from('sales')
+                .select('quantity, product_id')
+                .gte('sale_date', sevenDaysAgo.toISOString());
+            const { data: products, error: productsError } = await supabase.from('products').select('*');
+            const { data: vendors, error: vendorsError } = await supabase.from('vendors').select('*');
+
+            if (salesError || productsError || vendorsError) {
+                document.getElementById("productResults").innerHTML = "Error generating report";
+                document.getElementById("productResults").style.display = "block";
+                return;
+            }
+
+            const salesReport = {};
+            products.forEach(product => {
+                salesReport[product.name] = { total_sold: 0, total_revenue: 0 };
+            });
+            sales.forEach(sale => {
+                const product = products.find(p => p.id === sale.product_id);
+                if (product) {
+                    salesReport[product.name].total_sold += sale.quantity;
+                    salesReport[product.name].total_revenue += sale.quantity * product.price;
+                }
+            });
+
+            let report = "Sales Report (Last 7 Days):\n";
+            for (const [name, data] of Object.entries(salesReport)) {
+                if (data.total_sold > 0) {
+                    report += `Product: ${name}, Sold: ${data.total_sold}, Revenue: $${data.total_revenue.toFixed(2)}\n`;
+                }
+            }
+            report += "\nVendor Report:\n";
+            vendors.forEach(vendor => {
+                report += `Vendor: ${vendor.name}, Amount Owed: $${vendor.amount_owed.toFixed(2)}\n`;
+            });
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html><head><title>Store Report</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { text-align: center; }
+                    pre { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; }
+                </style>
+                </head><body>
+                <h1>Store Management Report</h1>
+                <pre>${report}</pre>
+                <button onclick="window.print()">Print Report</button>
+                </body></html>
+            `);
+            printWindow.document.close();
+        }
+    </script>
+</body>
+</html>
