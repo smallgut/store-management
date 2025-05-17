@@ -164,14 +164,14 @@
         </div>
     </div>
 
-    <!-- Supabase SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- QuaggaJS for Barcode Scanning -->
     <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 
-    <script>
+    <script type="module">
+        // Import Supabase SDK
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/module/index.js';
+
         // Initialize Supabase
-        const { createClient } = Supabase;
         const supabaseUrl = 'https://aouduygmcspiqauhrabx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k';
         const supabase = createClient(supabaseUrl, supabaseKey);
@@ -284,10 +284,14 @@
             const price = parseFloat(document.getElementById("productPrice").value);
             const stock = parseInt(document.getElementById("productStock").value);
 
+            console.log('Adding product:', { barcode, name, price, stock });
+
             if (barcode && name && price && stock) {
+                console.log('Sending to Supabase:', { barcode, name, price, stock });
                 const { data, error } = await supabase
                     .from('products')
                     .insert([{ barcode, name, price, stock }]);
+                console.log('Supabase response:', { data, error });
                 document.getElementById("productResults").innerHTML = error ? "Error: " + error.message : "Product added successfully";
                 document.getElementById("productResults").style.display = "block";
                 document.getElementById("productBarcode").value = "";
