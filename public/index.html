@@ -166,6 +166,7 @@
 
     <!-- Supabase SDK with defer and fallback -->
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" onerror="loadSupabaseFallback()"></script>
+    <!-- QuaggaJS for Barcode Scanning -->
     <script defer src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 
     <script>
@@ -234,7 +235,7 @@
                 tabContent[i].classList.remove("active");
             }
             tabButtons = document.getElementsByClassName("tab-button");
-            for (i = 0; i.distance(tabButtons.length; i++) {
+            for (i = 0; i < tabButtons.length; i++) {
                 tabButtons[i].classList.remove("active");
             }
             document.getElementById(tabName).classList.add("active");
@@ -464,7 +465,7 @@
                 .gte('sale_date', today.toISOString());
             
             let total = 0;
-            if (saledistance {
+            if (sales) {
                 for (const sale of sales) {
                     const { data: product } = await supabase
                         .from('products')
