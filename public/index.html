@@ -170,14 +170,28 @@
     <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 
     <script>
-        // Initialize Supabase
-        const supabase = Supabase.createClient(
-            'https://aouduygmcspiqauhrabx.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
-        );
+        // Initialize Supabase with error handling
+        let supabase;
+        try {
+            supabase = Supabase.createClient(
+                'https://aouduygmcspiqauhrabx.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM9MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+            );
+            console.log('Supabase client initialized successfully');
+        } catch (err) {
+            console.error('Failed to initialize Supabase client:', err);
+            document.getElementById('productResults').innerHTML = 'Supabase Initialization Failed: Check console for details';
+            document.getElementById('productResults').style.display = 'block';
+        }
 
         // Test Supabase Connection
         async function testSupabase() {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                document.getElementById('productResults').innerHTML = 'Supabase client not initialized';
+                document.getElementById('productResults').style.display = 'block';
+                return;
+            }
             try {
                 const { data, error } = await supabase.from('products').select('*').limit(1);
                 console.log('Supabase Test Query:', data, error);
@@ -227,6 +241,10 @@
 
         // Load Lists
         async function loadProducts() {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             const { data, error } = await supabase.from('products').select('*');
             let html = "";
             if (data) {
@@ -243,6 +261,10 @@
         }
 
         async function loadSales() {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             const { data, error } = await supabase.from('sales').select('id, quantity, sale_date').order('sale_date', { ascending: false }).limit(50);
             let html = "";
             if (data) {
@@ -258,6 +280,10 @@
         }
 
         async function loadVendors() {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             const { data, error } = await supabase.from('vendors').select('*');
             let html = "";
             if (data) {
@@ -287,6 +313,12 @@
             console.log('Adding product:', { barcode, name, price, stock });
 
             if (barcode && name && price && stock) {
+                if (!supabase) {
+                    console.error('Supabase client not initialized');
+                    document.getElementById("productResults").innerHTML = 'Supabase client not initialized';
+                    document.getElementById("productResults").style.display = 'block';
+                    return;
+                }
                 console.log('Sending to Supabase:', { barcode, name, price, stock });
                 const { data, error } = await supabase
                     .from('products')
@@ -306,6 +338,10 @@
         }
 
         async function editProduct(id) {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             const { data: product } = await supabase.from('products').select('*').eq('id', id).single();
             if (product) {
                 const barcode = prompt("Enter new barcode:", product.barcode);
@@ -329,6 +365,10 @@
         }
 
         async function deleteProduct(id) {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             if (confirm("Are you sure you want to delete this product?")) {
                 const { data, error } = await supabase.from('products').delete().eq('id', id);
                 document.getElementById("productResults").innerHTML = error ? "Error: " + error.message : "Product deleted successfully";
@@ -339,6 +379,10 @@
 
         // Sales Functions
         async function recordSale() {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             const barcode = document.getElementById("saleBarcode").value;
             const quantity = parseInt(document.getElementById("saleQuantity").value);
 
@@ -374,6 +418,10 @@
         }
 
         async function deleteSale(id) {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             if (confirm("Are you sure you want to delete this sale?")) {
                 const { data, error } = await supabase.from('sales').delete().eq('id', id);
                 document.getElementById("saleResults").innerHTML = error ? "Error: " + error.message : "Sale deleted successfully";
@@ -383,6 +431,10 @@
         }
 
         async function viewDailyEarnings() {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const { data: sales, error } = await supabase
@@ -407,6 +459,10 @@
 
         // Vendor Functions
         async function addVendor() {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             const name = document.getElementById("vendorName").value;
             const amount_owed = parseFloat(document.getElementById("amountOwed").value);
 
@@ -426,6 +482,10 @@
         }
 
         async function deleteVendor(id) {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             if (confirm("Are you sure you want to delete this vendor?")) {
                 const { data, error } = await supabase.from('vendors').delete().eq('id', id);
                 document.getElementById("vendorResults").innerHTML = error ? "Error: " + error.message : "Vendor deleted successfully";
@@ -435,6 +495,10 @@
         }
 
         async function viewVendorBalance() {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             const { data, error } = await supabase.from('vendors').select('*');
             let result = "Vendor Balances:<br>";
             if (data) {
@@ -448,6 +512,10 @@
 
         // Report Generation
         async function generateReport() {
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return;
+            }
             const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             const { data: sales, error: salesError } = await supabase
                 .from('sales')
