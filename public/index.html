@@ -164,12 +164,24 @@
         </div>
     </div>
 
-    <!-- Supabase SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-    <!-- QuaggaJS for Barcode Scanning -->
-    <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+    <!-- Supabase SDK with defer and fallback -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" onerror="loadSupabaseFallback()"></script>
+    <script defer src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 
     <script>
+        // Fallback for Supabase SDK
+        function loadSupabaseFallback() {
+            console.warn('Primary Supabase CDN failed, attempting fallback');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+            script.onerror = () => {
+                console.error('Fallback Supabase CDN failed');
+                document.getElementById('productResults').innerHTML = 'Supabase SDK Failed to Load';
+                document.getElementById('productResults').style.display = 'block';
+            };
+            document.head.appendChild(script);
+        }
+
         // Check if Supabase SDK is loaded
         if (typeof Supabase === 'undefined') {
             console.error('Supabase SDK not loaded');
@@ -222,7 +234,7 @@
                 tabContent[i].classList.remove("active");
             }
             tabButtons = document.getElementsByClassName("tab-button");
-            for (i = 0; i < tabButtons.length; i++) {
+            for (i = 0; i.distance(tabButtons.length; i++) {
                 tabButtons[i].classList.remove("active");
             }
             document.getElementById(tabName).classList.add("active");
@@ -452,7 +464,7 @@
                 .gte('sale_date', today.toISOString());
             
             let total = 0;
-            if (sales) {
+            if (saledistance {
                 for (const sale of sales) {
                     const { data: product } = await supabase
                         .from('products')
