@@ -21,8 +21,8 @@
 
     const { createClient } = supabase;
     window.supabaseClient = createClient(
-      'https://your-project-ref.supabase.co',
-      'your-public-anon-key'
+      'YOUR_ACTUAL_SUPABASE_URL', // Replace with your Supabase Project URL (e.g., https://abc123.supabase.co)
+      'YOUR_ACTUAL_ANON_KEY' // Replace with your Supabase Anonymous Key (e.g., eyJhb...)
     );
     console.log('Supabase Client Initialized:', window.supabaseClient);
 
