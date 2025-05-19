@@ -4,11 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Supabase App</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #products { margin-top: 20px; }
+    .product { border: 1px solid #ccc; padding: 10px; margin: 5px 0; }
+    .error { color: red; }
+  </style>
 </head>
 <body>
   <h1>Supabase Test App</h1>
   <button onclick="addProduct({ barcode: '123456789', name: 'Test Item', price: 10.99, stock: 50 })">Add Product</button>
   <div id="products"></div>
+  <div id="error" class="error"></div>
 
   <!-- Load Supabase SDK from jsDelivr -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -21,8 +28,8 @@
 
     const { createClient } = supabase;
     window.supabaseClient = createClient(
-      'https://aouduygmcspiqauhrabx.supabase.co', // Replace with your Supabase Project URL (e.g., https://abc123.supabase.co)
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k' // Replace with your Supabase Anonymous Key (e.g., eyJhb...)
+      'https://aouduygmcspiqauhrabx.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBlcmJhc2UiLCJyZWYiOiJhb3VkdXltZ2NzcGlxYXVocmFieCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzI0ODQyNjMwLCJleHAiOjIwNDA0MDkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
     );
     console.log('Supabase Client Initialized:', window.supabaseClient);
 
@@ -47,9 +54,12 @@
         console.log('Products:', data);
         // Display products in the UI
         const productsDiv = document.getElementById('products');
-        productsDiv.innerHTML = data.map(p => `<p>${p.name}: $${p.price} (Stock: ${p.stock})</p>`).join('');
+        productsDiv.innerHTML = data.length
+          ? data.map(p => `<div class="product">${p.name} (Barcode: ${p.barcode}): $${p.price} (Stock: ${p.stock})</div>`).join('')
+          : '<p>No products found.</p>';
       } catch (error) {
         console.error('Error loading products:', error.message);
+        document.getElementById('error').textContent = `Error loading products: ${error.message}`;
       }
     }
 
@@ -65,6 +75,7 @@
         console.log('Sales:', data);
       } catch (error) {
         console.error('Error loading sales:', error.message);
+        document.getElementById('error').textContent = `Error loading sales: ${error.message}`;
       }
     }
 
@@ -80,6 +91,7 @@
         console.log('Vendors:', data);
       } catch (error) {
         console.error('Error loading vendors:', error.message);
+        document.getElementById('error').textContent = `Error loading vendors: ${error.message}`;
       }
     }
 
@@ -93,13 +105,15 @@
       try {
         const { data, error } = await window.supabaseClient
           .from('products')
-          .insert([product]);
+          .insert([product])
+          .select(); // Return the inserted data
         if (error) throw error;
         console.log('Product added:', data);
         // Refresh products list
         loadProducts();
       } catch (error) {
         console.error('Error adding product:', error.message);
+        document.getElementById('error').textContent = `Error adding product: ${error.message}`;
       }
     }
 
