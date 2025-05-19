@@ -164,22 +164,32 @@
         </div>
     </div>
 
-    <!-- Supabase SDK with defer and fallback -->
-    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" onerror="loadSupabaseFallback()"></script>
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" onerror="loadSupabaseCDN(0)"></script>
     <!-- QuaggaJS for Barcode Scanning -->
     <script defer src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 
     <script>
-        // Fallback for Supabase SDK
-        function loadSupabaseFallback() {
-            console.warn('Primary Supabase CDN failed, attempting fallback');
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
-            script.onerror = () => {
-                console.error('Fallback Supabase CDN failed');
-                document.getElementById('productResults').innerHTML = 'Supabase SDK Failed to Load';
+        // Supabase SDK loading with retry mechanism
+        const supabaseCDNs = [
+            'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js',
+            'https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/supabase/2.45.4/supabase.min.js'
+        ];
+
+        function loadSupabaseCDN(attempt) {
+            if (attempt >= supabaseCDNs.length) {
+                console.error('All Supabase CDN attempts failed');
+                document.getElementById('productResults').innerHTML = 'Supabase SDK Failed to Load. Please check your network or try again later.';
                 document.getElementById('productResults').style.display = 'block';
-            };
+                alert('Failed to load Supabase SDK. Please check your internet connection or try again later.');
+                return;
+            }
+            console.warn(`Supabase CDN ${attempt} failed, trying CDN ${attempt + 1}: ${supabaseCDNs[attempt]}`);
+            const script = document.createElement('script');
+            script.src = supabaseCDNs[attempt];
+            script.onerror = () => loadSupabaseCDN(attempt + 1);
+            script.onload = () => console.log(`Supabase CDN ${attempt} loaded successfully`);
             document.head.appendChild(script);
         }
 
@@ -229,7 +239,7 @@
 
         // Tab Navigation
         function openTab(tabName) {
-            var i, tabContent, tabButtons;
+            let i, tabContent, tabButtons;
             tabContent = document.getElementsByClassName("tab-content");
             for (i = 0; i < tabContent.length; i++) {
                 tabContent[i].classList.remove("active");
