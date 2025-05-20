@@ -63,38 +63,6 @@
       }
     }
 
-    // Load sales (placeholder, adjust table name as needed)
-    async function loadSales() {
-      if (!window.supabaseClient) {
-        console.error('Supabase client not initialized');
-        return;
-      }
-      try {
-        const { data, error } = await window.supabaseClient.from('sales').select('*');
-        if (error) throw error;
-        console.log('Sales:', data);
-      } catch (error) {
-        console.error('Error loading sales:', error.message);
-        document.getElementById('error').textContent = `Error loading sales: ${error.message}`;
-      }
-    }
-
-    // Load vendors (placeholder, adjust table name as needed)
-    async function loadVendors() {
-      if (!window.supabaseClient) {
-        console.error('Supabase client not initialized');
-        return;
-      }
-      try {
-        const { data, error } = await window.supabaseClient.from('vendors').select('*');
-        if (error) throw error;
-        console.log('Vendors:', data);
-      } catch (error) {
-        console.error('Error loading vendors:', error.message);
-        document.getElementById('error').textContent = `Error loading vendors: ${error.message}`;
-      }
-    }
-
     // Add product
     async function addProduct(product) {
       if (!window.supabaseClient) {
@@ -121,8 +89,6 @@
     document.addEventListener('DOMContentLoaded', () => {
       testSupabase();
       loadProducts();
-      loadSales();
-      loadVendors();
     });
   </script>
 </body>
