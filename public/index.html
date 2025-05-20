@@ -59,7 +59,10 @@
           : '<p>No products found.</p>';
       } catch (error) {
         console.error('Error loading products:', error.message);
-        document.getElementById('error').textContent = `Error loading products: ${error.message}`;
+        const errorMessage = error.message.includes('Invalid API key')
+          ? 'Failed to load products: Invalid API key or missing RLS policies. Check Supabase settings.'
+          : `Error loading products: ${error.message}`;
+        document.getElementById('error').textContent = errorMessage;
       }
     }
 
@@ -81,7 +84,10 @@
         loadProducts();
       } catch (error) {
         console.error('Error adding product:', error.message);
-        document.getElementById('error').textContent = `Error adding product: ${error.message}`;
+        const errorMessage = error.message.includes('Invalid API key')
+          ? 'Failed to add product: Invalid API key or missing RLS policies. Check Supabase settings.'
+          : `Error adding product: ${error.message}`;
+        document.getElementById('error').textContent = errorMessage;
       }
     }
 
