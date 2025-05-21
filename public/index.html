@@ -9,11 +9,13 @@
     #products { margin-top: 20px; }
     .product { border: 1px solid #ccc; padding: 10px; margin: 5px 0; }
     .error { color: red; }
+    .note { color: #555; font-size: 0.9em; }
   </style>
 </head>
 <body>
   <h1>Supabase Test App</h1>
   <button onclick="addProduct({ barcode: '123456789-' + Date.now(), name: 'Test Item', price: 10.99, stock: 50 })">Add Product</button>
+  <p class="note">Note: Barcodes must be unique. A timestamp is added to ensure uniqueness.</p>
   <div id="products"></div>
   <div id="error" class="error"></div>
 
