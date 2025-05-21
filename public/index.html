@@ -7,9 +7,10 @@
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     #products { margin-top: 20px; }
-    .product { border: 1px solid #ccc; padding: 10px; margin: 5px 0; }
+    .product { border: 1px solid #ccc; padding: 10px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; }
     .error { color: red; }
     .note { color: #555; font-size: 0.9em; }
+    button { margin-left: 10px; }
   </style>
 </head>
 <body>
@@ -57,7 +58,15 @@
         // Display products in the UI
         const productsDiv = document.getElementById('products');
         productsDiv.innerHTML = data.length
-          ? data.map(p => `<div class="product">${p.name} (Barcode: ${p.barcode}): $${p.price} (Stock: ${p.stock})</div>`).join('')
+          ? data.map(p => `
+              <div class="product">
+                <span>${p.name} (Barcode: ${p.barcode}): $${p.price} (Stock: ${p.stock})</span>
+                <div>
+                  <button onclick="updateProduct('${p.barcode}', { stock: ${p.stock + 10} })">Increase Stock (+10)</button>
+                  <button onclick="deleteProduct('${p.barcode}')">Delete</button>
+                </div>
+              </div>
+            `).join('')
           : '<p>No products found.</p>';
       } catch (error) {
         console.error('Error loading products:', error.message);
@@ -93,6 +102,51 @@
           errorMessage = 'Failed to add product: Barcode already exists. Please use a unique barcode.';
         }
         document.getElementById('error').textContent = errorMessage;
+      }
+    }
+
+    // Update product
+    async function updateProduct(barcode, updates) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      console.log('Updating product:', barcode, updates);
+      try {
+        const { data, error } = await window.supabaseClient
+          .from('products')
+          .update(updates)
+          .eq('barcode', barcode)
+          .select();
+        if (error) throw error;
+        console.log('Product updated:', JSON.stringify(data, null, 2));
+        // Refresh products list
+        loadProducts();
+      } catch (error) {
+        console.error('Error updating product:', error.message);
+        document.getElementById('error').textContent = `Error updating product: ${error.message}`;
+      }
+    }
+
+    // Delete product
+    async function deleteProduct(barcode) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      console.log('Deleting product:', barcode);
+      try {
+        const { error } = await window.supabaseClient
+          .from('products')
+          .delete()
+          .eq('barcode', barcode);
+        if (error) throw error;
+        console.log('Product deleted:', barcode);
+        // Refresh products list
+        loadProducts();
+      } catch (error) {
+        console.error('Error deleting product:', error.message);
+        document.getElementById('error').textContent = `Error deleting product: ${error.message}`;
       }
     }
 
