@@ -79,7 +79,7 @@
           .insert([product])
           .select(); // Return the inserted data
         if (error) throw error;
-        console.log('Product added:', data);
+        console.log('Product added:', JSON.stringify(data, null, 2));
         // Refresh products list
         loadProducts();
       } catch (error) {
