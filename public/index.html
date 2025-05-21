@@ -13,7 +13,7 @@
 </head>
 <body>
   <h1>Supabase Test App</h1>
-  <button onclick="addProduct({ barcode: '123456789', name: 'Test Item', price: 10.99, stock: 50 })">Add Product</button>
+  <button onclick="addProduct({ barcode: '123456789-' + Date.now(), name: 'Test Item', price: 10.99, stock: 50 })">Add Product</button>
   <div id="products"></div>
   <div id="error" class="error"></div>
 
@@ -84,9 +84,12 @@
         loadProducts();
       } catch (error) {
         console.error('Error adding product:', error.message);
-        const errorMessage = error.message.includes('Invalid API key')
+        let errorMessage = error.message.includes('Invalid API key')
           ? 'Failed to add product: Invalid API key or missing RLS policies. Check Supabase settings.'
           : `Error adding product: ${error.message}`;
+        if (error.message.includes('duplicate key value violates unique constraint')) {
+          errorMessage = 'Failed to add product: Barcode already exists. Please use a unique barcode.';
+        }
         document.getElementById('error').textContent = errorMessage;
       }
     }
