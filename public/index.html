@@ -19,7 +19,7 @@
 </head>
 <body>
   <h1>Supabase Test App</h1>
-  <form onsubmit="event.preventDefault(); addProduct({ barcode: document.getElementById('barcode').value, name: document.getElementById('name').value, price: parseFloat(document.getElementById('price').value), stock: parseInt(document.getElementById('stock').value) })">
+  <form onsubmit="event.preventDefault(); addProduct({ barcode: document.getElementById('barcode').value.trim(), name: document.getElementById('name').value.trim(), price: parseFloat(document.getElementById('price').value), stock: parseInt(document.getElementById('stock').value) })">
     <input id="barcode" type="text" placeholder="Barcode" required>
     <input id="name" type="text" placeholder="Name" required>
     <input id="price" type="number" step="0.01" min="0" placeholder="Price" required>
@@ -94,9 +94,7 @@
           : '<tr><td colspan="5">No products found.</td></tr>';
       } catch (error) {
         console.error('Error loading products:', error.message);
-        const errorMessage = error.message.includes('Invalid API key')
-          ? 'Failed to load products: Invalid API key or missing RLS policies. Check Supabase settings.'
-          : `Error loading products: ${error.message}`;
+        const errorMessage = `[${new Date().toISOString()}] Failed to load products: ${error.message.includes('Invalid API key') ? 'Invalid API key or missing RLS policies. Check Supabase settings.' : error.message}`;
         document.getElementById('error').textContent = errorMessage;
       }
     }
@@ -107,8 +105,12 @@
         console.error('Supabase client not initialized');
         return;
       }
+      if (!product.barcode || !product.name) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Barcode and name cannot be empty.`;
+        return;
+      }
       if (product.price < 0 || product.stock < 0) {
-        document.getElementById('error').textContent = 'Price and stock must be non-negative.';
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Price and stock must be non-negative.`;
         return;
       }
       console.log('Adding product:', product);
@@ -130,11 +132,9 @@
         loadProducts();
       } catch (error) {
         console.error('Error adding product:', error.message);
-        let errorMessage = error.message.includes('Invalid API key')
-          ? 'Failed to add product: Invalid API key or missing RLS policies. Check Supabase settings.'
-          : `Error adding product: ${error.message}`;
+        let errorMessage = `[${new Date().toISOString()}] Failed to add product: ${error.message.includes('Invalid API key') ? 'Invalid API key or missing RLS policies. Check Supabase settings.' : error.message}`;
         if (error.message.includes('duplicate key value violates unique constraint') || error.message.includes('Barcode already exists')) {
-          errorMessage = 'Failed to add product: Barcode already exists. Please use a unique barcode.';
+          errorMessage = `[${new Date().toISOString()}] Failed to add product: Barcode already exists. Please use a unique barcode.`;
         }
         document.getElementById('error').textContent = errorMessage;
       }
@@ -159,7 +159,7 @@
         loadProducts();
       } catch (error) {
         console.error('Error updating product:', error.message);
-        document.getElementById('error').textContent = `Error updating product: ${error.message}`;
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating product: ${error.message}`;
       }
     }
 
@@ -181,7 +181,7 @@
         loadProducts();
       } catch (error) {
         console.error('Error deleting product:', error.message);
-        document.getElementById('error').textContent = `Error deleting product: ${error.message}`;
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting product: ${error.message}`;
       }
     }
 
