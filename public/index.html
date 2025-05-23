@@ -7,13 +7,14 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    #products { margin-top: 20px; }
-    .product { border: 1px solid #ccc; padding: 10px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+    th { background-color: #f0f0f0; }
     .error { color: red; }
     .note { color: #555; font-size: 0.9em; }
-    button { margin-left: 10px; }
     form { margin: 10px 0; }
     input { margin: 5px; padding: 5px; }
+    button { margin: 5px; }
   </style>
 </head>
 <body>
@@ -21,12 +22,23 @@
   <form onsubmit="event.preventDefault(); addProduct({ barcode: document.getElementById('barcode').value, name: document.getElementById('name').value, price: parseFloat(document.getElementById('price').value), stock: parseInt(document.getElementById('stock').value) })">
     <input id="barcode" type="text" placeholder="Barcode" required>
     <input id="name" type="text" placeholder="Name" required>
-    <input id="price" type="number" step="0.01" placeholder="Price" required>
-    <input id="stock" type="number" placeholder="Stock" required>
+    <input id="price" type="number" step="0.01" min="0" placeholder="Price" required>
+    <input id="stock" type="number" min="0" placeholder="Stock" required>
     <button type="submit">Add Product</button>
   </form>
   <p class="note">Note: Barcodes must be unique.</p>
-  <div id="products"></div>
+  <table id="products">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Barcode</th>
+        <th>Price</th>
+        <th>Stock</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
   <div id="error" class="error"></div>
 
   <!-- Load Supabase SDK from jsDelivr -->
@@ -65,18 +77,21 @@
         if (error) throw error;
         console.log('Products:', data);
         // Display products in the UI
-        const productsDiv = document.getElementById('products');
-        productsDiv.innerHTML = data.length
+        const productsBody = document.querySelector('#products tbody');
+        productsBody.innerHTML = data.length
           ? data.map(p => `
-              <div class="product">
-                <span>${p.name} (Barcode: ${p.barcode}): $${p.price} (Stock: ${p.stock})</span>
-                <div>
+              <tr>
+                <td>${p.name}</td>
+                <td>${p.barcode}</td>
+                <td>$${p.price}</td>
+                <td>${p.stock}</td>
+                <td>
                   <button onclick="updateProduct('${p.barcode}', { stock: ${p.stock + 10} })">Increase Stock (+10)</button>
-                  <button onclick="deleteProduct('${p.barcode}')">Delete</button>
-                </div>
-              </div>
+                  <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')">Delete</button>
+                </td>
+              </tr>
             `).join('')
-          : '<p>No products found.</p>';
+          : '<tr><td colspan="5">No products found.</td></tr>';
       } catch (error) {
         console.error('Error loading products:', error.message);
         const errorMessage = error.message.includes('Invalid API key')
@@ -92,6 +107,10 @@
         console.error('Supabase client not initialized');
         return;
       }
+      if (product.price < 0 || product.stock < 0) {
+        document.getElementById('error').textContent = 'Price and stock must be non-negative.';
+        return;
+      }
       console.log('Adding product:', product);
       try {
         // Check for existing barcode
@@ -100,7 +119,7 @@
           .select('barcode')
           .eq('barcode', product.barcode);
         if (existing.length > 0) throw new Error('Barcode already exists');
-        
+
         const { data, error } = await window.supabaseClient
           .from('products')
           .insert([product])
