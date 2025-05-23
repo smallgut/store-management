@@ -13,6 +13,7 @@
     .error { color: red; }
     .success { color: green; }
     .note { color: #555; font-size: 0.9em; }
+    .loading { color: blue; }
     form { margin: 10px 0; }
     input { margin: 5px; padding: 5px; }
     button { margin: 5px; }
@@ -28,6 +29,7 @@
     <button type="submit">Add Product</button>
   </form>
   <p class="note">Note: Barcodes must be unique.</p>
+  <button onclick="sortProducts('price')">Sort by Price</button>
   <table id="products">
     <thead>
       <tr>
@@ -42,6 +44,7 @@
   </table>
   <div id="message" class="success"></div>
   <div id="error" class="error"></div>
+  <div id="loading" class="loading"></div>
 
   <!-- Load Supabase SDK from jsDelivr -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -51,6 +54,11 @@
       setTimeout(() => {
         document.getElementById(type).textContent = '';
       }, 5000);
+    }
+
+    // Set loading state
+    function setLoading(isLoading) {
+      document.getElementById('loading').textContent = isLoading ? 'Loading...' : '';
     }
 
     // Initialize Supabase client
@@ -81,6 +89,7 @@
         console.error('Supabase client not initialized');
         return;
       }
+      setLoading(true);
       try {
         const { data, error } = await window.supabaseClient.from('products').select('*');
         if (error) throw error;
@@ -106,6 +115,44 @@
         const errorMessage = `[${new Date().toISOString()}] Failed to load products: ${error.message.includes('Invalid API key') ? 'Invalid API key or missing RLS policies. Check Supabase settings.' : error.message}`;
         document.getElementById('error').textContent = errorMessage;
         clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Sort products
+    async function sortProducts(by) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      setLoading(true);
+      try {
+        const { data, error } = await window.supabaseClient.from('products').select('*').order(by);
+        if (error) throw error;
+        console.log('Sorted products:', data);
+        // Display sorted products in the UI
+        const productsBody = document.querySelector('#products tbody');
+        productsBody.innerHTML = data.length
+          ? data.map(p => `
+              <tr>
+                <td>${p.name}</td>
+                <td>${p.barcode}</td>
+                <td>$${p.price}</td>
+                <td>${p.stock}</td>
+                <td>
+                  <button onclick="updateProduct('${p.barcode}', { stock: ${p.stock + 10} })">Increase Stock (+10)</button>
+                  <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')">Delete</button>
+                </td>
+              </tr>
+            `).join('')
+          : '<tr><td colspan="5">No products found.</td></tr>';
+      } catch (error) {
+        console.error('Error sorting products:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error sorting products: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -126,6 +173,7 @@
         return;
       }
       console.log('Adding product:', product);
+      setLoading(true);
       try {
         // Check for existing barcode
         const { data: existing } = await window.supabaseClient
@@ -152,6 +200,8 @@
         }
         document.getElementById('error').textContent = errorMessage;
         clearMessage('error');
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -162,6 +212,7 @@
         return;
       }
       console.log('Updating product:', barcode, updates);
+      setLoading(true);
       try {
         const { data, error } = await window.supabaseClient
           .from('products')
@@ -178,6 +229,8 @@
         console.error('Error updating product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating product: ${error.message}`;
         clearMessage('error');
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -188,6 +241,7 @@
         return;
       }
       console.log('Deleting product:', barcode);
+      setLoading(true);
       try {
         const { error } = await window.supabaseClient
           .from('products')
@@ -203,6 +257,8 @@
         console.error('Error deleting product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting product: ${error.message}`;
         clearMessage('error');
+      } finally {
+        setLoading(false);
       }
     }
 
