@@ -11,6 +11,7 @@
     th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
     th { background-color: #f0f0f0; }
     .error { color: red; }
+    .success { color: green; }
     .note { color: #555; font-size: 0.9em; }
     form { margin: 10px 0; }
     input { margin: 5px; padding: 5px; }
@@ -39,11 +40,19 @@
     </thead>
     <tbody></tbody>
   </table>
+  <div id="message" class="success"></div>
   <div id="error" class="error"></div>
 
   <!-- Load Supabase SDK from jsDelivr -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
+    // Clear message after timeout
+    function clearMessage(type = 'error') {
+      setTimeout(() => {
+        document.getElementById(type).textContent = '';
+      }, 5000);
+    }
+
     // Initialize Supabase client
     if (typeof supabase === 'undefined') {
       console.error('Supabase SDK not loaded');
@@ -96,6 +105,7 @@
         console.error('Error loading products:', error.message);
         const errorMessage = `[${new Date().toISOString()}] Failed to load products: ${error.message.includes('Invalid API key') ? 'Invalid API key or missing RLS policies. Check Supabase settings.' : error.message}`;
         document.getElementById('error').textContent = errorMessage;
+        clearMessage('error');
       }
     }
 
@@ -107,10 +117,12 @@
       }
       if (!product.barcode || !product.name) {
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Barcode and name cannot be empty.`;
+        clearMessage('error');
         return;
       }
       if (product.price < 0 || product.stock < 0) {
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Price and stock must be non-negative.`;
+        clearMessage('error');
         return;
       }
       console.log('Adding product:', product);
@@ -128,6 +140,8 @@
           .select();
         if (error) throw error;
         console.log('Product added:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Product added: ${product.name}`;
+        clearMessage('message');
         // Refresh products list
         loadProducts();
       } catch (error) {
@@ -137,6 +151,7 @@
           errorMessage = `[${new Date().toISOString()}] Failed to add product: Barcode already exists. Please use a unique barcode.`;
         }
         document.getElementById('error').textContent = errorMessage;
+        clearMessage('error');
       }
     }
 
@@ -155,11 +170,14 @@
           .select();
         if (error) throw error;
         console.log('Product updated:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Product updated: ${barcode}`;
+        clearMessage('message');
         // Refresh products list
         loadProducts();
       } catch (error) {
         console.error('Error updating product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating product: ${error.message}`;
+        clearMessage('error');
       }
     }
 
@@ -177,11 +195,14 @@
           .eq('barcode', barcode);
         if (error) throw error;
         console.log('Product deleted:', barcode);
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Product deleted: ${barcode}`;
+        clearMessage('message');
         // Refresh products list
         loadProducts();
       } catch (error) {
         console.error('Error deleting product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting product: ${error.message}`;
+        clearMessage('error');
       }
     }
 
