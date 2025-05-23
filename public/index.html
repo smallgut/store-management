@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Supabase App</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     #products { margin-top: 20px; }
@@ -11,12 +12,20 @@
     .error { color: red; }
     .note { color: #555; font-size: 0.9em; }
     button { margin-left: 10px; }
+    form { margin: 10px 0; }
+    input { margin: 5px; padding: 5px; }
   </style>
 </head>
 <body>
   <h1>Supabase Test App</h1>
-  <button onclick="addProduct({ barcode: '123456789-' + Date.now(), name: 'Test Item', price: 10.99, stock: 50 })">Add Product</button>
-  <p class="note">Note: Barcodes must be unique. A timestamp is added to ensure uniqueness.</p>
+  <form onsubmit="event.preventDefault(); addProduct({ barcode: document.getElementById('barcode').value, name: document.getElementById('name').value, price: parseFloat(document.getElementById('price').value), stock: parseInt(document.getElementById('stock').value) })">
+    <input id="barcode" type="text" placeholder="Barcode" required>
+    <input id="name" type="text" placeholder="Name" required>
+    <input id="price" type="number" step="0.01" placeholder="Price" required>
+    <input id="stock" type="number" placeholder="Stock" required>
+    <button type="submit">Add Product</button>
+  </form>
+  <p class="note">Note: Barcodes must be unique.</p>
   <div id="products"></div>
   <div id="error" class="error"></div>
 
@@ -34,7 +43,7 @@
       'https://aouduygmcspiqauhrabx.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
     );
-    console.log('Supabase Client Initialized:', window.supabaseClient);
+    console.log('Supabase Client Initialized:', Object.keys(window.supabaseClient));
 
     // Test Supabase connection
     async function testSupabase() {
@@ -42,7 +51,7 @@
         console.error('Supabase client not initialized');
         return;
       }
-      console.log('Supabase client is ready:', window.supabaseClient);
+      console.log('Supabase client is ready:', Object.keys(window.supabaseClient));
     }
 
     // Load products
@@ -85,10 +94,17 @@
       }
       console.log('Adding product:', product);
       try {
+        // Check for existing barcode
+        const { data: existing } = await window.supabaseClient
+          .from('products')
+          .select('barcode')
+          .eq('barcode', product.barcode);
+        if (existing.length > 0) throw new Error('Barcode already exists');
+        
         const { data, error } = await window.supabaseClient
           .from('products')
           .insert([product])
-          .select(); // Return the inserted data
+          .select();
         if (error) throw error;
         console.log('Product added:', JSON.stringify(data, null, 2));
         // Refresh products list
@@ -98,7 +114,7 @@
         let errorMessage = error.message.includes('Invalid API key')
           ? 'Failed to add product: Invalid API key or missing RLS policies. Check Supabase settings.'
           : `Error adding product: ${error.message}`;
-        if (error.message.includes('duplicate key value violates unique constraint')) {
+        if (error.message.includes('duplicate key value violates unique constraint') || error.message.includes('Barcode already exists')) {
           errorMessage = 'Failed to add product: Barcode already exists. Please use a unique barcode.';
         }
         document.getElementById('error').textContent = errorMessage;
