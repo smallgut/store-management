@@ -30,6 +30,7 @@
   </form>
   <p class="note">Note: Barcodes must be unique.</p>
   <button onclick="sortProducts('price')">Sort by Price</button>
+  <button onclick="sortProducts('stock')">Sort by Stock</button>
   <table id="products">
     <thead>
       <tr>
@@ -190,8 +191,7 @@
         console.log('Product added:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product added: ${product.name}`;
         clearMessage('message');
-        // Refresh products list
-        loadProducts();
+        // Refresh products list (handled by subscription)
       } catch (error) {
         console.error('Error adding product:', error.message);
         let errorMessage = `[${new Date().toISOString()}] Failed to add product: ${error.message.includes('Invalid API key') ? 'Invalid API key or missing RLS policies. Check Supabase settings.' : error.message}`;
@@ -223,8 +223,7 @@
         console.log('Product updated:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product updated: ${barcode}`;
         clearMessage('message');
-        // Refresh products list
-        loadProducts();
+        // Refresh products list (handled by subscription)
       } catch (error) {
         console.error('Error updating product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating product: ${error.message}`;
@@ -251,8 +250,7 @@
         console.log('Product deleted:', barcode);
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product deleted: ${barcode}`;
         clearMessage('message');
-        // Refresh products list
-        loadProducts();
+        // Refresh products list (handled by subscription)
       } catch (error) {
         console.error('Error deleting product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting product: ${error.message}`;
@@ -262,10 +260,28 @@
       }
     }
 
+    // Set up real-time subscription
+    function setupRealtime() {
+      window.supabaseClient
+        .channel('products')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'products' },
+          (payload) => {
+            console.log('Realtime update:', payload);
+            loadProducts();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+        });
+    }
+
     // Run on page load
     document.addEventListener('DOMContentLoaded', () => {
       testSupabase();
       loadProducts();
+      setupRealtime();
     });
   </script>
 </body>
