@@ -52,6 +52,12 @@
       <input id="vendor-email" type="email" placeholder="Contact Email" class="border p-2 rounded">
       <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Add Vendor</button>
     </form>
+    <form onsubmit="event.preventDefault(); updateVendor(parseInt(document.getElementById('edit-vendor-id').value), { name: document.getElementById('edit-vendor-name').value.trim(), contact_email: document.getElementById('edit-vendor-email').value.trim() })" class="mb-4 space-y-2">
+      <input id="edit-vendor-id" type="number" placeholder="Vendor ID" required class="border p-2 rounded">
+      <input id="edit-vendor-name" type="text" placeholder="Vendor Name" required class="border p-2 rounded">
+      <input id="edit-vendor-email" type="email" placeholder="Contact Email" class="border p-2 rounded">
+      <button type="submit" class="bg-yellow-500 text-white p-2 rounded hover:bg-yellow-600">Update Vendor</button>
+    </form>
     <p class="text-gray-600 text-sm mb-2">Note: Vendor names must be unique.</p>
     <table id="vendors" class="w-full border-collapse mt-4 bg-white shadow">
       <thead>
@@ -209,10 +215,22 @@
       }
       setLoading(true);
       try {
-        // Simplified query to avoid relationship issues
-        const { data: sales, error } = await window.supabaseClient.from('sales').select('id, product_barcode, vendor_id, quantity, sale_date').order('sale_date', { ascending: false });
-        if (error) throw error;
-        // Fetch product and vendor names separately
+        // Try product_barcode, fallback to barcode
+        let sales = [];
+        try {
+          const { data, error } = await window.supabaseClient.from('sales').select('id, product_barcode, vendor_id, quantity, sale_date').order('sale_date', { ascending: false });
+          if (error) throw error;
+          sales = data;
+        } catch (e) {
+          if (e.message.includes('column sales.product_barcode does not exist')) {
+            const { data, error } = await window.supabaseClient.from('sales').select('id, barcode, vendor_id, quantity, sale_date').order('sale_date', { ascending: false });
+            if (error) throw error;
+            sales = data.map(s => ({ ...s, product_barcode: s.barcode }));
+          } else {
+            throw e;
+          }
+        }
+        // Fetch product and vendor names
         const productBarcodes = [...new Set(sales.map(s => s.product_barcode))];
         const vendorIds = [...new Set(sales.map(s => s.vendor_id))];
         const { data: products } = await window.supabaseClient.from('products').select('barcode, name').in('barcode', productBarcodes);
@@ -239,7 +257,7 @@
           : '<tr><td colspan="5" class="border p-2">No sales found.</td></tr>';
       } catch (error) {
         console.error('Error loading sales:', error.message);
-        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load sales: ${error.message.includes('relationship') ? 'Check foreign key constraints in sales table.' : error.message}`;
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load sales: ${error.message.includes('column') ? 'Check sales table schema (product_barcode or barcode column).' : error.message}`;
         clearMessage('error');
       } finally {
         setLoading(false);
@@ -430,6 +448,45 @@
       }
     }
 
+    // Update vendor
+    async function updateVendor(id, updates) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      if (!id || !updates.name) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Vendor ID and name cannot be empty.`;
+        clearMessage('error');
+        return;
+      }
+      console.log('Updating vendor:', id, updates);
+      setLoading(true);
+      try {
+        const { data: existing } = await window.supabaseClient
+          .from('vendors')
+          .select('id')
+          .eq('name', updates.name)
+          .neq('id', id);
+        if (existing.length > 0) throw new Error('Vendor name already exists');
+        const { data, error } = await window.supabaseClient
+          .from('vendors')
+          .update(updates)
+          .eq('id', id)
+          .select();
+        if (error) throw error;
+        if (!data.length) throw new Error('Vendor not found');
+        console.log('Vendor updated:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor updated: ${updates.name}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error updating vendor:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating vendor: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
     // Delete vendor
     async function deleteVendor(id) {
       if (!window.supabaseClient) {
@@ -479,18 +536,33 @@
         if (!product) throw new Error('Product not found');
         if (product.stock < sale.quantity) throw new Error(`Insufficient stock: ${product.stock} available`);
 
-        // Insert sale and update stock
-        const { data, error } = await window.supabaseClient
-          .from('sales')
-          .insert([sale])
-          .select();
-        if (error) throw error;
+        // Insert sale (use product_barcode or barcode based on schema)
+        let insertSale = sale;
+        try {
+          const { data, error } = await window.supabaseClient
+            .from('sales')
+            .insert([insertSale])
+            .select();
+          if (error) throw error;
+          console.log('Sale added:', JSON.stringify(data, null, 2));
+        } catch (e) {
+          if (e.message.includes('column product_barcode does not exist')) {
+            insertSale = { barcode: sale.product_barcode, vendor_id: sale.vendor_id, quantity: sale.quantity };
+            const { data, error } = await window.supabaseClient
+              .from('sales')
+              .insert([insertSale])
+              .select();
+            if (error) throw error;
+            console.log('Sale added (using barcode):', JSON.stringify(data, null, 2));
+          } else {
+            throw e;
+          }
+        }
         // Update product stock
         await window.supabaseClient
           .from('products')
           .update({ stock: product.stock - sale.quantity })
           .eq('barcode', sale.product_barcode);
-        console.log('Sale added:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale recorded for ${sale.product_barcode}`;
         clearMessage('message');
       } catch (error) {
