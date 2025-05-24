@@ -3,51 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Supabase App</title>
+  <title>Supabase Inventory</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-    th { background-color: #f0f0f0; }
-    .error { color: red; }
-    .success { color: green; }
-    .note { color: #555; font-size: 0.9em; }
-    .loading { color: blue; }
-    form { margin: 10px 0; }
-    input { margin: 5px; padding: 5px; }
-    button { margin: 5px; }
-  </style>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-  <h1>Supabase Test App</h1>
-  <form onsubmit="event.preventDefault(); addProduct({ barcode: document.getElementById('barcode').value.trim(), name: document.getElementById('name').value.trim(), price: parseFloat(document.getElementById('price').value), stock: parseInt(document.getElementById('stock').value) })">
-    <input id="barcode" type="text" placeholder="Barcode" required>
-    <input id="name" type="text" placeholder="Name" required>
-    <input id="price" type="number" step="0.01" min="0" placeholder="Price" required>
-    <input id="stock" type="number" min="0" placeholder="Stock" required>
-    <button type="submit">Add Product</button>
-  </form>
-  <p class="note">Note: Barcodes must be unique.</p>
-  <button onclick="sortProducts('price')">Sort by Price</button>
-  <button onclick="sortProducts('stock')">Sort by Stock</button>
-  <table id="products">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Barcode</th>
-        <th>Price</th>
-        <th>Stock</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <div id="message" class="success"></div>
-  <div id="error" class="error"></div>
-  <div id="loading" class="loading"></div>
+<body class="p-6 bg-gray-100 min-h-screen">
+  <h1 class="text-3xl font-bold mb-6">Supabase Inventory Management</h1>
 
-  <!-- Load Supabase SDK from jsDelivr -->
+  <!-- Products Section -->
+  <div class="mb-8">
+    <h2 class="text-2xl font-semibold mb-4">Manage Products</h2>
+    <form onsubmit="event.preventDefault(); addProduct({ barcode: document.getElementById('barcode').value.trim(), name: document.getElementById('name').value.trim(), price: parseFloat(document.getElementById('price').value), stock: parseInt(document.getElementById('stock').value) })" class="mb-4 space-y-2">
+      <input id="barcode" type="text" placeholder="Barcode" required class="border p-2 rounded">
+      <input id="name" type="text" placeholder="Name" required class="border p-2 rounded">
+      <input id="price" type="number" step="0.01" min="0" placeholder="Price" required class="border p-2 rounded">
+      <input id="stock" type="number" min="0" placeholder="Stock" required class="border p-2 rounded">
+      <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Add Product</button>
+    </form>
+    <p class="text-gray-600 text-sm mb-2">Note: Barcodes must be unique.</p>
+    <button onclick="sortProducts('price')" class="bg-gray-300 p-2 rounded mr-2 hover:bg-gray-400">Sort by Price</button>
+    <button onclick="sortProducts('stock')" class="bg-gray-300 p-2 rounded hover:bg-gray-400">Sort by Stock</button>
+    <table id="products" class="w-full border-collapse mt-4 bg-white shadow">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">Name</th>
+          <th class="border p-2">Barcode</th>
+          <th class="border p-2">Price</th>
+          <th class="border p-2">Stock</th>
+          <th class="border p-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- Vendors Section -->
+  <div class="mb-8">
+    <h2 class="text-2xl font-semibold mb-4">Manage Vendors</h2>
+    <form onsubmit="event.preventDefault(); addVendor({ name: document.getElementById('vendor-name').value.trim(), contact_email: document.getElementById('vendor-email').value.trim() })" class="mb-4 space-y-2">
+      <input id="vendor-name" type="text" placeholder="Vendor Name" required class="border p-2 rounded">
+      <input id="vendor-email" type="email" placeholder="Contact Email" class="border p-2 rounded">
+      <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Add Vendor</button>
+    </form>
+    <p class="text-gray-600 text-sm mb-2">Note: Vendor names must be unique.</p>
+    <table id="vendors" class="w-full border-collapse mt-4 bg-white shadow">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">Name</th>
+          <th class="border p-2">Contact Email</th>
+          <th class="border p-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- Sales Section -->
+  <div class="mb-8">
+    <h2 class="text-2xl font-semibold mb-4">Record Sales</h2>
+    <form onsubmit="event.preventDefault(); addSale({ product_barcode: document.getElementById('sale-barcode').value.trim(), vendor_id: parseInt(document.getElementById('sale-vendor').value), quantity: parseInt(document.getElementById('sale-quantity').value) })" class="mb-4 space-y-2">
+      <input id="sale-barcode" type="text" placeholder="Product Barcode" required class="border p-2 rounded">
+      <select id="sale-vendor" required class="border p-2 rounded">
+        <option value="">Select Vendor</option>
+      </select>
+      <input id="sale-quantity" type="number" min="1" placeholder="Quantity" required class="border p-2 rounded">
+      <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Record Sale</button>
+    </form>
+    <table id="sales" class="w-full border-collapse mt-4 bg-white shadow">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">Product</th>
+          <th class="border p-2">Vendor</th>
+          <th class="border p-2">Quantity</th>
+          <th class="border p-2">Date</th>
+          <th class="border p-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="message" class="text-green-600 mb-4"></div>
+  <div id="error" class="text-red-600 mb-4"></div>
+  <div id="loading" class="text-blue-600 mb-4"></div>
+
+  <!-- Load Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     // Clear message after timeout
@@ -95,26 +135,93 @@
         const { data, error } = await window.supabaseClient.from('products').select('*');
         if (error) throw error;
         console.log('Products:', data);
-        // Display products in the UI
         const productsBody = document.querySelector('#products tbody');
         productsBody.innerHTML = data.length
           ? data.map(p => `
               <tr>
-                <td>${p.name}</td>
-                <td>${p.barcode}</td>
-                <td>$${p.price}</td>
-                <td>${p.stock}</td>
-                <td>
-                  <button onclick="updateProduct('${p.barcode}', { stock: ${p.stock + 10} })">Increase Stock (+10)</button>
-                  <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')">Delete</button>
+                <td class="border p-2">${p.name}</td>
+                <td class="border p-2">${p.barcode}</td>
+                <td class="border p-2">$${p.price}</td>
+                <td class="border p-2">${p.stock}</td>
+                <td class="border p-2">
+                  <button onclick="updateProduct('${p.barcode}', { stock: ${p.stock + 10} })" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Increase Stock (+10)</button>
+                  <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
                 </td>
               </tr>
             `).join('')
-          : '<tr><td colspan="5">No products found.</td></tr>';
+          : '<tr><td colspan="5" class="border p-2">No products found.</td></tr>';
       } catch (error) {
         console.error('Error loading products:', error.message);
-        const errorMessage = `[${new Date().toISOString()}] Failed to load products: ${error.message.includes('Invalid API key') ? 'Invalid API key or missing RLS policies. Check Supabase settings.' : error.message}`;
-        document.getElementById('error').textContent = errorMessage;
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load products: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Load vendors
+    async function loadVendors() {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      setLoading(true);
+      try {
+        const { data, error } = await window.supabaseClient.from('vendors').select('*');
+        if (error) throw error;
+        console.log('Vendors:', data);
+        const vendorsBody = document.querySelector('#vendors tbody');
+        vendorsBody.innerHTML = data.length
+          ? data.map(v => `
+              <tr>
+                <td class="border p-2">${v.name}</td>
+                <td class="border p-2">${v.contact_email || '-'}</td>
+                <td class="border p-2">
+                  <button onclick="if (confirm('Delete ${v.name}?')) deleteVendor(${v.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
+                </td>
+              </tr>
+            `).join('')
+          : '<tr><td colspan="3" class="border p-2">No vendors found.</td></tr>';
+        // Populate vendor dropdown
+        const vendorSelect = document.getElementById('sale-vendor');
+        vendorSelect.innerHTML = '<option value="">Select Vendor</option>' + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+      } catch (error) {
+        console.error('Error loading vendors:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load vendors: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Load sales
+    async function loadSales() {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      setLoading(true);
+      try {
+        const { data: sales, error } = await window.supabaseClient.from('sales').select('*, products(name), vendors(name: vendor_name)').order('sale_date', { ascending: false });
+        if (error) throw error;
+        console.log('Sales:', sales);
+        const salesBody = document.querySelector('#sales tbody');
+        salesBody.innerHTML = sales.length
+          ? sales.map(s => `
+              <tr>
+                <td class="border p-2">${s.products.name}</td>
+                <td class="border p-2">${s.vendors.vendor_name}</td>
+                <td class="border p-2">${s.quantity}</td>
+                <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
+                <td class="border p-2">
+                  <button onclick="if (confirm('Delete sale for ${s.products.name}?')) deleteSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
+                </td>
+              </tr>
+            `).join('')
+          : '<tr><td colspan="5" class="border p-2">No sales found.</td></tr>';
+      } catch (error) {
+        console.error('Error loading sales:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load sales: ${error.message}`;
         clearMessage('error');
       } finally {
         setLoading(false);
@@ -132,22 +239,21 @@
         const { data, error } = await window.supabaseClient.from('products').select('*').order(by);
         if (error) throw error;
         console.log('Sorted products:', data);
-        // Display sorted products in the UI
         const productsBody = document.querySelector('#products tbody');
         productsBody.innerHTML = data.length
           ? data.map(p => `
               <tr>
-                <td>${p.name}</td>
-                <td>${p.barcode}</td>
-                <td>$${p.price}</td>
-                <td>${p.stock}</td>
-                <td>
-                  <button onclick="updateProduct('${p.barcode}', { stock: ${p.stock + 10} })">Increase Stock (+10)</button>
-                  <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')">Delete</button>
+                <td class="border p-2">${p.name}</td>
+                <td class="border p-2">${p.barcode}</td>
+                <td class="border p-2">$${p.price}</td>
+                <td class="border p-2">${p.stock}</td>
+                <td class="border p-2">
+                  <button onclick="updateProduct('${p.barcode}', { stock: ${p.stock + 10} })" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Increase Stock (+10)</button>
+                  <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
                 </td>
               </tr>
             `).join('')
-          : '<tr><td colspan="5">No products found.</td></tr>';
+          : '<tr><td colspan="5" class="border p-2">No products found.</td></tr>';
       } catch (error) {
         console.error('Error sorting products:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error sorting products: ${error.message}`;
@@ -176,13 +282,11 @@
       console.log('Adding product:', product);
       setLoading(true);
       try {
-        // Check for existing barcode
         const { data: existing } = await window.supabaseClient
           .from('products')
           .select('barcode')
           .eq('barcode', product.barcode);
         if (existing.length > 0) throw new Error('Barcode already exists');
-
         const { data, error } = await window.supabaseClient
           .from('products')
           .insert([product])
@@ -191,12 +295,11 @@
         console.log('Product added:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product added: ${product.name}`;
         clearMessage('message');
-        // Refresh products list (handled by subscription)
       } catch (error) {
         console.error('Error adding product:', error.message);
-        let errorMessage = `[${new Date().toISOString()}] Failed to add product: ${error.message.includes('Invalid API key') ? 'Invalid API key or missing RLS policies. Check Supabase settings.' : error.message}`;
-        if (error.message.includes('duplicate key value violates unique constraint') || error.message.includes('Barcode already exists')) {
-          errorMessage = `[${new Date().toISOString()}] Failed to add product: Barcode already exists. Please use a unique barcode.`;
+        let errorMessage = `[${new Date().toISOString()}] Failed to add product: ${error.message}`;
+        if (error.message.includes('duplicate key value') || error.message.includes('Barcode already exists')) {
+          errorMessage = `[${new Date().toISOString()}] Failed to add product: Barcode already exists.`;
         }
         document.getElementById('error').textContent = errorMessage;
         clearMessage('error');
@@ -223,7 +326,6 @@
         console.log('Product updated:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product updated: ${barcode}`;
         clearMessage('message');
-        // Refresh products list (handled by subscription)
       } catch (error) {
         console.error('Error updating product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating product: ${error.message}`;
@@ -250,7 +352,6 @@
         console.log('Product deleted:', barcode);
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product deleted: ${barcode}`;
         clearMessage('message');
-        // Refresh products list (handled by subscription)
       } catch (error) {
         console.error('Error deleting product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting product: ${error.message}`;
@@ -260,20 +361,189 @@
       }
     }
 
-    // Set up real-time subscription
+    // Add vendor
+    async function addVendor(vendor) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      if (!vendor.name) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Vendor name cannot be empty.`;
+        clearMessage('error');
+        return;
+      }
+      console.log('Adding vendor:', vendor);
+      setLoading(true);
+      try {
+        const { data: existing } = await window.supabaseClient
+          .from('vendors')
+          .select('name')
+          .eq('name', vendor.name);
+        if (existing.length > 0) throw new Error('Vendor name already exists');
+        const { data, error } = await window.supabaseClient
+          .from('vendors')
+          .insert([vendor])
+          .select();
+        if (error) throw error;
+        console.log('Vendor added:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor added: ${vendor.name}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error adding vendor:', error.message);
+        let errorMessage = `[${new Date().toISOString()}] Failed to add vendor: ${error.message}`;
+        if (error.message.includes('duplicate key value') || error.message.includes('Vendor name already exists')) {
+          errorMessage = `[${new Date().toISOString()}] Failed to add vendor: Vendor name already exists.`;
+        }
+        document.getElementById('error').textContent = errorMessage;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Delete vendor
+    async function deleteVendor(id) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      console.log('Deleting vendor:', id);
+      setLoading(true);
+      try {
+        const { error } = await window.supabaseClient
+          .from('vendors')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+        console.log('Vendor deleted:', id);
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor deleted: ${id}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error deleting vendor:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting vendor: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Add sale
+    async function addSale(sale) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      if (!sale.product_barcode || !sale.vendor_id || sale.quantity <= 0) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Product barcode, vendor, and quantity (>0) are required.`;
+        clearMessage('error');
+        return;
+      }
+      console.log('Adding sale:', sale);
+      setLoading(true);
+      try {
+        // Check product stock
+        const { data: product } = await window.supabaseClient
+          .from('products')
+          .select('stock')
+          .eq('barcode', sale.product_barcode)
+          .single();
+        if (!product) throw new Error('Product not found');
+        if (product.stock < sale.quantity) throw new Error(`Insufficient stock: ${product.stock} available`);
+
+        // Insert sale and update stock
+        const { data, error } = await window.supabaseClient
+          .from('sales')
+          .insert([sale])
+          .select();
+        if (error) throw error;
+        // Update product stock
+        await window.supabaseClient
+          .from('products')
+          .update({ stock: product.stock - sale.quantity })
+          .eq('barcode', sale.product_barcode);
+        console.log('Sale added:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale recorded for ${sale.product_barcode}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error adding sale:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to add sale: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Delete sale
+    async function deleteSale(id) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      console.log('Deleting sale:', id);
+      setLoading(true);
+      try {
+        const { error } = await window.supabaseClient
+          .from('sales')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+        console.log('Sale deleted:', id);
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale deleted: ${id}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error deleting sale:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting sale: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Set up real-time subscriptions
     function setupRealtime() {
+      // Products
       window.supabaseClient
         .channel('products')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'products' },
           (payload) => {
-            console.log('Realtime update:', payload);
+            console.log('Realtime update (products):', payload);
             loadProducts();
           }
         )
         .subscribe((status) => {
-          console.log('Subscription status:', status);
+          console.log('Subscription status (products):', status);
+        });
+
+      // Vendors
+      window.supabaseClient
+        .channel('vendors')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'vendors' },
+          (payload) => {
+            console.log('Realtime update (vendors):', payload);
+            loadVendors();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status (vendors):', status);
+        });
+
+      // Sales
+      window.supabaseClient
+        .channel('sales')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'sales' },
+          (payload) => {
+            console.log('Realtime update (sales):', payload);
+            loadSales();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status (sales):', status);
         });
     }
 
@@ -281,6 +551,8 @@
     document.addEventListener('DOMContentLoaded', () => {
       testSupabase();
       loadProducts();
+      loadVendors();
+      loadSales();
       setupRealtime();
     });
   </script>
