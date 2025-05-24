@@ -20,6 +20,13 @@
       <input id="stock" type="number" min="0" placeholder="Stock" required class="border p-2 rounded">
       <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Add Product</button>
     </form>
+    <form onsubmit="event.preventDefault(); updateProduct(document.getElementById('edit-barcode').value.trim(), { name: document.getElementById('edit-name').value.trim(), price: parseFloat(document.getElementById('edit-price').value), stock: parseInt(document.getElementById('edit-stock').value) })" class="mb-4 space-y-2">
+      <input id="edit-barcode" type="text" placeholder="Barcode" required class="border p-2 rounded">
+      <input id="edit-name" type="text" placeholder="Name" required class="border p-2 rounded">
+      <input id="edit-price" type="number" step="0.01" min="0" placeholder="Price" required class="border p-2 rounded">
+      <input id="edit-stock" type="number" min="0" placeholder="Stock" required class="border p-2 rounded">
+      <button type="submit" class="bg-yellow-500 text-white p-2 rounded hover:bg-yellow-600">Update Product</button>
+    </form>
     <p class="text-gray-600 text-sm mb-2">Note: Barcodes must be unique.</p>
     <button onclick="sortProducts('price')" class="bg-gray-300 p-2 rounded mr-2 hover:bg-gray-400">Sort by Price</button>
     <button onclick="sortProducts('stock')" class="bg-gray-300 p-2 rounded hover:bg-gray-400">Sort by Stock</button>
@@ -202,26 +209,37 @@
       }
       setLoading(true);
       try {
-        const { data: sales, error } = await window.supabaseClient.from('sales').select('*, products(name), vendors(name: vendor_name)').order('sale_date', { ascending: false });
+        // Simplified query to avoid relationship issues
+        const { data: sales, error } = await window.supabaseClient.from('sales').select('id, product_barcode, vendor_id, quantity, sale_date').order('sale_date', { ascending: false });
         if (error) throw error;
-        console.log('Sales:', sales);
+        // Fetch product and vendor names separately
+        const productBarcodes = [...new Set(sales.map(s => s.product_barcode))];
+        const vendorIds = [...new Set(sales.map(s => s.vendor_id))];
+        const { data: products } = await window.supabaseClient.from('products').select('barcode, name').in('barcode', productBarcodes);
+        const { data: vendors } = await window.supabaseClient.from('vendors').select('id, name').in('id', vendorIds);
+        const salesWithNames = sales.map(s => ({
+          ...s,
+          product_name: products.find(p => p.barcode === s.product_barcode)?.name || 'Unknown',
+          vendor_name: vendors.find(v => v.id === s.vendor_id)?.name || 'Unknown'
+        }));
+        console.log('Sales:', salesWithNames);
         const salesBody = document.querySelector('#sales tbody');
-        salesBody.innerHTML = sales.length
-          ? sales.map(s => `
+        salesBody.innerHTML = salesWithNames.length
+          ? salesWithNames.map(s => `
               <tr>
-                <td class="border p-2">${s.products.name}</td>
-                <td class="border p-2">${s.vendors.vendor_name}</td>
+                <td class="border p-2">${s.product_name}</td>
+                <td class="border p-2">${s.vendor_name}</td>
                 <td class="border p-2">${s.quantity}</td>
                 <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
                 <td class="border p-2">
-                  <button onclick="if (confirm('Delete sale for ${s.products.name}?')) deleteSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
+                  <button onclick="if (confirm('Delete sale for ${s.product_name}?')) deleteSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
                 </td>
               </tr>
             `).join('')
           : '<tr><td colspan="5" class="border p-2">No sales found.</td></tr>';
       } catch (error) {
         console.error('Error loading sales:', error.message);
-        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load sales: ${error.message}`;
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load sales: ${error.message.includes('relationship') ? 'Check foreign key constraints in sales table.' : error.message}`;
         clearMessage('error');
       } finally {
         setLoading(false);
@@ -314,6 +332,16 @@
         console.error('Supabase client not initialized');
         return;
       }
+      if (!barcode || !updates.name) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Barcode and name cannot be empty.`;
+        clearMessage('error');
+        return;
+      }
+      if (updates.price < 0 || updates.stock < 0) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Price and stock must be non-negative.`;
+        clearMessage('error');
+        return;
+      }
       console.log('Updating product:', barcode, updates);
       setLoading(true);
       try {
@@ -323,6 +351,7 @@
           .eq('barcode', barcode)
           .select();
         if (error) throw error;
+        if (!data.length) throw new Error('Product not found');
         console.log('Product updated:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product updated: ${barcode}`;
         clearMessage('message');
