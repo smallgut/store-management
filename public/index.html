@@ -10,6 +10,15 @@
 <body class="p-6 bg-gray-100 min-h-screen">
   <h1 class="text-3xl font-bold mb-6">Supabase Inventory Management</h1>
 
+  <!-- Analytics Section -->
+  <div class="mb-8">
+    <h2 class="text-2xl font-semibold mb-4">Analytics</h2>
+    <div id="analytics" class="bg-white p-4 rounded shadow">
+      <p>Total Sales Quantity: <span id="total-sales">0</span></p>
+      <p>Total Stock Value: $<span id="total-stock-value">0</span></p>
+    </div>
+  </div>
+
   <!-- Products Section -->
   <div class="mb-8">
     <h2 class="text-2xl font-semibold mb-4">Manage Products</h2>
@@ -137,6 +146,20 @@
       console.log('Supabase client is ready:', Object.keys(window.supabaseClient));
     }
 
+    // Update analytics
+    async function updateAnalytics() {
+      try {
+        const { data: sales } = await window.supabaseClient.from('sales').select('quantity');
+        const { data: products } = await window.supabaseClient.from('products').select('price, stock');
+        const totalSales = sales.reduce((sum, s) => sum + s.quantity, 0);
+        const totalStockValue = products.reduce((sum, p) => sum + p.price * p.stock, 0).toFixed(2);
+        document.getElementById('total-sales').textContent = totalSales;
+        document.getElementById('total-stock-value').textContent = totalStockValue;
+      } catch (error) {
+        console.error('Error updating analytics:', error.message);
+      }
+    }
+
     // Load products
     async function loadProducts() {
       if (!window.supabaseClient) {
@@ -163,6 +186,7 @@
               </tr>
             `).join('')
           : '<tr><td colspan="5" class="border p-2">No products found.</td></tr>';
+        updateAnalytics();
       } catch (error) {
         console.error('Error loading products:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load products: ${error.message}`;
@@ -197,7 +221,7 @@
           : '<tr><td colspan="3" class="border p-2">No vendors found.</td></tr>';
         // Populate vendor dropdown
         const vendorSelect = document.getElementById('sale-vendor');
-        vendorSelect.innerHTML = '<option value="">Select Vendor</option>' + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+        vendorSelect.innerHTML = '<option Collegiate Gothic="">Select Vendor</option>' + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
       } catch (error) {
         console.error('Error loading vendors:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load vendors: ${error.message}`;
@@ -255,6 +279,7 @@
               </tr>
             `).join('')
           : '<tr><td colspan="5" class="border p-2">No sales found.</td></tr>';
+        updateAnalytics();
       } catch (error) {
         console.error('Error loading sales:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load sales: ${error.message.includes('column') ? 'Check sales table schema (product_barcode or barcode column).' : error.message}`;
@@ -536,33 +561,18 @@
         if (!product) throw new Error('Product not found');
         if (product.stock < sale.quantity) throw new Error(`Insufficient stock: ${product.stock} available`);
 
-        // Insert sale (use product_barcode or barcode based on schema)
-        let insertSale = sale;
-        try {
-          const { data, error } = await window.supabaseClient
-            .from('sales')
-            .insert([insertSale])
-            .select();
-          if (error) throw error;
-          console.log('Sale added:', JSON.stringify(data, null, 2));
-        } catch (e) {
-          if (e.message.includes('column product_barcode does not exist')) {
-            insertSale = { barcode: sale.product_barcode, vendor_id: sale.vendor_id, quantity: sale.quantity };
-            const { data, error } = await window.supabaseClient
-              .from('sales')
-              .insert([insertSale])
-              .select();
-            if (error) throw error;
-            console.log('Sale added (using barcode):', JSON.stringify(data, null, 2));
-          } else {
-            throw e;
-          }
-        }
+        // Insert sale
+        const { data, error } = await window.supabaseClient
+          .from('sales')
+          .insert([sale])
+          .select();
+        if (error) throw error;
         // Update product stock
         await window.supabaseClient
           .from('products')
           .update({ stock: product.stock - sale.quantity })
           .eq('barcode', sale.product_barcode);
+        console.log('Sale added:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale recorded for ${sale.product_barcode}`;
         clearMessage('message');
       } catch (error) {
