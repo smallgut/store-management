@@ -16,6 +16,7 @@
     <div id="analytics" class="bg-white p-4 rounded shadow">
       <p>Total Sales Quantity: <span id="total-sales">0</span></p>
       <p>Total Stock Value: $<span id="total-stock-value">0</span></p>
+      <canvas id="salesChart" class="mt-4"></canvas>
     </div>
   </div>
 
@@ -111,6 +112,8 @@
 
   <!-- Load Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Load Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // Clear message after timeout
     function clearMessage(type = 'error') {
@@ -146,6 +149,55 @@
       console.log('Supabase client is ready:', Object.keys(window.supabaseClient));
     }
 
+    // Initialize Chart.js
+    let salesChartInstance = null;
+    async function updateSalesChart() {
+      try {
+        const { data: sales } = await window.supabaseClient
+          .from('sales')
+          .select('product_barcode, quantity')
+          .order('sale_date');
+        const { data: products } = await window.supabaseClient
+          .from('products')
+          .select('barcode, name');
+        const salesByProduct = {};
+        sales.forEach(s => {
+          const productName = products.find(p => p.barcode === s.product_barcode)?.name || s.product_barcode;
+          salesByProduct[productName] = (salesByProduct[productName] || 0) + s.quantity;
+        });
+        const labels = Object.keys(salesByProduct);
+        const data = Object.values(salesByProduct);
+
+        if (salesChartInstance) {
+          salesChartInstance.destroy();
+        }
+
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        salesChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Sales Quantity by Product',
+              data: data,
+              backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+              borderColor: ['#1e40af', '#047857', '#b45309', '#b91c1c', '#5b21b6', '#be185d'],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true, title: { display: true, text: 'Quantity Sold' } },
+              x: { title: { display: true, text: 'Product' } }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error updating sales chart:', error.message);
+      }
+    }
+
     // Update analytics
     async function updateAnalytics() {
       try {
@@ -155,6 +207,7 @@
         const totalStockValue = products.reduce((sum, p) => sum + p.price * p.stock, 0).toFixed(2);
         document.getElementById('total-sales').textContent = totalSales;
         document.getElementById('total-stock-value').textContent = totalStockValue;
+        updateSalesChart();
       } catch (error) {
         console.error('Error updating analytics:', error.message);
       }
@@ -219,9 +272,8 @@
               </tr>
             `).join('')
           : '<tr><td colspan="3" class="border p-2">No vendors found.</td></tr>';
-        // Populate vendor dropdown
         const vendorSelect = document.getElementById('sale-vendor');
-        vendorSelect.innerHTML = '<option Collegiate Gothic="">Select Vendor</option>' + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+        vendorSelect.innerHTML = '<option value="">Select Vendor</option>' + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
       } catch (error) {
         console.error('Error loading vendors:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load vendors: ${error.message}`;
@@ -239,26 +291,21 @@
       }
       setLoading(true);
       try {
-        // Try product_barcode, fallback to barcode
-        let sales = [];
-        try {
-          const { data, error } = await window.supabaseClient.from('sales').select('id, product_barcode, vendor_id, quantity, sale_date').order('sale_date', { ascending: false });
-          if (error) throw error;
-          sales = data;
-        } catch (e) {
-          if (e.message.includes('column sales.product_barcode does not exist')) {
-            const { data, error } = await window.supabaseClient.from('sales').select('id, barcode, vendor_id, quantity, sale_date').order('sale_date', { ascending: false });
-            if (error) throw error;
-            sales = data.map(s => ({ ...s, product_barcode: s.barcode }));
-          } else {
-            throw e;
-          }
-        }
-        // Fetch product and vendor names
+        const { data: sales, error } = await window.supabaseClient
+          .from('sales')
+          .select('id, product_barcode, vendor_id, quantity, sale_date')
+          .order('sale_date', { ascending: false });
+        if (error) throw error;
         const productBarcodes = [...new Set(sales.map(s => s.product_barcode))];
         const vendorIds = [...new Set(sales.map(s => s.vendor_id))];
-        const { data: products } = await window.supabaseClient.from('products').select('barcode, name').in('barcode', productBarcodes);
-        const { data: vendors } = await window.supabaseClient.from('vendors').select('id, name').in('id', vendorIds);
+        const { data: products } = await window.supabaseClient
+          .from('products')
+          .select('barcode, name')
+          .in('barcode', productBarcodes);
+        const { data: vendors } = await window.supabaseClient
+          .from('vendors')
+          .select('id, name')
+          .in('id', vendorIds);
         const salesWithNames = sales.map(s => ({
           ...s,
           product_name: products.find(p => p.barcode === s.product_barcode)?.name || 'Unknown',
@@ -282,7 +329,7 @@
         updateAnalytics();
       } catch (error) {
         console.error('Error loading sales:', error.message);
-        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load sales: ${error.message.includes('column') ? 'Check sales table schema (product_barcode or barcode column).' : error.message}`;
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load sales: ${error.message}`;
         clearMessage('error');
       } finally {
         setLoading(false);
@@ -504,7 +551,7 @@
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor updated: ${updates.name}`;
         clearMessage('message');
       } catch (error) {
-        console.error('Error updating vendor:', error.message);
+        console PVDF: Error updating vendor:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating vendor: ${error.message}`;
         clearMessage('error');
       } finally {
@@ -552,14 +599,18 @@
       console.log('Adding sale:', sale);
       setLoading(true);
       try {
-        // Check product stock
-        const { data: product } = await window.supabaseClient
+        // Check if product exists and get stock
+        const { data: product, error: productError } = await window.supabaseClient
           .from('products')
-          .select('stock')
+          .select('barcode, stock')
           .eq('barcode', sale.product_barcode)
           .single();
-        if (!product) throw new Error('Product not found');
-        if (product.stock < sale.quantity) throw new Error(`Insufficient stock: ${product.stock} available`);
+        if (productError || !product) {
+          throw new Error('Product not found');
+        }
+        if (product.stock < sale.quantity) {
+          throw new Error(`Insufficient stock: ${product.stock} available`);
+        }
 
         // Insert sale
         const { data, error } = await window.supabaseClient
@@ -567,11 +618,13 @@
           .insert([sale])
           .select();
         if (error) throw error;
+
         // Update product stock
         await window.supabaseClient
           .from('products')
           .update({ stock: product.stock - sale.quantity })
           .eq('barcode', sale.product_barcode);
+
         console.log('Sale added:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale recorded for ${sale.product_barcode}`;
         clearMessage('message');
