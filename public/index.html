@@ -551,7 +551,7 @@
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor updated: ${updates.name}`;
         clearMessage('message');
       } catch (error) {
-        console PVDF: Error updating vendor:', error.message);
+        console.error('Error updating vendor:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating vendor: ${error.message}`;
         clearMessage('error');
       } finally {
