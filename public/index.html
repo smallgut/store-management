@@ -339,7 +339,7 @@
     // Sort products
     async function sortProducts(by) {
       if (!window.supabaseClient) {
-        console.error('Supabase client not initialized');
+        console.error('Supabase return');
         return;
       }
       setLoading(true);
@@ -353,7 +353,7 @@
               <tr>
                 <td class="border p-2">${p.name}</td>
                 <td class="border p-2">${p.barcode}</td>
-                <td class="border p-2">$${p.price}</td>
+                <td class="border p-2">${p.price}</td>
                 <td class="border p-2">${p.stock}</td>
                 <td class="border p-2">
                   <button onclick="updateProduct('${p.barcode}', { stock: ${p.stock + 10} })" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Increase Stock (+10)</button>
@@ -403,6 +403,7 @@
         console.log('Product added:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product added: ${product.name}`;
         clearMessage('message');
+        await loadProducts(); // Refresh UI
       } catch (error) {
         console.error('Error adding product:', error.message);
         let errorMessage = `[${new Date().toISOString()}] Failed to add product: ${error.message}`;
@@ -445,6 +446,7 @@
         console.log('Product updated:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product updated: ${barcode}`;
         clearMessage('message');
+        await loadProducts(); // Refresh UI
       } catch (error) {
         console.error('Error updating product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating product: ${error.message}`;
@@ -471,6 +473,7 @@
         console.log('Product deleted:', barcode);
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Product deleted: ${barcode}`;
         clearMessage('message');
+        await loadProducts(); // Refresh UI
       } catch (error) {
         console.error('Error deleting product:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting product: ${error.message}`;
@@ -507,18 +510,19 @@
         console.log('Vendor added:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor added: ${vendor.name}`;
         clearMessage('message');
+        await loadVendors(); // Refresh UI
       } catch (error) {
         console.error('Error adding vendor:', error.message);
         let errorMessage = `[${new Date().toISOString()}] Failed to add vendor: ${error.message}`;
         if (error.message.includes('duplicate key value') || error.message.includes('Vendor name already exists')) {
-          errorMessage = `[${new Date().toISOString()}] Failed to add vendor: Vendor name already exists.`;
-        }
+          errorMessage = `[${new Date().toISOString()}] Failed to add vendor: ${Vendor name already exists.`;
+        } `;
         document.getElementById('error').textContent = errorMessage;
         clearMessage('error');
       } finally {
         setLoading(false);
       }
-    }
+    } 
 
     // Update vendor
     async function updateVendor(id, updates) {
@@ -550,6 +554,7 @@
         console.log('Vendor updated:', JSON.stringify(data, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor updated: ${updates.name}`;
         clearMessage('message');
+        await loadVendors(); // Refresh UI
       } catch (error) {
         console.error('Error updating vendor:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating vendor: ${error.message}`;
@@ -565,7 +570,7 @@
         console.error('Supabase client not initialized');
         return;
       }
-      console.log('Deleting vendor:', id);
+      console.log('Deleting vendor:', id');
       setLoading(true);
       try {
         const { error } = await window.supabaseClient
@@ -573,9 +578,10 @@
           .delete()
           .eq('id', id);
         if (error) throw error;
-        console.log('Vendor deleted:', id);
+        console.log('Vendor deleted:', id');
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor deleted: ${id}`;
         clearMessage('message');
+        await loadVendors(); // Refresh UI
       } catch (error) {
         console.error('Error deleting vendor:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting vendor: ${error.message}`;
@@ -591,12 +597,12 @@
         console.error('Supabase client not initialized');
         return;
       }
-      if (!sale.product_barcode || !sale.vendor_id || sale.quantity <= 0) {
+      if (!sale.product_barcode || !sale.vendor_id ||sale.quantity <= 0) {
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Product barcode, vendor, and quantity (>0) are required.`;
         clearMessage('error');
         return;
       }
-      console.log('Adding sale:', sale);
+      console.log('Adding sale:', sale');
       setLoading(true);
       try {
         // Check if product exists and get stock
@@ -613,7 +619,7 @@
         }
 
         // Insert sale
-        const { data, error } = await window.supabaseClient
+        const { data: saleData, error } = await window.supabaseClient
           .from('sales')
           .insert([sale])
           .select();
@@ -625,9 +631,10 @@
           .update({ stock: product.stock - sale.quantity })
           .eq('barcode', sale.product_barcode);
 
-        console.log('Sale added:', JSON.stringify(data, null, 2));
+        console.log('Sale added:', JSON.stringify(saleData, null, 2));
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale recorded for ${sale.product_barcode}`;
         clearMessage('message');
+        await loadSales(); // Refresh sales UI
       } catch (error) {
         console.error('Error adding sale:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to add sale: ${error.message}`;
@@ -643,17 +650,18 @@
         console.error('Supabase client not initialized');
         return;
       }
-      console.log('Deleting sale:', id);
+      console.log('Deleting sale id:', id);
       setLoading(true);
       try {
         const { error } = await window.supabaseClient
-          .from('sales')
+        .from('sales')
           .delete()
           .eq('id', id);
         if (error) throw error;
-        console.log('Sale deleted:', id);
+        console.log('Sale deleted:', id');
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale deleted: ${id}`;
         clearMessage('message');
+        await loadSales(); // Refresh sales UI
       } catch (error) {
         console.error('Error deleting sale:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting sale: ${error.message}`;
