@@ -108,7 +108,13 @@
 
   <div id="message" class="text-green-600 mb-4"></div>
   <div id="error" class="text-red-600 mb-4"></div>
-  <div id="loading" class="text-blue-600 mb-4"></div>
+  <div id="loading" class="text-blue-600 mb-4 hidden">
+    <svg class="animate-spin h-5 w-5 inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+    Loading...
+  </div>
 
   <!-- Load Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -124,7 +130,21 @@
 
     // Set loading state
     function setLoading(isLoading) {
-      document.getElementById('loading').textContent = isLoading ? 'Loading...' : '';
+      const loadingEl = document.getElementById('loading');
+      loadingEl.classList.toggle('hidden', !isLoading);
+    }
+
+    // Debounce function
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
     }
 
     // Initialize Supabase client
@@ -249,8 +269,8 @@
       }
     }
 
-    // Load vendors
-    async function loadVendors() {
+    // Load vendors (debounced)
+    const loadVendors = debounce(async function() {
       if (!window.supabaseClient) {
         console.error('Supabase client not initialized');
         return;
@@ -281,10 +301,10 @@
       } finally {
         setLoading(false);
       }
-    }
+    }, 300);
 
-    // Load sales
-    async function loadSales() {
+    // Load sales (debounced)
+    const loadSales = debounce(async function() {
       if (!window.supabaseClient) {
         console.error('Supabase client not initialized');
         return;
@@ -334,7 +354,7 @@
       } finally {
         setLoading(false);
       }
-    }
+    }, 300);
 
     // Sort products
     async function sortProducts(by) {
@@ -667,47 +687,44 @@
 
     // Set up real-time subscriptions
     function setupRealtime() {
-      window.supabaseClient
-        .channel('products')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'products' },
-          (payload) => {
-            console.log('Realtime update (products):', payload);
-            loadProducts();
-          }
-        )
-        .subscribe((status) => {
-          console.log('Subscription status (products):', status);
-        });
+      const channels = [
+        {
+          name: 'products',
+          table: 'products',
+          callback: loadProducts
+        },
+        {
+          name: 'vendors',
+          table: 'vendors',
+          callback: loadVendors
+        },
+        {
+          name: 'sales',
+          table: 'sales',
+          callback: loadSales
+        }
+      ];
 
-      window.supabaseClient
-        .channel('vendors')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'vendors' },
-          (payload) => {
-            console.log('Realtime update (vendors):', payload);
-            loadVendors();
-          }
-        )
-        .subscribe((status) => {
-          console.log('Subscription status (vendors):', status);
-        });
-
-      window.supabaseClient
-        .channel('sales')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'sales' },
-          (payload) => {
-            console.log('Realtime update (sales):', payload);
-            loadSales();
-          }
-        )
-        .subscribe((status) => {
-          console.log('Subscription status (sales):', status);
-        });
+      channels.forEach(({ name, table, callback }) => {
+        const channel = window.supabaseClient
+          .channel(name)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table },
+            (payload) => {
+              console.log(`Realtime update (${table}):`, payload);
+              callback();
+            }
+          )
+          .subscribe((status) => {
+            console.log(`Subscription status (${table}):`, status);
+            if (status === 'SUBSCRIBED') {
+              console.log(`Successfully subscribed to ${table} changes`);
+            } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+              console.error(`Subscription to ${table} failed, status:`, status);
+            }
+          });
+      });
     }
 
     // Run on page load
