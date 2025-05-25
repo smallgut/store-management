@@ -16,7 +16,6 @@
     <div id="analytics" class="bg-white p-4 rounded shadow">
       <p>Total Sales Quantity: <span id="total-sales">0</span></p>
       <p>Total Stock Value: $<span id="total-stock-value">0</span></p>
-      <canvas id="salesChart" class="mt-4"></canvas>
     </div>
   </div>
 
@@ -112,8 +111,6 @@
 
   <!-- Load Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <!-- Load Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // Clear message after timeout
     function clearMessage(type = 'error') {
@@ -149,55 +146,6 @@
       console.log('Supabase client is ready:', Object.keys(window.supabaseClient));
     }
 
-    // Initialize Chart.js
-    let salesChartInstance = null;
-    async function updateSalesChart() {
-      try {
-        const { data: sales } = await window.supabaseClient
-          .from('sales')
-          .select('product_barcode, quantity')
-          .order('sale_date');
-        const { data: products } = await window.supabaseClient
-          .from('products')
-          .select('barcode, name');
-        const salesByProduct = {};
-        sales.forEach(s => {
-          const productName = products.find(p => p.barcode === s.product_barcode)?.name || s.product_barcode;
-          salesByProduct[productName] = (salesByProduct[productName] || 0) + s.quantity;
-        });
-        const labels = Object.keys(salesByProduct);
-        const data = Object.values(salesByProduct);
-
-        if (salesChartInstance) {
-          salesChartInstance.destroy();
-        }
-
-        const ctx = document.getElementById('salesChart').getContext('2d');
-        salesChartInstance = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [{
-              label: 'Sales Quantity by Product',
-              data: data,
-              backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
-              borderColor: ['#1e40af', '#047857', '#b45309', '#b91c1c', '#5b21b6', '#be185d'],
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              y: { beginAtZero: true, title: { display: true, text: 'Quantity Sold' } },
-              x: { title: { display: true, text: 'Product' } }
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Error updating sales chart:', error.message);
-      }
-    }
-
     // Update analytics
     async function updateAnalytics() {
       try {
@@ -207,7 +155,6 @@
         const totalStockValue = products.reduce((sum, p) => sum + p.price * p.stock, 0).toFixed(2);
         document.getElementById('total-sales').textContent = totalSales;
         document.getElementById('total-stock-value').textContent = totalStockValue;
-        updateSalesChart();
       } catch (error) {
         console.error('Error updating analytics:', error.message);
       }
@@ -272,83 +219,453 @@
               </tr>
             `).join('')
           : '<tr><td colspan="3" class="border p-2">No vendors found.</td></tr>';
+        // Populate vendor dropdown
         const vendorSelect = document.getElementById('sale-vendor');
-        vendorSelect.innerHTML = '<option value="">Select Vendor</option>' + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
-      }σο
+        vendorSelect.innerHTML = '<option Collegiate Gothic="">Select Vendor</option>' + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+      } catch (error) {
+        console.error('Error loading vendors:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load vendors: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-System: I notice that the provided `index.html` artifact is incomplete, as it cuts off in the middle of the `loadVendors` function. To ensure you have a fully functional app, I’ll provide the complete updated `index.html` with the fixed `addSale` validation, analytics, and sales trend chart. I’ll also address the invalid barcode issue (`12341234A`), guide you to clean up the Supabase data, and outline steps to test everything thoroughly. Since the Chrome promise error (`i18next`) wasn’t mentioned in the latest console output, I’ll assume it’s either resolved or still harmless, but I’ll include steps to debug it if it persists.
+    // Load sales
+    async function loadSales() {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      setLoading(true);
+      try {
+        // Try product_barcode, fallback to barcode
+        let sales = [];
+        try {
+          const { data, error } = await window.supabaseClient.from('sales').select('id, product_barcode, vendor_id, quantity, sale_date').order('sale_date', { ascending: false });
+          if (error) throw error;
+          sales = data;
+        } catch (e) {
+          if (e.message.includes('column sales.product_barcode does not exist')) {
+            const { data, error } = await window.supabaseClient.from('sales').select('id, barcode, vendor_id, quantity, sale_date').order('sale_date', { ascending: false });
+            if (error) throw error;
+            sales = data.map(s => ({ ...s, product_barcode: s.barcode }));
+          } else {
+            throw e;
+          }
+        }
+        // Fetch product and vendor names
+        const productBarcodes = [...new Set(sales.map(s => s.product_barcode))];
+        const vendorIds = [...new Set(sales.map(s => s.vendor_id))];
+        const { data: products } = await window.supabaseClient.from('products').select('barcode, name').in('barcode', productBarcodes);
+        const { data: vendors } = await window.supabaseClient.from('vendors').select('id, name').in('id', vendorIds);
+        const salesWithNames = sales.map(s => ({
+          ...s,
+          product_name: products.find(p => p.barcode === s.product_barcode)?.name || 'Unknown',
+          vendor_name: vendors.find(v => v.id === s.vendor_id)?.name || 'Unknown'
+        }));
+        console.log('Sales:', salesWithNames);
+        const salesBody = document.querySelector('#sales tbody');
+        salesBody.innerHTML = salesWithNames.length
+          ? salesWithNames.map(s => `
+              <tr>
+                <td class="border p-2">${s.product_name}</td>
+                <td class="border p-2">${s.vendor_name}</td>
+                <td class="border p-2">${s.quantity}</td>
+                <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
+                <td class="border p-2">
+                  <button onclick="if (confirm('Delete sale for ${s.product_name}?')) deleteSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
+                </td>
+              </tr>
+            `).join('')
+          : '<tr><td colspan="5" class="border p-2">No sales found.</td></tr>';
+        updateAnalytics();
+      } catch (error) {
+        console.error('Error loading sales:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load sales: ${error.message.includes('column') ? 'Check sales table schema (product_barcode or barcode column).' : error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-### Analysis of Console Output
-- **Successful Sales**:
-  - Sale 1: `product_barcode: '12341234', vendor_id: 1, quantity: 2` (valid, for `carrot`, stock 20 → 18).
-  - Sale 2: `product_barcode: '12341234A', vendor_id: 1, quantity: 1` (invalid, should not have been added).
-- **Invalid Barcode Test**:
-  - `12341234Avvv` correctly failed with `406 Not Acceptable` and `Error adding sale: Product not found`.
-- **Issue**:
-  - The `12341234A` sale bypassed validation, despite the foreign key constraint (`fk_product`) on `sales.product_barcode`. This suggests the constraint wasn’t enforced or the client-side validation in `addSale` is flawed.
-- **Real-Time Updates**:
-  - `products` table updated for both sales, but the `12341234A` update is incorrect (no matching product).
+    // Sort products
+    async function sortProducts(by) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      setLoading(true);
+      try {
+        const { data, error } = await window.supabaseClient.from('products').select('*').order(by);
+        if (error) throw error;
+        console.log('Sorted products:', data);
+        const productsBody = document.querySelector('#products tbody');
+        productsBody.innerHTML = data.length
+          ? data.map(p => `
+              <tr>
+                <td class="border p-2">${p.name}</td>
+                <td class="border p-2">${p.barcode}</td>
+                <td class="border p-2">$${p.price}</td>
+                <td class="border p-2">${p.stock}</td>
+                <td class="border p-2">
+                  <button onclick="updateProduct('${p.barcode}', { stock: ${p.stock + 10} })" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Increase Stock (+10)</button>
+                  <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
+                </td>
+              </tr>
+            `).join('')
+          : '<tr><td colspan="5" class="border p-2">No products found.</td></tr>';
+      } catch (error) {
+        console.error('Error sorting products:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error sorting products: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-### Action Items
+    // Add product
+    async function addProduct(product) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      if (!product.barcode || !product.name) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Barcode and name cannot be empty.`;
+        clearMessage('error');
+        return;
+      }
+      if (product.price < 0 || product.stock < 0) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Price and stock must be non-negative.`;
+        clearMessage('error');
+        return;
+      }
+      console.log('Adding product:', product);
+      setLoading(true);
+      try {
+        const { data: existing } = await window.supabaseClient
+          .from('products')
+          .select('barcode')
+          .eq('barcode', product.barcode);
+        if (existing.length > 0) throw new Error('Barcode already exists');
+        const { data, error } = await window.supabaseClient
+          .from('products')
+          .insert([product])
+          .select();
+        if (error) throw error;
+        console.log('Product added:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Product added: ${product.name}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error adding product:', error.message);
+        let errorMessage = `[${new Date().toISOString()}] Failed to add product: ${error.message}`;
+        if (error.message.includes('duplicate key value') || error.message.includes('Barcode already exists')) {
+          errorMessage = `[${new Date().toISOString()}] Failed to add product: Barcode already exists.`;
+        }
+        document.getElementById('error').textContent = errorMessage;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-#### 1. Clean Up Invalid Sale in Supabase
-Remove the invalid sale (`id: 2, product_barcode: '12341234A'`) to maintain data integrity.
+    // Update product
+    async function updateProduct(barcode, updates) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      if (!barcode || !updates.name) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Barcode and name cannot be empty.`;
+        clearMessage('error');
+        return;
+      }
+      if (updates.price < 0 || updates.stock < 0) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Price and stock must be non-negative.`;
+        clearMessage('error');
+        return;
+      }
+      console.log('Updating product:', barcode, updates);
+      setLoading(true);
+      try {
+        const { data, error } = await window.supabaseClient
+          .from('products')
+          .update(updates)
+          .eq('barcode', barcode)
+          .select();
+        if (error) throw error;
+        if (!data.length) throw new Error('Product not found');
+        console.log('Product updated:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Product updated: ${barcode}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error updating product:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating product: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-**Steps**:
-- In Supabase **SQL Editor**, run:
-  ```sql
-  DELETE FROM sales WHERE id = 2;
-  ```
-- Verify in **Table Editor > sales**:
-  - Only `id: 1, product_barcode: '12341234', vendor_id: 1, quantity: 2` remains.
-- Check `products` stock:
-  ```sql
-  SELECT barcode, name, stock FROM products WHERE barcode = '12341234';
-  ```
-- Expected: `barcode: '12341234', name: 'carrot', stock: 18`.
-- If stock is incorrect (e.g., 19 due to `12341234A`), fix it:
-  ```sql
-  UPDATE products SET stock = 18 WHERE barcode = '12341234';
-  ```
-- Share a screenshot of **Table Editor > sales** and **Table Editor > products** if issues persist.
+    // Delete product
+    async function deleteProduct(barcode) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      console.log('Deleting product:', barcode);
+      setLoading(true);
+      try {
+        const { error } = await window.supabaseClient
+          .from('products')
+          .delete()
+          .eq('barcode', barcode);
+        if (error) throw error;
+        console.log('Product deleted:', barcode);
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Product deleted: ${barcode}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error deleting product:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting product: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-#### 2. Verify Foreign Key Constraint
-Ensure the `sales` table’s foreign key constraint is active.
+    // Add vendor
+    async function addVendor(vendor) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      if (!vendor.name) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Vendor name cannot be empty.`;
+        clearMessage('error');
+        return;
+      }
+      console.log('Adding vendor:', vendor);
+      setLoading(true);
+      try {
+        const { data: existing } = await window.supabaseClient
+          .from('vendors')
+          .select('name')
+          .eq('name', vendor.name);
+        if (existing.length > 0) throw new Error('Vendor name already exists');
+        const { data, error } = await window.supabaseClient
+          .from('vendors')
+          .insert([vendor])
+          .select();
+        if (error) throw error;
+        console.log('Vendor added:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor added: ${vendor.name}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error adding vendor:', error.message);
+        let errorMessage = `[${new Date().toISOString()}] Failed to add vendor: ${error.message}`;
+        if (error.message.includes('duplicate key value') || error.message.includes('Vendor name already exists')) {
+          errorMessage = `[${new Date().toISOString()}] Failed to add vendor: Vendor name already exists.`;
+        }
+        document.getElementById('error').textContent = errorMessage;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-**Steps**:
-- In **SQL Editor**, run:
-  ```sql
-  \d sales
-  ```
-- Confirm:
-  ```
-  Constraints:
-      "fk_product" FOREIGN KEY (product_barcode) REFERENCES products(barcode) ON DELETE RESTRICT
-      "fk_vendor" FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE RESTRICT
-  ```
-- If missing, recreate the `sales` table:
-  <xaiArtifact artifact_id="99aa9e50-c203-4aa4-a80b-7237f0475954" artifact_version_id="536e2659-92cc-477c-88bc-601e64fb602a" title="supabase_schema_fix.sql" contentType="text/sql">
-  -- Drop sales table
-  DROP TABLE IF EXISTS sales CASCADE;
+    // Update vendor
+    async function updateVendor(id, updates) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      if (!id || !updates.name) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Vendor ID and name cannot be empty.`;
+        clearMessage('error');
+        return;
+      }
+      console.log('Updating vendor:', id, updates);
+      setLoading(true);
+      try {
+        const { data: existing } = await window.supabaseClient
+          .from('vendors')
+          .select('id')
+          .eq('name', updates.name)
+          .neq('id', id);
+        if (existing.length > 0) throw new Error('Vendor name already exists');
+        const { data, error } = await window.supabaseClient
+          .from('vendors')
+          .update(updates)
+          .eq('id', id)
+          .select();
+        if (error) throw error;
+        if (!data.length) throw new Error('Vendor not found');
+        console.log('Vendor updated:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor updated: ${updates.name}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error updating vendor:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating vendor: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  -- Recreate sales
-  CREATE TABLE sales (
-    id SERIAL PRIMARY KEY,
-    product_barcode TEXT NOT NULL,
-    vendor_id INTEGER NOT NULL,
-    quantity INTEGER NOT NULL CHECK (quantity > 0),
-    sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_product FOREIGN KEY (product_barcode) REFERENCES products(barcode) ON DELETE RESTRICT,
-    CONSTRAINT fk_vendor FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE RESTRICT
-  );
+    // Delete vendor
+    async function deleteVendor(id) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      console.log('Deleting vendor:', id);
+      setLoading(true);
+      try {
+        const { error } = await window.supabaseClient
+          .from('vendors')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+        console.log('Vendor deleted:', id);
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor deleted: ${id}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error deleting vendor:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting vendor: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  -- Enable RLS for sales
-  ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
-  CREATE POLICY "Allow public read sales" ON sales FOR SELECT USING (true);
-  CREATE POLICY "Allow public insert sales" ON sales FOR INSERT WITH CHECK (true);
-  CREATE POLICY "Allow public update sales" ON sales FOR UPDATE USING (true);
-  CREATE POLICY "Allow public delete sales" ON sales FOR DELETE USING (true);
+    // Add sale
+    async function addSale(sale) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      if (!sale.product_barcode || !sale.vendor_id || sale.quantity <= 0) {
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Product barcode, vendor, and quantity (>0) are required.`;
+        clearMessage('error');
+        return;
+      }
+      console.log('Adding sale:', sale);
+      setLoading(true);
+      try {
+        // Check product stock
+        const { data: product } = await window.supabaseClient
+          .from('products')
+          .select('stock')
+          .eq('barcode', sale.product_barcode)
+          .single();
+        if (!product) throw new Error('Product not found');
+        if (product.stock < sale.quantity) throw new Error(`Insufficient stock: ${product.stock} available`);
 
-  -- Reinsert valid sale
-  INSERT INTO sales (product_barcode, vendor_id, quantity, sale_date)
-  VALUES ('12341234', 1, 2, '2025-05-24T23:27:28.397347');
+        // Insert sale
+        const { data, error } = await window.supabaseClient
+          .from('sales')
+          .insert([sale])
+          .select();
+        if (error) throw error;
+        // Update product stock
+        await window.supabaseClient
+          .from('products')
+          .update({ stock: product.stock - sale.quantity })
+          .eq('barcode', sale.product_barcode);
+        console.log('Sale added:', JSON.stringify(data, null, 2));
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale recorded for ${sale.product_barcode}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error adding sale:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to add sale: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Delete sale
+    async function deleteSale(id) {
+      if (!window.supabaseClient) {
+        console.error('Supabase client not initialized');
+        return;
+      }
+      console.log('Deleting sale:', id);
+      setLoading(true);
+      try {
+        const { error } = await window.supabaseClient
+          .from('sales')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+        console.log('Sale deleted:', id);
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale deleted: ${id}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error deleting sale:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting sale: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Set up real-time subscriptions
+    function setupRealtime() {
+      // Products
+      window.supabaseClient
+        .channel('products')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'products' },
+          (payload) => {
+            console.log('Realtime update (products):', payload);
+            loadProducts();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status (products):', status);
+        });
+
+      // Vendors
+      window.supabaseClient
+        .channel('vendors')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'vendors' },
+          (payload) => {
+            console.log('Realtime update (vendors):', payload);
+            loadVendors();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status (vendors):', status);
+        });
+
+      // Sales
+      window.supabaseClient
+        .channel('sales')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'sales' },
+          (payload) => {
+            console.log('Realtime update (sales):', payload);
+            loadSales();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status (sales):', status);
+        });
+    }
+
+    // Run on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      testSupabase();
+      loadProducts();
+      loadVendors();
+      loadSales();
+      setupRealtime();
+    });
+  </script>
+</body>
+</html>
