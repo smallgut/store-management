@@ -649,6 +649,7 @@
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale recorded for ${sale.product_barcode}`;
         clearMessage('message');
         await loadSales();
+        await loadProducts(); // Ensure product stock updates in UI
       } catch (error) {
         console.error('Error adding sale:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to add sale: ${error.message}`;
@@ -667,6 +668,17 @@
       console.log('Deleting sale:', id);
       setLoading(true);
       try {
+        const { data: sale, error: saleError } = await window.supabaseClient
+          .from('sales')
+          .select('id, product_barcode, quantity')
+          .eq('id', id)
+          .single();
+        if (saleError || !sale) throw new Error('Sale not found');
+        const { error: updateError } = await window.supabaseClient
+          .from('products')
+          .update({ stock: gte.column('stock') + sale.quantity })
+          .eq('barcode', sale.product_barcode);
+        if (updateError) throw updateError;
         const { error } = await window.supabaseClient
           .from('sales')
           .delete()
@@ -676,6 +688,7 @@
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale deleted: ${id}`;
         clearMessage('message');
         await loadSales();
+        await loadProducts(); // Ensure product stock updates in UI
       } catch (error) {
         console.error('Error deleting sale:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting sale: ${error.message}`;
