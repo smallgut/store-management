@@ -649,7 +649,7 @@
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale recorded for ${sale.product_barcode}`;
         clearMessage('message');
         await loadSales();
-        await loadProducts(); // Ensure product stock updates in UI
+        await loadProducts();
       } catch (error) {
         console.error('Error adding sale:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to add sale: ${error.message}`;
@@ -674,9 +674,16 @@
           .eq('id', id)
           .single();
         if (saleError || !sale) throw new Error('Sale not found');
+        const { data: product, error: productError } = await window.supabaseClient
+          .from('products')
+          .select('stock')
+          .eq('barcode', sale.product_barcode)
+          .single();
+        if (productError || !product) throw new Error('Product not found');
+        const newStock = product.stock + sale.quantity;
         const { error: updateError } = await window.supabaseClient
           .from('products')
-          .update({ stock: gte.column('stock') + sale.quantity })
+          .update({ stock: newStock })
           .eq('barcode', sale.product_barcode);
         if (updateError) throw updateError;
         const { error } = await window.supabaseClient
@@ -688,7 +695,7 @@
         document.getElementById('message').textContent = `[${new Date().toISOString()}] Sale deleted: ${id}`;
         clearMessage('message');
         await loadSales();
-        await loadProducts(); // Ensure product stock updates in UI
+        await loadProducts();
       } catch (error) {
         console.error('Error deleting sale:', error.message);
         document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting sale: ${error.message}`;
@@ -698,7 +705,7 @@
       }
     }
 
-    // Set up real-time subscriptions
+    // Set up real-time subscriptions with reconnection
     function setupRealtime() {
       const channels = [
         {
@@ -719,8 +726,8 @@
       ];
 
       channels.forEach(({ name, table, callback }) => {
-        const channel = window.supabaseClient
-          .channel(name)
+        const channel = window.supabaseClient.channel(name);
+        channel
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table },
@@ -735,6 +742,10 @@
               console.log(`Successfully subscribed to ${table} changes`);
             } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
               console.error(`Subscription to ${table} failed, status:`, status);
+              setTimeout(() => {
+                console.log(`Retrying subscription to ${table}...`);
+                channel.subscribe();
+              }, 5000);
             }
           });
       });
