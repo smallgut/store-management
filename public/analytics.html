@@ -1,0 +1,309 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="p-6 bg-gray-100 min-h-screen">
+  <h1 class="text-3xl font-bold mb-6">Analytics</h1>
+  <nav class="mb-6">
+    <ul class="flex space-x-4">
+      <li><a href="index.html" class="text-blue-500 hover:text-blue-700">Home</a></li>
+      <li><a href="manage-products.html" class="text-blue-500 hover:text-blue-700">Manage Products</a></li>
+      <li><a href="manage-vendors.html" class="text-blue-500 hover:text-blue-700">Manage Vendors</a></li>
+      <li><a href="record-sales.html" class="text-blue-500 hover:text-blue-700">Record Sales</a></li>
+    </ul>
+  </nav>
+
+  <div class="mb-6">
+    <h2 class="text-2xl font-semibold mb-4">Sales Report</h2>
+    <form onsubmit="event.preventDefault(); generateReport(document.getElementById('start-date').value, document.getElementById('end-date').value)" class="mb-4 space-y-2">
+      <input id="start-date" type="date" required class="border p-2 rounded">
+      <input id="end-date" type="date" required class="border p-2 rounded">
+      <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Generate Report</button>
+    </form>
+    <table id="sales-report" class="w-full border-collapse bg-white shadow">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">Product</th>
+          <th class="border p-2">Vendor</th>
+          <th class="border p-2">Customer</th>
+          <th class="border p-2">Quantity</th>
+          <th class="border p-2">Date</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="mb-6">
+    <h2 class="text-2xl font-semibold mb-4">Sales Analytics</h2>
+    <div id="analytics" class="bg-white p-4 rounded shadow">
+      <p>Total Sales Quantity: <span id="total-sales">0</span></p>
+      <p>Total Stock Value: $<span id="total-stock-value">0</span></p>
+      <canvas id="salesChart" class="mt-4"></canvas>
+    </div>
+    <div id="vendor-sales" class="mt-4 bg-white p-4 rounded shadow">
+      <h3 class="text-xl font-semibold">Sales by Vendor</h3>
+      <table id="vendor-sales-table" class="w-full border-collapse mt-2">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="border p-2">Vendor</th>
+            <th class="border p-2">Total Quantity</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="customer-sales" class="mt-4 bg-white p-4 rounded shadow">
+      <h3 class="text-xl font-semibold">Sales by Customer</h3>
+      <table id="customer-sales-table" class="w-full border-collapse mt-2">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="border p-2">Customer</th>
+            <th class="border p-2">Total Quantity</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="message" class="text-green-600 mb-4"></div>
+  <div id="error" class="text-red-600 mb-4"></div>
+  <div id="loading" class="text-blue-600 mb-4 hidden">
+    <svg class="animate-spin h-5 w-5 inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+    Loading...
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Clear message after timeout
+    function clearMessage(type = 'error') {
+      setTimeout(() => {
+        document.getElementById(type).textContent = '';
+      }, 5000);
+    }
+
+    // Set loading state
+    function setLoading(isLoading) {
+      const loadingEl = document.getElementById('loading');
+      loadingEl.classList.toggle('hidden', !isLoading);
+    }
+
+    // Initialize Supabase client
+    if (typeof supabase === 'undefined') {
+      console.error('Supabase SDK not loaded');
+      throw new Error('Supabase SDK not loaded');
+    }
+    const { createClient } = supabase;
+    window.supabaseClient = createClient(
+      'https://aouduygmcspiqauhrabx.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+    );
+    console.log('Supabase Client Initialized:', Object.keys(window.supabaseClient));
+
+    let salesChartInstance = null;
+    async function updateSalesChart() {
+      try {
+        const { data: sales } = await window.supabaseClient
+          .from('sales')
+          .select('product_barcode, quantity')
+          .order('sale_date');
+        const { data: products } = await window.supabaseClient
+          .from('products')
+          .select('barcode, name');
+        const salesByProduct = {};
+        sales.forEach(s => {
+          const productName = products.find(p => p.barcode === s.product_barcode)?.name || s.product_barcode;
+          salesByProduct[productName] = (salesByProduct[productName] || 0) + s.quantity;
+        });
+        const labels = Object.keys(salesByProduct);
+        const data = Object.values(salesByProduct);
+
+        if (salesChartInstance) {
+          salesChartInstance.destroy();
+        }
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        salesChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Sales Quantity by Product',
+              data: data,
+              backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+              borderColor: ['#1e40af', '#047857', '#b45309', '#b91c1c', '#5b21b6', '#be185d'],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true, title: { display: true, text: 'Quantity Sold' } },
+              x: { title: { display: true, text: 'Product' } }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error updating sales chart:', error.message);
+      }
+    }
+
+    async function updateAnalytics() {
+      try {
+        const { data: sales } = await window.supabaseClient.from('sales').select('quantity');
+        const { data: products } = await window.supabaseClient.from('products').select('price, stock');
+        const totalSales = sales.reduce((sum, s) => sum + s.quantity, 0);
+        const totalStockValue = products.reduce((sum, p) => sum + p.price * p.stock, 0).toFixed(2);
+        document.getElementById('total-sales').textContent = totalSales;
+        document.getElementById('total-stock-value').textContent = totalStockValue;
+        await updateSalesChart();
+        await updateVendorSales();
+        await updateCustomerSales();
+      } catch (error) {
+        console.error('Error updating analytics:', error.message);
+      }
+    }
+
+    async function updateVendorSales() {
+      try {
+        const { data: sales } = await window.supabaseClient
+          .from('sales')
+          .select('vendor_id, quantity')
+          .order('vendor_id');
+        const { data: vendors } = await window.supabaseClient
+          .from('vendors')
+          .select('id, name');
+        const vendorSales = {};
+        sales.forEach(s => {
+          const vendorName = vendors.find(v => v.id === s.vendor_id)?.name || 'Unknown';
+          vendorSales[vendorName] = (vendorSales[vendorName] || 0) + s.quantity;
+        });
+        const tbody = document.querySelector('#vendor-sales-table tbody');
+        tbody.innerHTML = Object.entries(vendorSales).map(([vendor, qty]) => `
+          <tr>
+            <td class="border p-2">${vendor}</td>
+            <td class="border p-2">${qty}</td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error('Error updating vendor sales:', error.message);
+      }
+    }
+
+    async function updateCustomerSales() {
+      try {
+        const { data: sales } = await window.supabaseClient
+          .from('sales')
+          .select('customer_name, quantity')
+          .order('customer_name');
+        const customerSales = {};
+        sales.forEach(s => {
+          customerSales[s.customer_name || 'Unknown'] = (customerSales[s.customer_name || 'Unknown'] || 0) + s.quantity;
+        });
+        const tbody = document.querySelector('#customer-sales-table tbody');
+        tbody.innerHTML = Object.entries(customerSales).map(([customer, qty]) => `
+          <tr>
+            <td class="border p-2">${customer}</td>
+            <td class="border p-2">${qty}</td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error('Error updating customer sales:', error.message);
+      }
+    }
+
+    async function generateReport(startDate, endDate) {
+      setLoading(true);
+      try {
+        const { data, error } = await window.supabaseClient
+          .from('sales')
+          .select(`
+            id,
+            product_barcode,
+            vendor_id,
+            customer_name,
+            quantity,
+            sale_date,
+            products (name),
+            vendors (name)
+          `)
+          .gte('sale_date', startDate)
+          .lte('sale_date', endDate);
+        if (error) throw error;
+        const tbody = document.querySelector('#sales-report tbody');
+        tbody.innerHTML = data.length
+          ? data.map(s => `
+              <tr>
+                <td class="border p-2">${s.products.name}</td>
+                <td class="border p-2">${s.vendors.name}</td>
+                <td class="border p-2">${s.customer_name || '-'}</td>
+                <td class="border p-2">${s.quantity}</td>
+                <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
+              </tr>
+            `).join('')
+          : '<tr><td colspan="5" class="border p-2">No sales found.</td></tr>';
+        document.getElementById('message').textContent = `[${new Date().toISOString()}] Report generated for ${startDate} to ${endDate}`;
+        clearMessage('message');
+      } catch (error) {
+        console.error('Error generating report:', error.message);
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] Error generating report: ${error.message}`;
+        clearMessage('error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateAnalytics();
+    });
+  </script>
+</body>
+</html>
