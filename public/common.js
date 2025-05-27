@@ -514,4 +514,3 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.querySelector('#sales')) loadSales();
   setupRealtime();
 });
-</script>
