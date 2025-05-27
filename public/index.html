@@ -14,7 +14,8 @@
       <li><a href="analytics.html" class="text-blue-500 hover:text-blue-700">Analytics</a></li>
       <li><a href="manage-products.html" class="text-blue-500 hover:text-blue-700">Manage Products</a></li>
       <li><a href="manage-vendors.html" class="text-blue-500 hover:text-blue-700">Manage Vendors</a></li>
-      <li><a href="record-sales.html" class="text-blue-500 hover:text-blue-700">Record Sales</a></li>
+      <li><a href="record-customer-sales.html" class="text-blue-500 hover:text-blue-700">Record Customer Sales</a></li>
+      <li><a href="record-vendor-sales.html" class="text-blue-500 hover:text-blue-700">Record Vendor Sales</a></li>
     </ul>
   </nav>
   <p class="text-gray-600">Select a section from the navigation above.</p>
@@ -44,18 +45,6 @@
       const loadingEl = document.getElementById('loading');
       loadingEl.classList.toggle('hidden', !isLoading);
     }
-
-    // Initialize Supabase client
-    if (typeof supabase === 'undefined') {
-      console.error('Supabase SDK not loaded');
-      throw new Error('Supabase SDK not loaded');
-    }
-    const { createClient } = supabase;
-    window.supabaseClient = createClient(
-      'https://aouduygmcspiqauhrabx.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
-    );
-    console.log('Supabase Client Initialized:', Object.keys(window.supabaseClient));
   </script>
 </body>
 </html>
