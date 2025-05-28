@@ -53,21 +53,14 @@
     <span lang="zh">切換到英文</span>
   </button>
 
-  <form onsubmit="event.preventDefault(); addVendor({ name: document.getElementById('vendor-name').value.trim(), contact_email: document.getElementById('vendor-email').value.trim() })" class="mb-4 space-y-2">
+  <form onsubmit="event.preventDefault(); addVendor({ name: document.getElementById('vendor-name').value.trim(), contact_email: document.getElementById('vendor-email').value.trim() || null, contact_number: document.getElementById('vendor-contact').value.trim() || null, address: document.getElementById('vendor-address').value.trim() || null })" class="mb-4 space-y-2">
     <input id="vendor-name" type="text" placeholder="Vendor Name" required class="border p-2 rounded">
-    <input id="vendor-email" type="email" placeholder="Contact Email" class="border p-2 rounded">
+    <input id="vendor-email" type="email" placeholder="Contact Email (Optional)" class="border p-2 rounded">
+    <input id="vendor-contact" type="text" placeholder="Contact No. (Optional)" class="border p-2 rounded">
+    <input id="vendor-address" type="text" placeholder="Address (Optional)" class="border p-2 rounded">
     <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
       <span lang="en">Add Vendor</span>
       <span lang="zh">添加供應商</span>
-    </button>
-  </form>
-  <form onsubmit="event.preventDefault(); updateVendor(parseInt(document.getElementById('edit-vendor-id').value), { name: document.getElementById('edit-vendor-name').value.trim(), contact_email: document.getElementById('edit-vendor-email').value.trim() })" class="mb-4 space-y-2">
-    <input id="edit-vendor-id" type="number" placeholder="Vendor ID" required class="border p-2 rounded">
-    <input id="edit-vendor-name" type="text" placeholder="Vendor Name" required class="border p-2 rounded">
-    <input id="edit-vendor-email" type="email" placeholder="Contact Email" class="border p-2 rounded">
-    <button type="submit" class="bg-yellow-500 text-white p-2 rounded hover:bg-yellow-600">
-      <span lang="en">Update Vendor</span>
-      <span lang="zh">更新供應商</span>
     </button>
   </form>
   <p class="text-gray-600 text-sm mb-2">
@@ -84,6 +77,14 @@
         <th class="border p-2">
           <span lang="en">Contact Email</span>
           <span lang="zh">聯繫電子郵件</span>
+        </th>
+        <th class="border p-2">
+          <span lang="en">Contact No.</span>
+          <span lang="zh">聯繫電話</span>
+        </th>
+        <th class="border p-2">
+          <span lang="en">Address</span>
+          <span lang="zh">地址</span>
         </th>
         <th class="border p-2">
           <span lang="en">Actions</span>
