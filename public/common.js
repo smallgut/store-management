@@ -36,23 +36,36 @@ async function loadProducts() {
   try {
     await ensureSupabaseClient();
     setLoading(true);
-    const { data, error } = await window.supabaseClient
+    const { data: products, error: productError } = await window.supabaseClient
       .from('products')
       .select('*, vendors(name)')
       .order('name');
-    if (error) throw error;
-    console.log('Products:', data);
+    if (productError) throw productError;
+    const { data: vendors, error: vendorError } = await window.supabaseClient
+      .from('vendors')
+      .select('id, name');
+    if (vendorError) throw vendorError;
+    console.log('Products:', products);
     const productsBody = document.querySelector('#products tbody');
     if (productsBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      productsBody.innerHTML = data.length
-        ? data.map(p => `
+      productsBody.innerHTML = products.length
+        ? products.map(p => `
             <tr>
               <td class="border p-2">${p.name}</td>
               <td class="border p-2">${p.barcode}</td>
               <td class="border p-2">$${p.price.toFixed(2)}</td>
               <td class="border p-2">${p.stock}</td>
-              <td class="border p-2">${p.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">
+                <span class="inline-block mb-1">${p.vendors?.name || (isChinese ? '無' : 'N/A')}</span>
+                <form onsubmit="event.preventDefault(); updateProductVendor('${p.barcode}', document.getElementById('vendor-${p.barcode}').value ? parseInt(document.getElementById('vendor-${p.barcode}').value) : null)">
+                  <select id="vendor-${p.barcode}" class="border p-1 rounded w-32">
+                    <option value="">${isChinese ? '無' : 'None'}</option>
+                    ${vendors.map(v => `<option value="${v.id}" ${p.vendor_id === v.id ? 'selected' : ''}>${v.name}</option>`).join('')}
+                  </select>
+                  <button type="submit" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 ml-2">${isChinese ? '更新供應商' : 'Update Vendor'}</button>
+                </form>
+              </td>
               <td class="border p-2">
                 <form onsubmit="event.preventDefault(); updateProductStock('${p.barcode}', parseInt(document.getElementById('stock-${p.barcode}').value) || ${p.stock})">
                   <input id="stock-${p.barcode}" type="number" min="0" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
@@ -78,6 +91,39 @@ async function loadProducts() {
   }
 }
 
+async function updateProductVendor(barcode, newVendorId) {
+  try {
+    await ensureSupabaseClient();
+    setLoading(true);
+    const { data: product, error: fetchError } = await window.supabaseClient
+      .from('products')
+      .select('name')
+      .eq('barcode', barcode)
+      .single();
+    if (fetchError) throw fetchError;
+    const { data: vendor, error: vendorError } = newVendorId
+      ? await window.supabaseClient.from('vendors').select('name').eq('id', newVendorId).single()
+      : null;
+    if (newVendorId && vendorError) throw vendorError;
+    const { error } = await window.supabaseClient
+      .from('products')
+      .update({ vendor_id: newVendorId })
+      .eq('barcode', barcode);
+    if (error) throw error;
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${barcode}) 的供應商已更新為 ${vendor?.name || '無'}` : `Vendor for product ${product.name} (${barcode}) updated to ${vendor?.name || 'None'}`}`;
+    clearMessage('message');
+    await loadProducts();
+  } catch (error) {
+    console.error('Error updating product vendor:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法更新產品供應商：${error.message}` : `Failed to update product vendor: ${error.message}`}`;
+    clearMessage('error');
+  } finally {
+    setLoading(false);
+  }
+}
+
 const loadVendors = debounce(async function() {
   try {
     await ensureSupabaseClient();
@@ -92,17 +138,41 @@ const loadVendors = debounce(async function() {
         ? data.map(v => `
             <tr>
               <td class="border p-2">${v.name}</td>
-              <td class="border p-2">${v.contact_email || '-'}</td>
+              <td class="border p-2">
+                <span class="inline-block mb-1">${v.contact_email || '-'}</span>
+                <form onsubmit="event.preventDefault(); updateVendorEmail(${v.id}, document.getElementById('email-${v.id}').value.trim() || null)">
+                  <input id="email-${v.id}" type="email" placeholder="${isChinese ? '電子郵件' : 'Email'}" value="${v.contact_email || ''}" class="border p-1 rounded w-32">
+                  <button type="submit" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 ml-2">${isChinese ? '更新電子郵件' : 'Update Email'}</button>
+                </form>
+              </td>
+              <td class="border p-2">
+                <span class="inline-block mb-1">${v.contact_number || '-'}</span>
+                <form onsubmit="event.preventDefault(); updateVendorContactNumber(${v.id}, document.getElementById('contact-${v.id}').value.trim() || null)">
+                  <input id="contact-${v.id}" type="text" placeholder="${isChinese ? '聯繫電話' : 'Contact No.'}" value="${v.contact_number || ''}" class="border p-1 rounded w-32">
+                  <button type="submit" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 ml-2">${isChinese ? '更新電話' : 'Update Contact'}</button>
+                </form>
+              </td>
+              <td class="border p-2">
+                <span class="inline-block mb-1">${v.address || '-'}</span>
+                <form onsubmit="event.preventDefault(); updateVendorAddress(${v.id}, document.getElementById('address-${v.id}').value.trim() || null)">
+                  <input id="address-${v.id}" type="text" placeholder="${isChinese ? '地址' : 'Address'}" value="${v.address || ''}" class="border p-1 rounded w-32">
+                  <button type="submit" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 ml-2">${isChinese ? '更新地址' : 'Update Address'}</button>
+                </form>
+              </td>
               <td class="border p-2">
                 <button onclick="if (confirm('${isChinese ? `刪除 ${v.name}?` : `Delete ${v.name}?`})) deleteVendor(${v.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="3" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
+        : `<tr><td colspan="5" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
     }
     const vendorSelect = document.getElementById('sale-vendor');
     if (vendorSelect) {
       vendorSelect.innerHTML = `<option value="">${isChinese ? '選擇供應商' : 'Select Vendor'}</option>` + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+    }
+    const addVendorSelect = document.getElementById('vendor-id');
+    if (addVendorSelect) {
+      addVendorSelect.innerHTML = `<option value="">${isChinese ? '選擇供應商（可選）' : 'Select Vendor (Optional)'}</option>` + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
     }
   } catch (error) {
     console.error('Error loading vendors:', error.message);
@@ -198,23 +268,36 @@ async function sortProducts(by) {
   try {
     await ensureSupabaseClient();
     setLoading(true);
-    const { data, error } = await window.supabaseClient
+    const { data: products, error: productError } = await window.supabaseClient
       .from('products')
       .select('*, vendors(name)')
       .order(by);
-    if (error) throw error;
-    console.log('Sorted products:', data);
+    if (productError) throw productError;
+    const { data: vendors, error: vendorError } = await window.supabaseClient
+      .from('vendors')
+      .select('id, name');
+    if (vendorError) throw vendorError;
+    console.log('Sorted products:', products);
     const productsBody = document.querySelector('#products tbody');
     if (productsBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      productsBody.innerHTML = data.length
-        ? data.map(p => `
+      productsBody.innerHTML = products.length
+        ? products.map(p => `
             <tr>
               <td class="border p-2">${p.name}</td>
               <td class="border p-2">${p.barcode}</td>
               <td class="border p-2">$${p.price.toFixed(2)}</td>
               <td class="border p-2">${p.stock}</td>
-              <td class="border p-2">${p.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">
+                <span class="inline-block mb-1">${p.vendors?.name || (isChinese ? '無' : 'N/A')}</span>
+                <form onsubmit="event.preventDefault(); updateProductVendor('${p.barcode}', document.getElementById('vendor-${p.barcode}').value ? parseInt(document.getElementById('vendor-${p.barcode}').value) : null)">
+                  <select id="vendor-${p.barcode}" class="border p-1 rounded w-32">
+                    <option value="">${isChinese ? '無' : 'None'}</option>
+                    ${vendors.map(v => `<option value="${v.id}" ${p.vendor_id === v.id ? 'selected' : ''}>${v.name}</option>`).join('')}
+                  </select>
+                  <button type="submit" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 ml-2">${isChinese ? '更新供應商' : 'Update Vendor'}</button>
+                </form>
+              </td>
               <td class="border p-2">
                 <form onsubmit="event.preventDefault(); updateProductStock('${p.barcode}', parseInt(document.getElementById('stock-${p.barcode}').value) || ${p.stock})">
                   <input id="stock-${p.barcode}" type="number" min="0" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
@@ -393,11 +476,11 @@ async function addVendor(vendor) {
   }
 }
 
-async function updateVendor(id, updates) {
+async function updateVendorEmail(id, newEmail) {
   try {
     await ensureSupabaseClient();
     setLoading(true);
-    const { data: existing, error: fetchError } = await window.supabaseClient
+    const { data: vendor, error: fetchError } = await window.supabaseClient
       .from('vendors')
       .select('name')
       .eq('id', id)
@@ -405,17 +488,75 @@ async function updateVendor(id, updates) {
     if (fetchError) throw fetchError;
     const { error } = await window.supabaseClient
       .from('vendors')
-      .update(updates)
+      .update({ contact_email: newEmail })
       .eq('id', id);
     if (error) throw error;
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商 ${existing.name} 已更新` : `Vendor ${existing.name} updated`}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商 ${vendor.name} 的電子郵件已更新為 ${newEmail || '-'}` : `Email for vendor ${vendor.name} updated to ${newEmail || '-'}`}`;
     clearMessage('message');
     await loadVendors();
   } catch (error) {
-    console.error('Error updating vendor:', error.message);
+    console.error('Error updating vendor email:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法更新供應商：${error.message}` : `Failed to update vendor: ${error.message}`}`;
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法更新供應商電子郵件：${error.message}` : `Failed to update vendor email: ${error.message}`}`;
+    clearMessage('error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function updateVendorContactNumber(id, newContactNumber) {
+  try {
+    await ensureSupabaseClient();
+    setLoading(true);
+    const { data: vendor, error: fetchError } = await window.supabaseClient
+      .from('vendors')
+      .select('name')
+      .eq('id', id)
+      .single();
+    if (fetchError) throw fetchError;
+    const { error } = await window.supabaseClient
+      .from('vendors')
+      .update({ contact_number: newContactNumber })
+      .eq('id', id);
+    if (error) throw error;
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商 ${vendor.name} 的聯繫電話已更新為 ${newContactNumber || '-'}` : `Contact number for vendor ${vendor.name} updated to ${newContactNumber || '-'}`}`;
+    clearMessage('message');
+    await loadVendors();
+  } catch (error) {
+    console.error('Error updating vendor contact number:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法更新供應商聯繫電話：${error.message}` : `Failed to update vendor contact number: ${error.message}`}`;
+    clearMessage('error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function updateVendorAddress(id, newAddress) {
+  try {
+    await ensureSupabaseClient();
+    setLoading(true);
+    const { data: vendor, error: fetchError } = await window.supabaseClient
+      .from('vendors')
+      .select('name')
+      .eq('id', id)
+      .single();
+    if (fetchError) throw fetchError;
+    const { error } = await window.supabaseClient
+      .from('vendors')
+      .update({ address: newAddress })
+      .eq('id', id);
+    if (error) throw error;
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商 ${vendor.name} 的地址已更新為 ${newAddress || '-'}` : `Address for vendor ${vendor.name} updated to ${newAddress || '-'}`}`;
+    clearMessage('message');
+    await loadVendors();
+  } catch (error) {
+    console.error('Error updating vendor address:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法更新供應商地址：${error.message}` : `Failed to update vendor address: ${error.message}`}`;
     clearMessage('error');
   } finally {
     setLoading(false);
