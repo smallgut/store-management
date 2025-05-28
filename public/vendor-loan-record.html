@@ -18,7 +18,7 @@
 <body class="p-6 bg-gray-100 min-h-screen lang-en" id="lang-body">
   <h1 class="text-3xl font-bold mb-6">
     <span lang="en">Vendor Loan Record</span>
-    <span lang="zh">供應商貸款記錄</span>
+    <span lang="zh">供應商貸貨記錄</span>
   </h1>
   <nav class="mb-6">
     <ul class="flex space-x-4">
@@ -44,7 +44,7 @@
       </a></li>
       <li><a href="vendor-loan-record.html" class="text-blue-500 hover:text-blue-700">
         <span lang="en">Vendor Loan Record</span>
-        <span lang="zh">供應商貸款記錄</span>
+        <span lang="zh">供應商貸貨記錄</span>
       </a></li>
     </ul>
   </nav>
@@ -64,7 +64,10 @@
       <span lang="en">Vendor:</span>
       <span lang="zh">供應商：</span>
       <select id="sale-vendor" required class="border p-2 rounded w-full">
-        <option value="">Select Vendor</option>
+        <option value="">
+          <span lang="en">Select Vendor</span>
+          <span lang="zh">選擇供應商</span>
+        </option>
       </select>
     </label>
     <label>
@@ -79,7 +82,7 @@
     </label>
     <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 w-full">
       <span lang="en">Record Vendor Loan</span>
-      <span lang="zh">記錄供應商貸款</span>
+      <span lang="zh">記錄供應商貸貨</span>
     </button>
   </form>
   <table id="vendor-sales" class="w-full border-collapse mt-4 bg-white shadow">
@@ -146,6 +149,11 @@
       body.classList.toggle('lang-en');
       body.classList.toggle('lang-zh');
     }
+
+    // Load vendors on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadVendors();
+    });
   </script>
   <script src="common.js"></script>
 </body>
