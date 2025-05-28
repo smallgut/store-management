@@ -18,7 +18,7 @@
     .lang-zh [lang="en"] { display: none; }
   </style>
 </head>
-<body class="p-6 bg-gray-100 min-h-screen lang-en" id="lang-body">
+<body class="p-6 bg-gray-100 min-h-screen" id="lang-body">
   <h1 class="text-3xl font-bold mb-6">
     <span lang="en">Manage Vendors</span>
     <span lang="zh">管理供應商</span>
@@ -120,9 +120,18 @@
 
     function toggleLanguage() {
       const body = document.getElementById('lang-body');
-      body.classList.toggle('lang-en');
-      body.classList.toggle('lang-zh');
+      const isEnglish = body.classList.contains('lang-en');
+      body.classList.toggle('lang-en', !isEnglish);
+      body.classList.toggle('lang-zh', isEnglish);
+      localStorage.setItem('language', isEnglish ? 'zh' : 'en');
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const preferredLang = localStorage.getItem('language') || 'en';
+      const body = document.getElementById('lang-body');
+      body.classList.add(`lang-${preferredLang}`);
+      loadVendors();
+    });
   </script>
   <script src="common.js"></script>
 </body>
