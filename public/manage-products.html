@@ -69,22 +69,6 @@
       <span lang="zh">添加產品</span>
     </button>
   </form>
-  <form onsubmit="event.preventDefault(); updateProduct(document.getElementById('edit-barcode').value.trim(), { name: document.getElementById('edit-name').value.trim(), price: parseFloat(document.getElementById('edit-price').value), stock: parseInt(document.getElementById('edit-stock').value), vendor_id: parseInt(document.getElementById('edit-vendor-id').value) || null })" class="mb-4 space-y-2">
-    <input id="edit-barcode" type="text" placeholder="Barcode" required class="border p-2 rounded">
-    <input id="edit-name" type="text" placeholder="Name" required class="border p-2 rounded">
-    <input id="edit-price" type="number" step="0.01" min="0" placeholder="Price" required class="border p-2 rounded">
-    <input id="edit-stock" type="number" min="0" placeholder="Stock" required class="border p-2 rounded">
-    <select id="edit-vendor-id" class="border p-2 rounded">
-      <option value="">
-        <span lang="en">Select Vendor (Optional)</span>
-        <span lang="zh">選擇供應商（可選）</span>
-      </option>
-    </select>
-    <button type="submit" class="bg-yellow-500 text-white p-2 rounded hover:bg-yellow-600">
-      <span lang="en">Update Product</span>
-      <span lang="zh">更新產品</span>
-    </button>
-  </form>
   <p class="text-gray-600 text-sm mb-2">
     <span lang="en">Note: Barcodes must be unique.</span>
     <span lang="zh">注意：條碼必須唯一。</span>
@@ -166,10 +150,8 @@
         const { data: vendors, error } = await window.supabaseClient.from('vendors').select('*');
         if (error) throw error;
         const addVendorSelect = document.getElementById('vendor-id');
-        const editVendorSelect = document.getElementById('edit-vendor-id');
         const isChinese = document.getElementById('lang-body').classList.contains('lang-zh');
         addVendorSelect.innerHTML = `<option value="">${isChinese ? '選擇供應商（可選）' : 'Select Vendor (Optional)'}</option>` + vendors.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
-        editVendorSelect.innerHTML = `<option value="">${isChinese ? '選擇供應商（可選）' : 'Select Vendor (Optional)'}</option>` + vendors.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
       } catch (error) {
         console.error('Error loading vendors for dropdown:', error.message);
       }
