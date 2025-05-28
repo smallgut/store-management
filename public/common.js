@@ -677,12 +677,16 @@ async function addVendorSale(sale) {
     setLoading(true);
     const { data: product, error: fetchError } = await window.supabaseClient
       .from('products')
-      .select('stock, name')
+      .select('stock, name, price')
       .eq('barcode', sale.product_barcode)
       .single();
     if (fetchError) throw fetchError;
     if (!product) {
       throw new Error('Product not found');
+    }
+    const finalPrice = sale.price != null ? sale.price : product.price;
+    if (finalPrice < 0) {
+      throw new Error('Price cannot be negative');
     }
     const { error: updateError } = await window.supabaseClient
       .from('products')
@@ -691,10 +695,10 @@ async function addVendorSale(sale) {
     if (updateError) throw updateError;
     const { error } = await window.supabaseClient
       .from('vendor_sales')
-      .insert([{ ...sale, sale_date: new Date().toISOString() }]);
+      .insert([{ product_barcode: sale.product_barcode, vendor_id: sale.vendor_id, quantity: sale.quantity, price: finalPrice, sale_date: new Date().toISOString() }]);
     if (error) throw error;
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商貸貨記錄 ${sale.quantity} 個 ${product.name} 已添加` : `Vendor sale of ${sale.quantity} ${product.name} recorded`}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商貸貨記錄 ${sale.quantity} 個 ${product.name} 已添加，單價 $${finalPrice.toFixed(2)}` : `Vendor sale of ${sale.quantity} ${product.name} recorded at $${finalPrice.toFixed(2)} per unit`}`;
     clearMessage('message');
     await loadVendorSales();
   } catch (error) {
