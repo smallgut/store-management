@@ -508,7 +508,7 @@ async function addVendorSale(sale) {
       clearMessage('error');
       return;
     }
-    console.log('Adding vendor sale:', sale);
+    console.log('Adding vendor loan:', sale);
     setLoading(true);
     const { data: product, error: productError } = await window.supabaseClient
       .from('products')
@@ -527,14 +527,14 @@ async function addVendorSale(sale) {
       .from('products')
       .update({ stock: product.stock + sale.quantity })
       .eq('barcode', sale.product_barcode);
-    console.log('Vendor sale added:', JSON.stringify(saleData, null, 2));
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor sale recorded for ${sale.product_barcode}`;
+    console.log('Vendor loan added:', JSON.stringify(saleData, null, 2));
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor loan recorded for ${sale.product_barcode}`;
     clearMessage('message');
     await loadVendorSales();
     await loadProducts();
   } catch (error) {
-    console.error('Error adding vendor sale:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to add vendor sale: ${error.message}`;
+    console.error('Error adding vendor loan:', error.message);
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to add vendor loan: ${error.message}`;
     clearMessage('error');
   } finally {
     setLoading(false);
@@ -544,14 +544,14 @@ async function addVendorSale(sale) {
 async function deleteVendorSale(id) {
   try {
     await ensureSupabaseClient();
-    console.log('Deleting vendor sale:', id);
+    console.log('Deleting vendor loan:', id);
     setLoading(true);
     const { data: sale, error: saleError } = await window.supabaseClient
       .from('vendor_sales')
       .select('id, product_barcode, quantity')
       .eq('id', id)
       .single();
-    if (saleError || !sale) throw new Error('Sale not found');
+    if (saleError || !sale) throw new Error('Loan not found');
     const { data: product, error: productError } = await window.supabaseClient
       .from('products')
       .select('stock')
@@ -570,14 +570,14 @@ async function deleteVendorSale(id) {
       .delete()
       .eq('id', id);
     if (error) throw error;
-    console.log('Vendor sale deleted:', id);
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor sale deleted: ${id}`;
+    console.log('Vendor loan deleted:', id);
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor loan deleted: ${id}`;
     clearMessage('message');
     await loadVendorSales();
     await loadProducts();
   } catch (error) {
-    console.error('Error deleting vendor sale:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting vendor sale: ${error.message}`;
+    console.error('Error deleting vendor loan:', error.message);
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting vendor loan: ${error.message}`;
     clearMessage('error');
   } finally {
     setLoading(false);
@@ -619,22 +619,4 @@ function setupRealtime() {
     });
   } catch (error) {
     console.error('Error setting up realtime:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error setting up realtime: ${error.message}`;
-    clearMessage('error');
-  }
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    await ensureSupabaseClient();
-    if (document.querySelector('#products')) await loadProducts();
-    if (document.querySelector('#vendors')) await loadVendors();
-    if (document.querySelector('#customer-sales')) await loadCustomerSales();
-    if (document.querySelector('#vendor-sales')) await loadVendorSales();
-    setupRealtime();
-  } catch (error) {
-    console.error('Error during page load:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error during page load: ${error.message}`;
-    clearMessage('error');
-  }
-});
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error setting up
