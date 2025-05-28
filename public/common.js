@@ -10,17 +10,19 @@ function debounce(func, wait) {
   };
 }
 
-// Initialize Supabase client
-if (typeof supabase === 'undefined') {
-  console.error('Supabase SDK not loaded');
-  throw new Error('Supabase SDK not loaded');
+// Initialize Supabase client only if not already initialized
+if (!window.supabaseClient) {
+  if (typeof supabase === 'undefined') {
+    console.error('Supabase SDK not loaded');
+    throw new Error('Supabase SDK not loaded');
+  }
+  const { createClient } = supabase;
+  window.supabaseClient = createClient(
+    'https://aouduygmcspiqauhrabx.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+  );
+  console.log('Supabase Client Initialized in common.js:', Object.keys(window.supabaseClient));
 }
-const { createClient } = supabase;
-window.supabaseClient = createClient(
-  'https://aouduygmcspiqauhrabx.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
-);
-console.log('Supabase Client Initialized in common.js:', Object.keys(window.supabaseClient));
 
 // Ensure Supabase client is ready before proceeding
 async function ensureSupabaseClient() {
@@ -52,9 +54,13 @@ async function loadProducts() {
               <td class="border p-2">${p.stock}</td>
               <td class="border p-2">${p.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
-                <form onsubmit="event.preventDefault(); updateProduct('${p.barcode}', { stock: parseInt(document.getElementById('stock-${p.barcode}').value) + ${p.stock} })">
+                <form onsubmit="event.preventDefault(); updateProductStock('${p.barcode}', parseInt(document.getElementById('stock-${p.barcode}').value) || ${p.stock})">
                   <input id="stock-${p.barcode}" type="number" min="0" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
                   <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">${isChinese ? '更新庫存' : 'Update Stock'}</button>
+                </form>
+                <form onsubmit="event.preventDefault(); updateProductPrice('${p.barcode}', parseFloat(document.getElementById('price-${p.barcode}').value) || ${p.price})" class="mt-2">
+                  <input id="price-${p.barcode}" type="number" step="0.01" min="0" placeholder="${isChinese ? '價格' : 'Price'}" class="border p-1 rounded w-16">
+                  <button type="submit" class="bg-yellow-500 text-white p-1 rounded hover:bg-yellow-600">${isChinese ? '更新價格' : 'Update Price'}</button>
                 </form>
                 <button onclick="if (confirm('${isChinese ? `刪除 ${p.name} (${p.barcode})?` : `Delete ${p.name} (${p.barcode})?`})) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
@@ -210,9 +216,13 @@ async function sortProducts(by) {
               <td class="border p-2">${p.stock}</td>
               <td class="border p-2">${p.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
-                <form onsubmit="event.preventDefault(); updateProduct('${p.barcode}', { stock: parseInt(document.getElementById('stock-${p.barcode}').value) + ${p.stock} })">
+                <form onsubmit="event.preventDefault(); updateProductStock('${p.barcode}', parseInt(document.getElementById('stock-${p.barcode}').value) || ${p.stock})">
                   <input id="stock-${p.barcode}" type="number" min="0" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
                   <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">${isChinese ? '更新庫存' : 'Update Stock'}</button>
+                </form>
+                <form onsubmit="event.preventDefault(); updateProductPrice('${p.barcode}', parseFloat(document.getElementById('price-${p.barcode}').value) || ${p.price})" class="mt-2">
+                  <input id="price-${p.barcode}" type="number" step="0.01" min="0" placeholder="${isChinese ? '價格' : 'Price'}" class="border p-1 rounded w-16">
+                  <button type="submit" class="bg-yellow-500 text-white p-1 rounded hover:bg-yellow-600">${isChinese ? '更新價格' : 'Update Price'}</button>
                 </form>
                 <button onclick="if (confirm('${isChinese ? `刪除 ${p.name} (${p.barcode})?` : `Delete ${p.name} (${p.barcode})?`})) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
@@ -260,7 +270,7 @@ async function addProduct(product) {
   }
 }
 
-async function updateProduct(barcode, updates) {
+async function updateProductStock(barcode, newStock) {
   try {
     await ensureSupabaseClient();
     setLoading(true);
@@ -270,19 +280,54 @@ async function updateProduct(barcode, updates) {
       .eq('barcode', barcode)
       .single();
     if (fetchError) throw fetchError;
+    if (isNaN(newStock) || newStock < 0) {
+      throw new Error('Invalid stock value');
+    }
     const { error } = await window.supabaseClient
       .from('products')
-      .update(updates)
+      .update({ stock: newStock })
       .eq('barcode', barcode);
     if (error) throw error;
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${barcode}) 已更新` : `Product ${product.name} (${barcode}) updated`}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${barcode}) 的庫存已更新為 ${newStock}` : `Stock for product ${product.name} (${barcode}) updated to ${newStock}`}`;
     clearMessage('message');
     await loadProducts();
   } catch (error) {
-    console.error('Error updating product:', error.message);
+    console.error('Error updating product stock:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法更新產品：${error.message}` : `Failed to update product: ${error.message}`}`;
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法更新產品庫存：${error.message}` : `Failed to update product stock: ${error.message}`}`;
+    clearMessage('error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function updateProductPrice(barcode, newPrice) {
+  try {
+    await ensureSupabaseClient();
+    setLoading(true);
+    const { data: product, error: fetchError } = await window.supabaseClient
+      .from('products')
+      .select('name')
+      .eq('barcode', barcode)
+      .single();
+    if (fetchError) throw fetchError;
+    if (isNaN(newPrice) || newPrice < 0) {
+      throw new Error('Invalid price value');
+    }
+    const { error } = await window.supabaseClient
+      .from('products')
+      .update({ price: newPrice })
+      .eq('barcode', barcode);
+    if (error) throw error;
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${barcode}) 的價格已更新為 $${newPrice}` : `Price for product ${product.name} (${barcode}) updated to $${newPrice}`}`;
+    clearMessage('message');
+    await loadProducts();
+  } catch (error) {
+    console.error('Error updating product price:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法更新產品價格：${error.message}` : `Failed to update product price: ${error.message}`}`;
     clearMessage('error');
   } finally {
     setLoading(false);
