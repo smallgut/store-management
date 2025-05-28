@@ -41,24 +41,26 @@ async function loadProducts() {
     if (error) throw error;
     console.log('Products:', data);
     const productsBody = document.querySelector('#products tbody');
-    productsBody.innerHTML = data.length
-      ? data.map(p => `
-          <tr>
-            <td class="border p-2">${p.name}</td>
-            <td class="border p-2">${p.barcode}</td>
-            <td class="border p-2">$${p.price.toFixed(2)}</td>
-            <td class="border p-2">${p.stock}</td>
-            <td class="border p-2">${p.vendors?.name || 'N/A'}</td>
-            <td class="border p-2">
-              <form onsubmit="event.preventDefault(); updateProduct('${p.barcode}', { stock: parseInt(document.getElementById('stock-${p.barcode}').value) + ${p.stock} })">
-                <input id="stock-${p.barcode}" type="number" min="0" placeholder="Qty" class="border p-1 rounded w-16">
-                <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Update Stock</button>
-              </form>
-              <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">Delete</button>
-            </td>
-          </tr>
-        `).join('')
-      : '<tr><td colspan="6" class="border p-2">No products found.</td></tr>';
+    if (productsBody) { // Only update UI if the element exists
+      productsBody.innerHTML = data.length
+        ? data.map(p => `
+            <tr>
+              <td class="border p-2">${p.name}</td>
+              <td class="border p-2">${p.barcode}</td>
+              <td class="border p-2">$${p.price.toFixed(2)}</td>
+              <td class="border p-2">${p.stock}</td>
+              <td class="border p-2">${p.vendors?.name || 'N/A'}</td>
+              <td class="border p-2">
+                <form onsubmit="event.preventDefault(); updateProduct('${p.barcode}', { stock: parseInt(document.getElementById('stock-${p.barcode}').value) + ${p.stock} })">
+                  <input id="stock-${p.barcode}" type="number" min="0" placeholder="Qty" class="border p-1 rounded w-16">
+                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Update Stock</button>
+                </form>
+                <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">Delete</button>
+              </td>
+            </tr>
+          `).join('')
+        : '<tr><td colspan="6" class="border p-2">No products found.</td></tr>';
+    }
   } catch (error) {
     console.error('Error loading products:', error.message);
     document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load products: ${error.message}`;
@@ -187,24 +189,26 @@ async function sortProducts(by) {
     if (error) throw error;
     console.log('Sorted products:', data);
     const productsBody = document.querySelector('#products tbody');
-    productsBody.innerHTML = data.length
-      ? data.map(p => `
-          <tr>
-            <td class="border p-2">${p.name}</td>
-            <td class="border p-2">${p.barcode}</td>
-            <td class="border p-2">$${p.price.toFixed(2)}</td>
-            <td class="border p-2">${p.stock}</td>
-            <td class="border p-2">${p.vendors?.name || 'N/A'}</td>
-            <td class="border p-2">
-              <form onsubmit="event.preventDefault(); updateProduct('${p.barcode}', { stock: parseInt(document.getElementById('stock-${p.barcode}').value) + ${p.stock} })">
-                <input id="stock-${p.barcode}" type="number" min="0" placeholder="Qty" class="border p-1 rounded w-16">
-                <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Update Stock</button>
-              </form>
-              <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">Delete</button>
-            </td>
-          </tr>
-        `).join('')
-      : '<tr><td colspan="6" class="border p-2">No products found.</td></tr>';
+    if (productsBody) {
+      productsBody.innerHTML = data.length
+        ? data.map(p => `
+            <tr>
+              <td class="border p-2">${p.name}</td>
+              <td class="border p-2">${p.barcode}</td>
+              <td class="border p-2">$${p.price.toFixed(2)}</td>
+              <td class="border p-2">${p.stock}</td>
+              <td class="border p-2">${p.vendors?.name || 'N/A'}</td>
+              <td class="border p-2">
+                <form onsubmit="event.preventDefault(); updateProduct('${p.barcode}', { stock: parseInt(document.getElementById('stock-${p.barcode}').value) + ${p.stock} })">
+                  <input id="stock-${p.barcode}" type="number" min="0" placeholder="Qty" class="border p-1 rounded w-16">
+                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Update Stock</button>
+                </form>
+                <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">Delete</button>
+              </td>
+            </tr>
+          `).join('')
+        : '<tr><td colspan="6" class="border p-2">No products found.</td></tr>';
+    }
   } catch (error) {
     console.error('Error sorting products:', error.message);
     document.getElementById('error').textContent = `[${new Date().toISOString()}] Error sorting products: ${error.message}`;
