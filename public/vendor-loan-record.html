@@ -53,7 +53,7 @@
     <span lang="zh">切換到英文</span>
   </button>
 
-  <form onsubmit="event.preventDefault(); addVendorSale({ product_barcode: document.getElementById('sale-barcode').value.trim(), vendor_id: parseInt(document.getElementById('sale-vendor').value), quantity: parseInt(document.getElementById('sale-quantity').value), price: document.getElementById('sale-price').value ? parseFloat(document.getElementById('sale-price').value) : null })" class="mb-4 space-y-2">
+  <form onsubmit="submitVendorSale(event)" class="mb-4 space-y-2">
     <input id="sale-barcode" type="text" placeholder="Product Barcode" required class="border p-2 rounded">
     <select id="sale-vendor" required class="border p-2 rounded"></select>
     <input id="sale-quantity" type="number" min="1" placeholder="Quantity" required class="border p-2 rounded">
@@ -115,13 +115,18 @@
   <script>
     function clearMessage(type = 'error') {
       setTimeout(() => {
-        document.getElementById(type).textContent = '';
+        const element = document.getElementById(type);
+        if (element) {
+          element.textContent = '';
+        }
       }, 5000);
     }
 
     function setLoading(isLoading) {
       const loadingEl = document.getElementById('loading');
-      loadingEl.classList.toggle('hidden', !isLoading);
+      if (loadingEl) {
+        loadingEl.classList.toggle('hidden', !isLoading);
+      }
     }
 
     function toggleLanguage() {
@@ -130,6 +135,42 @@
       body.classList.toggle('lang-en', !isEnglish);
       body.classList.toggle('lang-zh', isEnglish);
       localStorage.setItem('language', isEnglish ? 'zh' : 'en');
+    }
+
+    function submitVendorSale(event) {
+      event.preventDefault();
+      const barcode = document.getElementById('sale-barcode').value.trim();
+      const vendorId = parseInt(document.getElementById('sale-vendor').value);
+      const quantity = parseInt(document.getElementById('sale-quantity').value);
+      const price = document.getElementById('sale-price').value ? parseFloat(document.getElementById('sale-price').value) : null;
+
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      if (!barcode) {
+        const errorMsg = isChinese ? '請輸入產品條碼' : 'Please enter a product barcode';
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] ${errorMsg}`;
+        clearMessage('error');
+        return;
+      }
+      if (isNaN(vendorId)) {
+        const errorMsg = isChinese ? '請選擇供應商' : 'Please select a vendor';
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] ${errorMsg}`;
+        clearMessage('error');
+        return;
+      }
+      if (isNaN(quantity) || quantity < 1) {
+        const errorMsg = isChinese ? '請輸入有效的數量（至少為 1）' : 'Please enter a valid quantity (at least 1)';
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] ${errorMsg}`;
+        clearMessage('error');
+        return;
+      }
+      if (price !== null && price < 0) {
+        const errorMsg = isChinese ? '價格不能為負數' : 'Price cannot be negative';
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] ${errorMsg}`;
+        clearMessage('error');
+        return;
+      }
+
+      addVendorSale({ product_barcode: barcode, vendor_id: vendorId, quantity: quantity, price: price });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
