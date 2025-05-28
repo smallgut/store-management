@@ -41,7 +41,8 @@ async function loadProducts() {
     if (error) throw error;
     console.log('Products:', data);
     const productsBody = document.querySelector('#products tbody');
-    if (productsBody) { // Only update UI if the element exists
+    if (productsBody) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       productsBody.innerHTML = data.length
         ? data.map(p => `
             <tr>
@@ -49,21 +50,22 @@ async function loadProducts() {
               <td class="border p-2">${p.barcode}</td>
               <td class="border p-2">$${p.price.toFixed(2)}</td>
               <td class="border p-2">${p.stock}</td>
-              <td class="border p-2">${p.vendors?.name || 'N/A'}</td>
+              <td class="border p-2">${p.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
                 <form onsubmit="event.preventDefault(); updateProduct('${p.barcode}', { stock: parseInt(document.getElementById('stock-${p.barcode}').value) + ${p.stock} })">
-                  <input id="stock-${p.barcode}" type="number" min="0" placeholder="Qty" class="border p-1 rounded w-16">
-                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Update Stock</button>
+                  <input id="stock-${p.barcode}" type="number" min="0" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
+                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">${isChinese ? '更新庫存' : 'Update Stock'}</button>
                 </form>
-                <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">Delete</button>
+                <button onclick="if (confirm('${isChinese ? `刪除 ${p.name} (${p.barcode})?` : `Delete ${p.name} (${p.barcode})?`})) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : '<tr><td colspan="6" class="border p-2">No products found.</td></tr>';
+        : `<tr><td colspan="6" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
     }
   } catch (error) {
     console.error('Error loading products:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load products: ${error.message}`;
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法載入產品：${error.message}` : `Failed to load products: ${error.message}`}`;
     clearMessage('error');
   } finally {
     setLoading(false);
@@ -78,24 +80,28 @@ const loadVendors = debounce(async function() {
     if (error) throw error;
     console.log('Vendors:', data);
     const vendorsBody = document.querySelector('#vendors tbody');
-    vendorsBody.innerHTML = data.length
-      ? data.map(v => `
-          <tr>
-            <td class="border p-2">${v.name}</td>
-            <td class="border p-2">${v.contact_email || '-'}</td>
-            <td class="border p-2">
-              <button onclick="if (confirm('Delete ${v.name}?')) deleteVendor(${v.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
-            </td>
-          </tr>
-        `).join('')
-      : '<tr><td colspan="3" class="border p-2">No vendors found.</td></tr>';
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    if (vendorsBody) {
+      vendorsBody.innerHTML = data.length
+        ? data.map(v => `
+            <tr>
+              <td class="border p-2">${v.name}</td>
+              <td class="border p-2">${v.contact_email || '-'}</td>
+              <td class="border p-2">
+                <button onclick="if (confirm('${isChinese ? `刪除 ${v.name}?` : `Delete ${v.name}?`})) deleteVendor(${v.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+              </td>
+            </tr>
+          `).join('')
+        : `<tr><td colspan="3" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
+    }
     const vendorSelect = document.getElementById('sale-vendor');
     if (vendorSelect) {
-      vendorSelect.innerHTML = '<option value="">Select Vendor</option>' + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+      vendorSelect.innerHTML = `<option value="">${isChinese ? '選擇供應商' : 'Select Vendor'}</option>` + data.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
     }
   } catch (error) {
     console.error('Error loading vendors:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load vendors: ${error.message}`;
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法載入供應商：${error.message}` : `Failed to load vendors: ${error.message}`}`;
     clearMessage('error');
   } finally {
     setLoading(false);
@@ -117,6 +123,7 @@ const loadCustomerSales = debounce(async function() {
     }));
     console.log('Customer Sales:', salesWithNames);
     const salesBody = document.querySelector('#customer-sales tbody');
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     salesBody.innerHTML = salesWithNames.length
       ? salesWithNames.map(s => `
           <tr>
@@ -125,14 +132,15 @@ const loadCustomerSales = debounce(async function() {
             <td class="border p-2">${s.quantity}</td>
             <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
             <td class="border p-2">
-              <button onclick="if (confirm('Delete sale for ${s.product_name}?')) deleteCustomerSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
+              <button onclick="if (confirm('${isChinese ? `刪除 ${s.product_name} 的銷售記錄?` : `Delete sale for ${s.product_name}?`})) deleteCustomerSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
             </td>
           </tr>
         `).join('')
-      : '<tr><td colspan="5" class="border p-2">No sales found.</td></tr>';
+      : `<tr><td colspan="5" class="border p-2">${isChinese ? '未找到銷售記錄。' : 'No sales found.'}</td></tr>`;
   } catch (error) {
     console.error('Error loading customer sales:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load customer sales: ${error.message}`;
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法載入客戶銷售：${error.message}` : `Failed to load customer sales: ${error.message}`}`;
     clearMessage('error');
   } finally {
     setLoading(false);
@@ -155,6 +163,7 @@ const loadVendorSales = debounce(async function() {
     }));
     console.log('Vendor Sales:', salesWithNames);
     const salesBody = document.querySelector('#vendor-sales tbody');
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     salesBody.innerHTML = salesWithNames.length
       ? salesWithNames.map(s => `
           <tr>
@@ -164,14 +173,15 @@ const loadVendorSales = debounce(async function() {
             <td class="border p-2">$${s.price.toFixed(2)}</td>
             <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
             <td class="border p-2">
-              <button onclick="if (confirm('Delete sale for ${s.product_name}?')) deleteVendorSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
+              <button onclick="if (confirm('${isChinese ? `刪除 ${s.product_name} 的貸貨記錄?` : `Delete sale for ${s.product_name}?`})) deleteVendorSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
             </td>
           </tr>
         `).join('')
-      : '<tr><td colspan="6" class="border p-2">No sales found.</td></tr>';
+      : `<tr><td colspan="6" class="border p-2">${isChinese ? '未找到貸貨記錄。' : 'No sales found.'}</td></tr>`;
   } catch (error) {
     console.error('Error loading vendor sales:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to load vendor sales: ${error.message}`;
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `無法載入供應商貸貨：${error.message}` : `Failed to load vendor sales: ${error.message}`}`;
     clearMessage('error');
   } finally {
     setLoading(false);
@@ -190,6 +200,7 @@ async function sortProducts(by) {
     console.log('Sorted products:', data);
     const productsBody = document.querySelector('#products tbody');
     if (productsBody) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       productsBody.innerHTML = data.length
         ? data.map(p => `
             <tr>
@@ -197,426 +208,19 @@ async function sortProducts(by) {
               <td class="border p-2">${p.barcode}</td>
               <td class="border p-2">$${p.price.toFixed(2)}</td>
               <td class="border p-2">${p.stock}</td>
-              <td class="border p-2">${p.vendors?.name || 'N/A'}</td>
+              <td class="border p-2">${p.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
                 <form onsubmit="event.preventDefault(); updateProduct('${p.barcode}', { stock: parseInt(document.getElementById('stock-${p.barcode}').value) + ${p.stock} })">
-                  <input id="stock-${p.barcode}" type="number" min="0" placeholder="Qty" class="border p-1 rounded w-16">
-                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Update Stock</button>
+                  <input id="stock-${p.barcode}" type="number" min="0" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
+                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">${isChinese ? '更新庫存' : 'Update Stock'}</button>
                 </form>
-                <button onclick="if (confirm('Delete ${p.name} (${p.barcode})?')) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">Delete</button>
+                <button onclick="if (confirm('${isChinese ? `刪除 ${p.name} (${p.barcode})?` : `Delete ${p.name} (${p.barcode})?`})) deleteProduct('${p.barcode}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600 mt-2">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : '<tr><td colspan="6" class="border p-2">No products found.</td></tr>';
+        : `<tr><td colspan="6" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
     }
   } catch (error) {
     console.error('Error sorting products:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error sorting products: ${error.message}`;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function addProduct(product) {
-  try {
-    await ensureSupabaseClient();
-    if (!product.barcode || !product.name) {
-      document.getElementById('error').textContent = `[${new Date().toISOString()}] Barcode and name cannot be empty.`;
-      clearMessage('error');
-      return;
-    }
-    if (product.price < 0 || product.stock < 0) {
-      document.getElementById('error').textContent = `[${new Date().toISOString()}] Price and stock must be non-negative.`;
-      clearMessage('error');
-      return;
-    }
-    console.log('Adding product:', product);
-    setLoading(true);
-    const { data: existing } = await window.supabaseClient
-      .from('products')
-      .select('barcode')
-      .eq('barcode', product.barcode);
-    if (existing.length > 0) throw new Error('Barcode already exists');
-    const { data, error } = await window.supabaseClient
-      .from('products')
-      .insert([product])
-      .select();
-    if (error) throw error;
-    console.log('Product added:', JSON.stringify(data, null, 2));
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Product added: ${product.name}`;
-    clearMessage('message');
-    await loadProducts();
-  } catch (error) {
-    console.error('Error adding product:', error.message);
-    let errorMessage = `[${new Date().toISOString()}] Failed to add product: ${error.message}`;
-    if (error.message.includes('duplicate key value') || error.message.includes('Barcode already exists')) {
-      errorMessage = `[${new Date().toISOString()}] Failed to add product: Barcode already exists.`;
-    }
-    document.getElementById('error').textContent = errorMessage;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function updateProduct(barcode, updates) {
-  try {
-    await ensureSupabaseClient();
-    if (!barcode || !updates.name) {
-      document.getElementById('error').textContent = `[${new Date().toISOString()}] Barcode and name cannot be empty.`;
-      clearMessage('error');
-      return;
-    }
-    if (updates.price < 0 || updates.stock < 0) {
-      document.getElementById('error').textContent = `[${new Date().toISOString()}] Price and stock must be non-negative.`;
-      clearMessage('error');
-      return;
-    }
-    console.log('Updating product:', barcode, updates);
-    setLoading(true);
-    const { data, error } = await window.supabaseClient
-      .from('products')
-      .update(updates)
-      .eq('barcode', barcode)
-      .select();
-    if (error) throw error;
-    if (!data.length) throw new Error('Product not found');
-    console.log('Product updated:', JSON.stringify(data, null, 2));
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Product updated: ${barcode}`;
-    clearMessage('message');
-    await loadProducts();
-  } catch (error) {
-    console.error('Error updating product:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating product: ${error.message}`;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function deleteProduct(barcode) {
-  try {
-    await ensureSupabaseClient();
-    console.log('Deleting product:', barcode);
-    setLoading(true);
-    const { error } = await window.supabaseClient
-      .from('products')
-      .delete()
-      .eq('barcode', barcode);
-    if (error) throw error;
-    console.log('Product deleted:', barcode);
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Product deleted: ${barcode}`;
-    clearMessage('message');
-    await loadProducts();
-  } catch (error) {
-    console.error('Error deleting product:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting product: ${error.message}`;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function addVendor(vendor) {
-  try {
-    await ensureSupabaseClient();
-    if (!vendor.name) {
-      document.getElementById('error').textContent = `[${new Date().toISOString()}] Vendor name cannot be empty.`;
-      clearMessage('error');
-      return;
-    }
-    console.log('Adding vendor:', vendor);
-    setLoading(true);
-    const { data: existing } = await window.supabaseClient
-      .from('vendors')
-      .select('name')
-      .eq('name', vendor.name);
-    if (existing.length > 0) throw new Error('Vendor name already exists');
-    const { data, error } = await window.supabaseClient
-      .from('vendors')
-      .insert([vendor])
-      .select();
-    if (error) throw error;
-    console.log('Vendor added:', JSON.stringify(data, null, 2));
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor added: ${vendor.name}`;
-    clearMessage('message');
-    await loadVendors();
-  } catch (error) {
-    console.error('Error adding vendor:', error.message);
-    let errorMessage = `[${new Date().toISOString()}] Failed to add vendor: ${error.message}`;
-    if (error.message.includes('duplicate key value') || error.message.includes('Vendor name already exists')) {
-      errorMessage = `[${new Date().toISOString()}] Failed to add vendor: Vendor name already exists.`;
-    }
-    document.getElementById('error').textContent = errorMessage;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function updateVendor(id, updates) {
-  try {
-    await ensureSupabaseClient();
-    if (!id || !updates.name) {
-      document.getElementById('error').textContent = `[${new Date().toISOString()}] Vendor ID and name cannot be empty.`;
-      clearMessage('error');
-      return;
-    }
-    console.log('Updating vendor:', id, updates);
-    setLoading(true);
-    const { data: existing } = await window.supabaseClient
-      .from('vendors')
-      .select('id')
-      .eq('name', updates.name)
-      .neq('id', id);
-    if (existing.length > 0) throw new Error('Vendor name already exists');
-    const { data, error } = await window.supabaseClient
-      .from('vendors')
-      .update(updates)
-      .eq('id', id)
-      .select();
-    if (error) throw error;
-    if (!data.length) throw new Error('Vendor not found');
-    console.log('Vendor updated:', JSON.stringify(data, null, 2));
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor updated: ${updates.name}`;
-    clearMessage('message');
-    await loadVendors();
-  } catch (error) {
-    console.error('Error updating vendor:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error updating vendor: ${error.message}`;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function deleteVendor(id) {
-  try {
-    await ensureSupabaseClient();
-    console.log('Deleting vendor:', id);
-    setLoading(true);
-    const { error } = await window.supabaseClient
-      .from('vendors')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
-    console.log('Vendor deleted:', id);
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor deleted: ${id}`;
-    clearMessage('message');
-    await loadVendors();
-  } catch (error) {
-    console.error('Error deleting vendor:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting vendor: ${error.message}`;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function addCustomerSale(sale) {
-  try {
-    await ensureSupabaseClient();
-    if (!sale.product_barcode || sale.quantity <= 0) {
-      document.getElementById('error').textContent = `[${new Date().toISOString()}] Product barcode and quantity (>0) are required.`;
-      clearMessage('error');
-      return;
-    }
-    console.log('Adding customer sale:', sale);
-    setLoading(true);
-    const { data: product, error: productError } = await window.supabaseClient
-      .from('products')
-      .select('barcode, stock')
-      .eq('barcode', sale.product_barcode)
-      .single();
-    if (productError || !product) {
-      throw new Error('Product not found');
-    }
-    if (product.stock < sale.quantity) {
-      throw new Error(`Insufficient stock: ${product.stock} available`);
-    }
-    const { data: saleData, error } = await window.supabaseClient
-      .from('customer_sales')
-      .insert([sale])
-      .select();
-    if (error) throw error;
-    await window.supabaseClient
-      .from('products')
-      .update({ stock: product.stock - sale.quantity })
-      .eq('barcode', sale.product_barcode);
-    console.log('Customer sale added:', JSON.stringify(saleData, null, 2));
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Customer sale recorded for ${sale.product_barcode}`;
-    clearMessage('message');
-    await loadCustomerSales();
-    await loadProducts();
-  } catch (error) {
-    console.error('Error adding customer sale:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to add customer sale: ${error.message}`;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function deleteCustomerSale(id) {
-  try {
-    await ensureSupabaseClient();
-    console.log('Deleting customer sale:', id);
-    setLoading(true);
-    const { data: sale, error: saleError } = await window.supabaseClient
-      .from('customer_sales')
-      .select('id, product_barcode, quantity')
-      .eq('id', id)
-      .single();
-    if (saleError || !sale) throw new Error('Sale not found');
-    const { data: product, error: productError } = await window.supabaseClient
-      .from('products')
-      .select('stock')
-      .eq('barcode', sale.product_barcode)
-      .single();
-    if (productError || !product) throw new Error('Product not found');
-    const newStock = product.stock + sale.quantity;
-    const { error: updateError } = await window.supabaseClient
-      .from('products')
-      .update({ stock: newStock })
-      .eq('barcode', sale.product_barcode);
-    if (updateError) throw updateError;
-    const { error } = await window.supabaseClient
-      .from('customer_sales')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
-    console.log('Customer sale deleted:', id);
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Customer sale deleted: ${id}`;
-    clearMessage('message');
-    await loadCustomerSales();
-    await loadProducts();
-  } catch (error) {
-    console.error('Error deleting customer sale:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting customer sale: ${error.message}`;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function addVendorSale(sale) {
-  try {
-    await ensureSupabaseClient();
-    if (!sale.product_barcode || !sale.vendor_id || sale.quantity <= 0 || sale.price < 0) {
-      document.getElementById('error').textContent = `[${new Date().toISOString()}] Product barcode, vendor, quantity (>0), and price (>=0) are required.`;
-      clearMessage('error');
-      return;
-    }
-    console.log('Adding vendor loan:', sale);
-    setLoading(true);
-    const { data: product, error: productError } = await window.supabaseClient
-      .from('products')
-      .select('barcode, stock')
-      .eq('barcode', sale.product_barcode)
-      .single();
-    if (productError || !product) {
-      throw new Error('Product not found');
-    }
-    const { data: saleData, error } = await window.supabaseClient
-      .from('vendor_sales')
-      .insert([sale])
-      .select();
-    if (error) throw error;
-    await window.supabaseClient
-      .from('products')
-      .update({ stock: product.stock + sale.quantity })
-      .eq('barcode', sale.product_barcode);
-    console.log('Vendor loan added:', JSON.stringify(saleData, null, 2));
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor loan recorded for ${sale.product_barcode}`;
-    clearMessage('message');
-    await loadVendorSales();
-    await loadProducts();
-  } catch (error) {
-    console.error('Error adding vendor loan:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Failed to add vendor loan: ${error.message}`;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function deleteVendorSale(id) {
-  try {
-    await ensureSupabaseClient();
-    console.log('Deleting vendor loan:', id);
-    setLoading(true);
-    const { data: sale, error: saleError } = await window.supabaseClient
-      .from('vendor_sales')
-      .select('id, product_barcode, quantity')
-      .eq('id', id)
-      .single();
-    if (saleError || !sale) throw new Error('Loan not found');
-    const { data: product, error: productError } = await window.supabaseClient
-      .from('products')
-      .select('stock')
-      .eq('barcode', sale.product_barcode)
-      .single();
-    if (productError || !product) throw new Error('Product not found');
-    const newStock = product.stock - sale.quantity;
-    if (newStock < 0) throw new Error('Cannot reduce stock below 0');
-    const { error: updateError } = await window.supabaseClient
-      .from('products')
-      .update({ stock: newStock })
-      .eq('barcode', sale.product_barcode);
-    if (updateError) throw updateError;
-    const { error } = await window.supabaseClient
-      .from('vendor_sales')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
-    console.log('Vendor loan deleted:', id);
-    document.getElementById('message').textContent = `[${new Date().toISOString()}] Vendor loan deleted: ${id}`;
-    clearMessage('message');
-    await loadVendorSales();
-    await loadProducts();
-  } catch (error) {
-    console.error('Error deleting vendor loan:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error deleting vendor loan: ${error.message}`;
-    clearMessage('error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-function setupRealtime() {
-  try {
-    const channels = [
-      { name: 'products', table: 'products', callback: loadProducts },
-      { name: 'vendors', table: 'vendors', callback: loadVendors },
-      { name: 'customer_sales', table: 'customer_sales', callback: loadCustomerSales },
-      { name: 'vendor_sales', table: 'vendor_sales', callback: loadVendorSales }
-    ];
-
-    channels.forEach(({ name, table, callback }) => {
-      const channel = window.supabaseClient.channel(name);
-      channel
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table },
-          (payload) => {
-            console.log(`Realtime update (${table}):`, payload);
-            callback();
-          }
-        )
-        .subscribe((status) => {
-          console.log(`Subscription status (${table}):`, status);
-          if (status === 'SUBSCRIBED') {
-            console.log(`Successfully subscribed to ${table} changes`);
-          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            console.error(`Subscription to ${table} failed, status:`, status);
-            setTimeout(() => {
-              console.log(`Attempting to reconnect to ${table} channel...`);
-              channel.subscribe();
-            }, 5000);
-          }
-        });
-    });
-  } catch (error) {
-    console.error('Error setting up realtime:', error.message);
-    document.getElementById('error').textContent = `[${new Date().toISOString()}] Error setting up
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document
