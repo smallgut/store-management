@@ -3,22 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Supabase Inventory Management</title>
+  <title>
+    <span lang="en">Supabase Inventory Management</span>
+    <span lang="zh">Supabase 庫存管理</span>
+  </title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    .hidden { display: none; }
+    [lang="zh"] { display: none; }
+    .lang-en [lang="en"] { display: inline; }
+    .lang-en [lang="zh"] { display: none; }
+    .lang-zh [lang="zh"] { display: inline; }
+    .lang-zh [lang="en"] { display: none; }
+  </style>
 </head>
-<body class="p-6 bg-gray-100 min-h-screen">
-  <h1 class="text-3xl font-bold mb-6">Supabase Inventory Management</h1>
+<body class="p-6 bg-gray-100 min-h-screen lang-en" id="lang-body">
+  <h1 class="text-3xl font-bold mb-6">
+    <span lang="en">Supabase Inventory Management</span>
+    <span lang="zh">Supabase 庫存管理</span>
+  </h1>
   <nav class="mb-6">
     <ul class="flex space-x-4">
-      <li><a href="analytics.html" class="text-blue-500 hover:text-blue-700">Analytics</a></li>
-      <li><a href="manage-products.html" class="text-blue-500 hover:text-blue-700">Manage Products</a></li>
-      <li><a href="manage-vendors.html" class="text-blue-500 hover:text-blue-700">Manage Vendors</a></li>
-      <li><a href="record-customer-sales.html" class="text-blue-500 hover:text-blue-700">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" class="text-blue-500 hover:text-blue-700">Vendor Loan Record</a></li>
+      <li><a href="analytics.html" class="text-blue-500 hover:text-blue-700">
+        <span lang="en">Analytics</span>
+        <span lang="zh">分析</span>
+      </a></li>
+      <li><a href="manage-products.html" class="text-blue-500 hover:text-blue-700">
+        <span lang="en">Manage Products</span>
+        <span lang="zh">管理產品</span>
+      </a></li>
+      <li><a href="manage-vendors.html" class="text-blue-500 hover:text-blue-700">
+        <span lang="en">Manage Vendors</span>
+        <span lang="zh">管理供應商</span>
+      </a></li>
+      <li><a href="record-customer-sales.html" class="text-blue-500 hover:text-blue-700">
+        <span lang="en">Record Customer Sales</span>
+        <span lang="zh">記錄客戶銷售</span>
+      </a></li>
+      <li><a href="vendor-loan-record.html" class="text-blue-500 hover:text-blue-700">
+        <span lang="en">Vendor Loan Record</span>
+        <span lang="zh">供應商貸貨記錄</span>
+      </a></li>
     </ul>
   </nav>
-  <p class="text-gray-600">Select a section from the navigation above.</p>
+  <button onclick="toggleLanguage()" class="mb-4 bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+    <span lang="en">Switch to Chinese</span>
+    <span lang="zh">切換到英文</span>
+  </button>
+  <p class="text-gray-600">
+    <span lang="en">Select a section from the navigation above.</span>
+    <span lang="zh">從上面的導航中選擇一個部分。</span>
+  </p>
 
   <div id="message" class="text-green-600 mb-4"></div>
   <div id="error" class="text-red-600 mb-4"></div>
@@ -27,23 +63,28 @@
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
-    Loading...
+    <span lang="en">Loading...</span>
+    <span lang="zh">加載中...</span>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    // Clear message after timeout
     function clearMessage(type = 'error') {
       setTimeout(() => {
         document.getElementById(type).textContent = '';
       }, 5000);
     }
 
-    // Set loading state
     function setLoading(isLoading) {
       const loadingEl = document.getElementById('loading');
       loadingEl.classList.toggle('hidden', !isLoading);
+    }
+
+    function toggleLanguage() {
+      const body = document.getElementById('lang-body');
+      body.classList.toggle('lang-en');
+      body.classList.toggle('lang-zh');
     }
   </script>
 </body>
