@@ -53,15 +53,21 @@
     <span lang="zh">切換到英文</span>
   </button>
 
-  <form onsubmit="event.preventDefault(); addCustomerSale({ product_barcode: document.getElementById('sale-barcode').value.trim(), quantity: parseInt(document.getElementById('sale-quantity').value), customer_name: document.getElementById('sale-customer').value.trim() })" class="mb-4 space-y-2">
+  <form onsubmit="submitCustomerSale(event)" class="mb-4 space-y-2">
     <input id="sale-barcode" type="text" placeholder="Product Barcode" required class="border p-2 rounded">
-    <input id="sale-customer" type="text" placeholder="Customer Name" class="border p-2 rounded">
+    <input id="sale-customer" type="text" placeholder="Customer Name (Optional)" class="border p-2 rounded">
     <input id="sale-quantity" type="number" min="1" placeholder="Quantity" required class="border p-2 rounded">
+    <input id="sale-price" type="number" step="0.01" min="0" placeholder="Selling Price (Optional)" class="border p-2 rounded">
+    <p class="text-gray-600 text-sm">
+      <span lang="en">Note: If Selling Price is blank, the product's default price will be used.</span>
+      <span lang="zh">注意：如果售價為空，將使用產品的默認價格。</span>
+    </p>
     <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
       <span lang="en">Record Customer Sale</span>
       <span lang="zh">記錄客戶銷售</span>
     </button>
   </form>
+
   <table id="customer-sales" class="w-full border-collapse mt-4 bg-white shadow">
     <thead>
       <tr class="bg-gray-200">
@@ -76,6 +82,10 @@
         <th class="border p-2">
           <span lang="en">Quantity</span>
           <span lang="zh">數量</span>
+        </th>
+        <th class="border p-2">
+          <span lang="en">Selling Price</span>
+          <span lang="zh">售價</span>
         </th>
         <th class="border p-2">
           <span lang="en">Date</span>
@@ -105,13 +115,18 @@
   <script>
     function clearMessage(type = 'error') {
       setTimeout(() => {
-        document.getElementById(type).textContent = '';
+        const element = document.getElementById(type);
+        if (element) {
+          element.textContent = '';
+        }
       }, 5000);
     }
 
     function setLoading(isLoading) {
       const loadingEl = document.getElementById('loading');
-      loadingEl.classList.toggle('hidden', !isLoading);
+      if (loadingEl) {
+        loadingEl.classList.toggle('hidden', !isLoading);
+      }
     }
 
     function toggleLanguage() {
@@ -120,6 +135,36 @@
       body.classList.toggle('lang-en', !isEnglish);
       body.classList.toggle('lang-zh', isEnglish);
       localStorage.setItem('language', isEnglish ? 'zh' : 'en');
+    }
+
+    function submitCustomerSale(event) {
+      event.preventDefault();
+      const barcode = document.getElementById('sale-barcode').value.trim();
+      const customer = document.getElementById('sale-customer').value.trim();
+      const quantity = parseInt(document.getElementById('sale-quantity').value);
+      const price = document.getElementById('sale-price').value ? parseFloat(document.getElementById('sale-price').value) : null;
+
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      if (!barcode) {
+        const errorMsg = isChinese ? '請輸入產品條碼' : 'Please enter a product barcode';
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] ${errorMsg}`;
+        clearMessage('error');
+        return;
+      }
+      if (isNaN(quantity) || quantity < 1) {
+        const errorMsg = isChinese ? '請輸入有效的數量（至少為 1）' : 'Please enter a valid quantity (at least 1)';
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] ${errorMsg}`;
+        clearMessage('error');
+        return;
+      }
+      if (price !== null && price < 0) {
+        const errorMsg = isChinese ? '價格不能為負數' : 'Price cannot be negative';
+        document.getElementById('error').textContent = `[${new Date().toISOString()}] ${errorMsg}`;
+        clearMessage('error');
+        return;
+      }
+
+      addCustomerSale({ product_barcode: barcode, customer_name: customer || null, quantity: quantity, price: price });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
