@@ -67,9 +67,10 @@ async function loadProducts() {
                 </form>
               </td>
               <td class="border p-2">
-                <form onsubmit="event.preventDefault(); updateProductStock('${p.barcode}', parseInt(document.getElementById('stock-${p.barcode}').value) || ${p.stock})">
-                  <input id="stock-${p.barcode}" type="number" min="0" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
-                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">${isChinese ? '更新庫存' : 'Update Stock'}</button>
+                <form onsubmit="event.preventDefault(); updateProductStock('${p.barcode}', parseInt(document.getElementById('stock-${p.barcode}').value), parseFloat(document.getElementById('buyin-price-${p.barcode}').value), document.getElementById('vendor-${p.barcode}').value ? parseInt(document.getElementById('vendor-${p.barcode}').value) : null)">
+                  <input id="stock-${p.barcode}" type="number" min="1" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
+                  <input id="buyin-price-${p.barcode}" type="number" step="0.01" min="0" placeholder="${isChinese ? '進貨價' : 'Buy-in Price'}" class="border p-1 rounded w-16 mt-1">
+                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600 mt-1">${isChinese ? '添加庫存' : 'Add Stock'}</button>
                 </form>
                 <form onsubmit="event.preventDefault(); updateProductPrice('${p.barcode}', parseFloat(document.getElementById('price-${p.barcode}').value) || ${p.price})" class="mt-2">
                   <input id="price-${p.barcode}" type="number" step="0.01" min="0" placeholder="${isChinese ? '價格' : 'Price'}" class="border p-1 rounded w-16">
@@ -202,7 +203,7 @@ const loadCustomerSales = debounce(async function() {
     setLoading(true);
     const { data: sales, error } = await window.supabaseClient
       .from('customer_sales')
-      .select('id, product_barcode, customer_name, quantity, sale_date, products(name)')
+      .select('id, product_barcode, customer_name, quantity, sale_date, selling_price, products(name)')
       .order('sale_date', { ascending: false });
     if (error) throw error;
     const salesWithNames = sales.map(s => ({
@@ -219,13 +220,14 @@ const loadCustomerSales = debounce(async function() {
               <td class="border p-2">${s.product_name}</td>
               <td class="border p-2">${s.customer_name || '-'}</td>
               <td class="border p-2">${s.quantity}</td>
+              <td class="border p-2">$${s.selling_price.toFixed(2)}</td>
               <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
               <td class="border p-2">
                 <button onclick="if (confirm('${isChinese ? `刪除 ${s.product_name} 的銷售記錄?` : `Delete sale for ${s.product_name}?`})) deleteCustomerSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="5" class="border p-2">${isChinese ? '未找到銷售記錄。' : 'No sales found.'}</td></tr>`;
+        : `<tr><td colspan="6" class="border p-2">${isChinese ? '未找到銷售記錄。' : 'No sales found.'}</td></tr>`;
     }
   } catch (error) {
     console.error('Error loading customer sales:', error.message);
@@ -246,7 +248,7 @@ const loadVendorSales = debounce(async function() {
     setLoading(true);
     const { data: sales, error } = await window.supabaseClient
       .from('vendor_sales')
-      .select('id, product_barcode, vendor_id, quantity, price, sale_date, products(name), vendors(name)')
+      .select('id, product_barcode, vendor_id, quantity, price, buy_in_price, sale_date, products(name), vendors(name)')
       .order('sale_date', { ascending: false });
     if (error) throw error;
     const salesWithNames = sales.map(s => ({
@@ -265,13 +267,14 @@ const loadVendorSales = debounce(async function() {
               <td class="border p-2">${s.vendor_name}</td>
               <td class="border p-2">${s.quantity}</td>
               <td class="border p-2">$${s.price.toFixed(2)}</td>
+              <td class="border p-2">$${s.buy_in_price.toFixed(2)}</td>
               <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
               <td class="border p-2">
                 <button onclick="if (confirm('${isChinese ? `刪除 ${s.product_name} 的貸貨記錄?` : `Delete sale for ${s.product_name}?`})) deleteVendorSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="6" class="border p-2">${isChinese ? '未找到貸貨記錄。' : 'No sales found.'}</td></tr>`;
+        : `<tr><td colspan="7" class="border p-2">${isChinese ? '未找到貸貨記錄。' : 'No sales found.'}</td></tr>`;
     }
   } catch (error) {
     console.error('Error loading vendor sales:', error.message);
@@ -321,9 +324,10 @@ async function sortProducts(by) {
                 </form>
               </td>
               <td class="border p-2">
-                <form onsubmit="event.preventDefault(); updateProductStock('${p.barcode}', parseInt(document.getElementById('stock-${p.barcode}').value) || ${p.stock})">
-                  <input id="stock-${p.barcode}" type="number" min="0" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
-                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">${isChinese ? '更新庫存' : 'Update Stock'}</button>
+                <form onsubmit="event.preventDefault(); updateProductStock('${p.barcode}', parseInt(document.getElementById('stock-${p.barcode}').value), parseFloat(document.getElementById('buyin-price-${p.barcode}').value), document.getElementById('vendor-${p.barcode}').value ? parseInt(document.getElementById('vendor-${p.barcode}').value) : null)">
+                  <input id="stock-${p.barcode}" type="number" min="1" placeholder="${isChinese ? '數量' : 'Qty'}" class="border p-1 rounded w-16">
+                  <input id="buyin-price-${p.barcode}" type="number" step="0.01" min="0" placeholder="${isChinese ? '進貨價' : 'Buy-in Price'}" class="border p-1 rounded w-16 mt-1">
+                  <button type="submit" class="bg-green-500 text-white p-1 rounded hover:bg-green-600 mt-1">${isChinese ? '添加庫存' : 'Add Stock'}</button>
                 </form>
                 <form onsubmit="event.preventDefault(); updateProductPrice('${p.barcode}', parseFloat(document.getElementById('price-${p.barcode}').value) || ${p.price})" class="mt-2">
                   <input id="price-${p.barcode}" type="number" step="0.01" min="0" placeholder="${isChinese ? '價格' : 'Price'}" class="border p-1 rounded w-16">
@@ -360,10 +364,23 @@ async function addProduct(product) {
     if (existing.length > 0) {
       throw new Error('Barcode already exists');
     }
-    const { error } = await window.supabaseClient
+    // Insert the product with initial stock of 0
+    const { error: productError } = await window.supabaseClient
       .from('products')
-      .insert([product]);
-    if (error) throw error;
+      .insert([{ ...product, stock: 0 }]);
+    if (productError) throw productError;
+    // Add the initial batch
+    const batch = {
+      product_barcode: product.barcode,
+      vendor_id: product.vendor_id,
+      quantity: product.stock,
+      buy_in_price: product.price,
+      remaining_quantity: product.stock
+    };
+    const { error: batchError } = await window.supabaseClient
+      .from('product_batches')
+      .insert([batch]);
+    if (batchError) throw batchError;
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
@@ -384,28 +401,48 @@ async function addProduct(product) {
   }
 }
 
-async function updateProductStock(barcode, newStock) {
+async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId) {
   try {
     await ensureSupabaseClient();
     setLoading(true);
     const { data: product, error: fetchError } = await window.supabaseClient
       .from('products')
-      .select('name')
+      .select('stock, name')
       .eq('barcode', barcode)
       .single();
     if (fetchError) throw fetchError;
-    if (isNaN(newStock) || newStock < 0) {
+    if (isNaN(additionalStock) || additionalStock < 1) {
       throw new Error('Invalid stock value');
     }
-    const { error } = await window.supabaseClient
+    if (isNaN(buyInPrice) || buyInPrice < 0) {
+      throw new Error('Invalid buy-in price');
+    }
+    if (!vendorId) {
+      throw new Error('Vendor is required for adding stock');
+    }
+    // Update total stock in products table
+    const newStock = product.stock + additionalStock;
+    const { error: updateError } = await window.supabaseClient
       .from('products')
       .update({ stock: newStock })
       .eq('barcode', barcode);
-    if (error) throw error;
+    if (updateError) throw updateError;
+    // Add a new batch
+    const batch = {
+      product_barcode: barcode,
+      vendor_id: vendorId,
+      quantity: additionalStock,
+      buy_in_price: buyInPrice,
+      remaining_quantity: additionalStock
+    };
+    const { error: batchError } = await window.supabaseClient
+      .from('product_batches')
+      .insert([batch]);
+    if (batchError) throw batchError;
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
-      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${barcode}) 的庫存已更新為 ${newStock}` : `Stock for product ${product.name} (${barcode}) updated to ${newStock}`}`;
+      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${barcode}) 的庫存已更新為 ${newStock}，進貨價 $${buyInPrice.toFixed(2)}` : `Stock for product ${product.name} (${barcode}) updated to ${newStock} at buy-in price $${buyInPrice.toFixed(2)}`}`;
       clearMessage('message');
     }
     await loadProducts();
@@ -677,7 +714,7 @@ async function addCustomerSale(sale) {
     setLoading(true);
     const { data: product, error: fetchError } = await window.supabaseClient
       .from('products')
-      .select('stock, name')
+      .select('stock, name, price')
       .eq('barcode', sale.product_barcode)
       .single();
     if (fetchError) throw fetchError;
@@ -687,19 +724,57 @@ async function addCustomerSale(sale) {
     if (product.stock < sale.quantity) {
       throw new Error('Insufficient stock');
     }
-    const { error: updateError } = await window.supabaseClient
+    // Fetch batches with remaining stock, ordered by created_at (FIFO)
+    const { data: batches, error: batchError } = await window.supabaseClient
+      .from('product_batches')
+      .select('*')
+      .eq('product_barcode', sale.product_barcode)
+      .gt('remaining_quantity', 0)
+      .order('created_at', { ascending: true });
+    if (batchError) throw batchError;
+    if (!batches || batches.length === 0) {
+      throw new Error('No available batches found');
+    }
+    // Deduct stock from batches
+    let remainingToDeduct = sale.quantity;
+    const updatedBatches = [];
+    let totalCost = 0;
+    for (const batch of batches) {
+      if (remainingToDeduct <= 0) break;
+      const deductFromBatch = Math.min(remainingToDeduct, batch.remaining_quantity);
+      remainingToDeduct -= deductFromBatch;
+      const newRemaining = batch.remaining_quantity - deductFromBatch;
+      updatedBatches.push({ id: batch.id, remaining_quantity: newRemaining });
+      totalCost += deductFromBatch * batch.buy_in_price;
+    }
+    if (remainingToDeduct > 0) {
+      throw new Error('Not enough stock in batches to fulfill sale');
+    }
+    // Update batches
+    for (const batch of updatedBatches) {
+      const { error: updateError } = await window.supabaseClient
+        .from('product_batches')
+        .update({ remaining_quantity: batch.remaining_quantity })
+        .eq('id', batch.id);
+      if (updateError) throw updateError;
+    }
+    // Update total stock in products table
+    const newStock = product.stock - sale.quantity;
+    const { error: stockError } = await window.supabaseClient
       .from('products')
-      .update({ stock: product.stock - sale.quantity })
+      .update({ stock: newStock })
       .eq('barcode', sale.product_barcode);
-    if (updateError) throw updateError;
+    if (stockError) throw stockError;
+    // Use the product's price as the default selling price, but allow override in the future
+    const sellingPrice = product.price;
     const { error } = await window.supabaseClient
       .from('customer_sales')
-      .insert([{ ...sale, sale_date: new Date().toISOString() }]);
+      .insert([{ ...sale, sale_date: new Date().toISOString(), selling_price: sellingPrice }]);
     if (error) throw error;
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
-      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `客戶銷售記錄 ${sale.quantity} 個 ${product.name} 已添加` : `Customer sale of ${sale.quantity} ${product.name} recorded`}`;
+      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `客戶銷售記錄 ${sale.quantity} 個 ${product.name} 已添加，售價 $${sellingPrice.toFixed(2)}` : `Customer sale of ${sale.quantity} ${product.name} recorded at $${sellingPrice.toFixed(2)}`}`;
       clearMessage('message');
     }
     await loadCustomerSales();
@@ -726,15 +801,43 @@ async function deleteCustomerSale(id) {
       .eq('id', id)
       .single();
     if (fetchError) throw fetchError;
-    const { data: product, error: updateError } = await window.supabaseClient
+    const { data: product, error: productError } = await window.supabaseClient
       .from('products')
       .select('stock')
       .eq('barcode', sale.product_barcode)
       .single();
-    if (updateError) throw updateError;
+    if (productError) throw productError;
+    // Add stock back to the most recent batch (LIFO for returns)
+    const { data: batches, error: batchError } = await window.supabaseClient
+      .from('product_batches')
+      .select('*')
+      .eq('product_barcode', sale.product_barcode)
+      .order('created_at', { ascending: false });
+    if (batchError) throw batchError;
+    if (!batches || batches.length === 0) {
+      throw new Error('No batches found to return stock');
+    }
+    let remainingToAdd = sale.quantity;
+    const updatedBatches = [];
+    for (const batch of batches) {
+      if (remainingToAdd <= 0) break;
+      const addToBatch = remainingToAdd;
+      remainingToAdd -= addToBatch;
+      const newRemaining = batch.remaining_quantity + addToBatch;
+      updatedBatches.push({ id: batch.id, remaining_quantity: newRemaining });
+    }
+    for (const batch of updatedBatches) {
+      const { error: updateError } = await window.supabaseClient
+        .from('product_batches')
+        .update({ remaining_quantity: batch.remaining_quantity })
+        .eq('id', batch.id);
+      if (updateError) throw updateError;
+    }
+    // Update total stock
+    const newStock = product.stock + sale.quantity;
     const { error: stockError } = await window.supabaseClient
       .from('products')
-      .update({ stock: product.stock + sale.quantity })
+      .update({ stock: newStock })
       .eq('barcode', sale.product_barcode);
     if (stockError) throw stockError;
     const { error } = await window.supabaseClient
@@ -806,6 +909,50 @@ async function addVendorSale(sale) {
       throw new Error('Insufficient stock to loan');
     }
 
+    // Fetch batches with remaining stock, ordered by created_at (FIFO)
+    const { data: batches, error: batchError } = await window.supabaseClient
+      .from('product_batches')
+      .select('*')
+      .eq('product_barcode', sale.product_barcode)
+      .gt('remaining_quantity', 0)
+      .order('created_at', { ascending: true });
+    if (batchError) throw batchError;
+    if (!batches || batches.length === 0) {
+      throw new Error('No available batches found');
+    }
+
+    // Deduct stock from batches
+    let remainingToDeduct = sale.quantity;
+    const updatedBatches = [];
+    let totalCost = 0;
+    for (const batch of batches) {
+      if (remainingToDeduct <= 0) break;
+      const deductFromBatch = Math.min(remainingToDeduct, batch.remaining_quantity);
+      remainingToDeduct -= deductFromBatch;
+      const newRemaining = batch.remaining_quantity - deductFromBatch;
+      updatedBatches.push({ id: batch.id, remaining_quantity: newRemaining });
+      totalCost += deductFromBatch * batch.buy_in_price;
+    }
+    if (remainingToDeduct > 0) {
+      throw new Error('Not enough stock in batches to fulfill loan');
+    }
+    // Update batches
+    for (const batch of updatedBatches) {
+      const { error: updateError } = await window.supabaseClient
+        .from('product_batches')
+        .update({ remaining_quantity: batch.remaining_quantity })
+        .eq('id', batch.id);
+      if (updateError) throw updateError;
+    }
+
+    // Update total stock
+    const newStock = product.stock - sale.quantity;
+    const { error: stockError } = await window.supabaseClient
+      .from('products')
+      .update({ stock: newStock })
+      .eq('barcode', sale.product_barcode);
+    if (stockError) throw stockError;
+
     // Set price
     const finalPrice = sale.price != null ? sale.price : product.price;
     if (finalPrice < 0) {
@@ -813,17 +960,8 @@ async function addVendorSale(sale) {
     }
     console.log('Final price set to:', finalPrice);
 
-    // Decrease product stock (loan to vendor)
-    const newStock = product.stock - sale.quantity;
-    console.log('Decreasing product stock to:', newStock);
-    const { error: updateError } = await window.supabaseClient
-      .from('products')
-      .update({ stock: newStock })
-      .eq('barcode', sale.product_barcode);
-    if (updateError) {
-      throw new Error(`Failed to update product stock: ${updateError.message}`);
-    }
-    console.log('Product stock updated successfully');
+    // Calculate average buy-in price for the loaned items
+    const averageBuyInPrice = totalCost / sale.quantity;
 
     // Insert vendor sale (loan record)
     const saleData = {
@@ -831,6 +969,7 @@ async function addVendorSale(sale) {
       vendor_id: sale.vendor_id,
       quantity: sale.quantity,
       price: finalPrice,
+      buy_in_price: averageBuyInPrice,
       sale_date: new Date().toISOString()
     };
     console.log('Inserting vendor sale:', saleData);
@@ -880,13 +1019,39 @@ async function deleteVendorSale(id) {
       .eq('barcode', sale.product_barcode)
       .single();
     if (productError) throw productError;
-    // Increase stock back (return from vendor)
+    // Add stock back to the most recent batch (LIFO for returns)
+    const { data: batches, error: batchError } = await window.supabaseClient
+      .from('product_batches')
+      .select('*')
+      .eq('product_barcode', sale.product_barcode)
+      .order('created_at', { ascending: false });
+    if (batchError) throw batchError;
+    if (!batches || batches.length === 0) {
+      throw new Error('No batches found to return stock');
+    }
+    let remainingToAdd = sale.quantity;
+    const updatedBatches = [];
+    for (const batch of batches) {
+      if (remainingToAdd <= 0) break;
+      const addToBatch = remainingToAdd;
+      remainingToAdd -= addToBatch;
+      const newRemaining = batch.remaining_quantity + addToBatch;
+      updatedBatches.push({ id: batch.id, remaining_quantity: newRemaining });
+    }
+    for (const batch of updatedBatches) {
+      const { error: updateError } = await window.supabaseClient
+        .from('product_batches')
+        .update({ remaining_quantity: batch.remaining_quantity })
+        .eq('id', batch.id);
+      if (updateError) throw updateError;
+    }
+    // Update total stock
     const newStock = product.stock + sale.quantity;
-    const { error: updateError } = await window.supabaseClient
+    const { error: stockError } = await window.supabaseClient
       .from('products')
       .update({ stock: newStock })
       .eq('barcode', sale.product_barcode);
-    if (updateError) throw updateError;
+    if (stockError) throw stockError;
     const { error } = await window.supabaseClient
       .from('vendor_sales')
       .delete()
