@@ -801,6 +801,11 @@ async function addVendorSale(sale) {
     }
     console.log('Product found:', product);
 
+    // Check if there's enough stock to loan
+    if (product.stock < sale.quantity) {
+      throw new Error('Insufficient stock to loan');
+    }
+
     // Set price
     const finalPrice = sale.price != null ? sale.price : product.price;
     if (finalPrice < 0) {
@@ -808,9 +813,9 @@ async function addVendorSale(sale) {
     }
     console.log('Final price set to:', finalPrice);
 
-    // Update product stock
-    const newStock = product.stock + sale.quantity;
-    console.log('Updating product stock to:', newStock);
+    // Decrease product stock (loan to vendor)
+    const newStock = product.stock - sale.quantity;
+    console.log('Decreasing product stock to:', newStock);
     const { error: updateError } = await window.supabaseClient
       .from('products')
       .update({ stock: newStock })
@@ -820,7 +825,7 @@ async function addVendorSale(sale) {
     }
     console.log('Product stock updated successfully');
 
-    // Insert vendor sale
+    // Insert vendor sale (loan record)
     const saleData = {
       product_barcode: sale.product_barcode,
       vendor_id: sale.vendor_id,
@@ -840,7 +845,7 @@ async function addVendorSale(sale) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
-      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商貸貨記錄 ${sale.quantity} 個 ${product.name} 已添加，單價 $${finalPrice.toFixed(2)}` : `Vendor sale of ${sale.quantity} ${product.name} recorded at $${finalPrice.toFixed(2)} per unit`}`;
+      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商貸貨記錄 ${sale.quantity} 個 ${product.name} 已添加，單價 $${finalPrice.toFixed(2)}` : `Vendor loan of ${sale.quantity} ${product.name} recorded at $${finalPrice.toFixed(2)} per unit`}`;
       clearMessage('message');
     }
     await loadVendorSales();
@@ -849,7 +854,7 @@ async function addVendorSale(sale) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `無法添加供應商貸貨：${error.message}` : `Failed to add vendor sale: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `無法添加供應商貸貨：${error.message}` : `Failed to add vendor loan: ${error.message}`}`;
       clearMessage('error');
     } else {
       console.warn('Error element not found in DOM');
@@ -875,12 +880,11 @@ async function deleteVendorSale(id) {
       .eq('barcode', sale.product_barcode)
       .single();
     if (productError) throw productError;
-    if (product.stock < sale.quantity) {
-      throw new Error('Cannot delete: Insufficient stock after deletion');
-    }
+    // Increase stock back (return from vendor)
+    const newStock = product.stock + sale.quantity;
     const { error: updateError } = await window.supabaseClient
       .from('products')
-      .update({ stock: product.stock - sale.quantity })
+      .update({ stock: newStock })
       .eq('barcode', sale.product_barcode);
     if (updateError) throw updateError;
     const { error } = await window.supabaseClient
@@ -891,7 +895,7 @@ async function deleteVendorSale(id) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
-      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商貸貨記錄 ${sale.quantity} 個 ${sale.products.name} 已刪除` : `Vendor sale of ${sale.quantity} ${sale.products.name} deleted`}`;
+      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `供應商貸貨記錄 ${sale.quantity} 個 ${sale.products.name} 已刪除` : `Vendor loan of ${sale.quantity} ${sale.products.name} deleted`}`;
       clearMessage('message');
     }
     await loadVendorSales();
@@ -900,7 +904,7 @@ async function deleteVendorSale(id) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `無法刪除供應商貸貨：${error.message}` : `Failed to delete vendor sale: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `無法刪除供應商貸貨：${error.message}` : `Failed to delete vendor loan: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
