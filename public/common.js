@@ -220,7 +220,7 @@ const loadCustomerSales = debounce(async function() {
               <td class="border p-2">${s.product_name}</td>
               <td class="border p-2">${s.customer_name || '-'}</td>
               <td class="border p-2">${s.quantity}</td>
-              <td class="border p-2">$${s.selling_price.toFixed(2)}</td>
+              <td class="border p-2">${s.selling_price != null ? `$${s.selling_price.toFixed(2)}` : '-'}</td>
               <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
               <td class="border p-2">
                 <button onclick="if (confirm('${isChinese ? `刪除 ${s.product_name} 的銷售記錄?` : `Delete sale for ${s.product_name}?`})) deleteCustomerSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
@@ -266,8 +266,8 @@ const loadVendorSales = debounce(async function() {
               <td class="border p-2">${s.product_name}</td>
               <td class="border p-2">${s.vendor_name}</td>
               <td class="border p-2">${s.quantity}</td>
-              <td class="border p-2">$${s.price.toFixed(2)}</td>
-              <td class="border p-2">$${s.buy_in_price.toFixed(2)}</td>
+              <td class="border p-2">$${s.price != null ? s.price.toFixed(2) : '-'}</td>
+              <td class="border p-2">${s.buy_in_price != null ? `$${s.buy_in_price.toFixed(2)}` : '-'}</td>
               <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
               <td class="border p-2">
                 <button onclick="if (confirm('${isChinese ? `刪除 ${s.product_name} 的貸貨記錄?` : `Delete sale for ${s.product_name}?`})) deleteVendorSale(${s.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
@@ -765,8 +765,8 @@ async function addCustomerSale(sale) {
       .update({ stock: newStock })
       .eq('barcode', sale.product_barcode);
     if (stockError) throw stockError;
-    // Use the product's price as the default selling price, but allow override in the future
-    const sellingPrice = product.price;
+    // Use the product's price as the default selling price, or the overridden price
+    const sellingPrice = sale.price != null ? sale.price : product.price;
     const { error } = await window.supabaseClient
       .from('customer_sales')
       .insert([{ ...sale, sale_date: new Date().toISOString(), selling_price: sellingPrice }]);
