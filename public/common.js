@@ -10,7 +10,16 @@ function debounce(func, wait) {
   };
 }
 
-// Initialize Supabase client only if not already initialized
+// Custom fetch to fix 406 error by setting Accept header
+const customFetch = (url, options = {}) => {
+  const headers = {
+    ...options.headers,
+    Accept: 'application/json',
+  };
+  return fetch(url, { ...options, headers });
+};
+
+// Initialize Supabase client with custom fetch
 if (!window.supabaseClient) {
   if (typeof supabase === 'undefined') {
     console.error('Supabase SDK not loaded');
@@ -19,7 +28,8 @@ if (!window.supabaseClient) {
   const { createClient } = supabase;
   window.supabaseClient = createClient(
     'https://aouduygmcspiqauhrabx.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k',
+    { global: { fetch: customFetch } }
   );
   console.log('Supabase Client Initialized in common.js:', Object.keys(window.supabaseClient));
 }
@@ -105,10 +115,17 @@ async function updateProductVendor(barcode, newVendorId) {
       .eq('barcode', barcode)
       .single();
     if (fetchError) throw fetchError;
-    const { data: vendor, error: vendorError } = newVendorId
-      ? await window.supabaseClient.from('vendors').select('name').eq('id', newVendorId).single()
-      : null;
-    if (newVendorId && vendorError) throw vendorError;
+    let vendor = null;
+    if (newVendorId) {
+      const vendorResult = await window.supabaseClient
+        .from('vendors')
+        .select('name')
+        .eq('id', newVendorId)
+        .single();
+      if (vendorResult.error) throw vendorResult.error;
+      if (!vendorResult.data) throw new Error('Vendor not found');
+      vendor = vendorResult.data;
+    }
     const { error } = await window.supabaseClient
       .from('products')
       .update({ vendor_id: newVendorId })
@@ -364,11 +381,41 @@ async function addProduct(product) {
     if (existing.length > 0) {
       throw new Error('Barcode already exists');
     }
-    // Insert the product with initial stock of 0
+
+    // Ensure stock_in_qty and stock_in_price are valid
+    const initialStock = parseInt(product.stock_in_qty) || 0;
+    const buyInPrice = parseFloat(product.stock_in_price) || 0;
+    if (initialStock < 0) {
+      throw new Error('Initial stock cannot be negative');
+    }
+    if (buyInPrice < 0) {
+      throw new Error('Buy-in price cannot be negative');
+    }
+
+    // Insert the product with initial stock and price
     const { error: productError } = await window.supabaseClient
       .from('products')
-      .insert([{ ...product, stock: 0 }]);
+      .insert([{ ...product, stock: initialStock, price: buyInPrice }]);
     if (productError) throw productError;
+
+    // If initial stock is provided, create a batch
+    if (initialStock > 0) {
+      const today = new Date();
+      const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`; // e.g., 31052025
+      const batch = {
+        product_barcode: product.barcode,
+        vendor_id: product.vendor_id || null,
+        quantity: initialStock,
+        buy_in_price: buyInPrice,
+        remaining_quantity: initialStock,
+        batch_number: batchNumber
+      };
+      const { error: batchError } = await window.supabaseClient
+        .from('product_batches')
+        .insert([batch]);
+      if (batchError) throw batchError;
+    }
+
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
@@ -402,12 +449,8 @@ async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId
     if (isNaN(additionalStock) || additionalStock < 1) {
       throw new Error('Invalid stock value');
     }
-    if (isNaN(buyInPrice) || buyInPrice < 0) {
-      throw new Error('Invalid buy-in price');
-    }
-    if (!vendorId) {
-      throw new Error('Vendor is required for adding stock');
-    }
+    // Allow buyInPrice to be optional; default to 0 if not provided
+    const effectiveBuyInPrice = buyInPrice != null && !isNaN(buyInPrice) && buyInPrice >= 0 ? buyInPrice : 0;
 
     // Generate daily batch number (DDMMYYYY)
     const today = new Date();
@@ -426,14 +469,16 @@ async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId
       // Update existing batch
       const newQuantity = existingBatch.quantity + additionalStock;
       const newRemainingQuantity = existingBatch.remaining_quantity + additionalStock;
-      // Recalculate buy_in_price as a weighted average
-      const newBuyInPrice = ((existingBatch.buy_in_price * existingBatch.quantity) + (buyInPrice * additionalStock)) / newQuantity;
+      const newBuyInPrice = effectiveBuyInPrice > 0
+        ? ((existingBatch.buy_in_price * existingBatch.quantity) + (effectiveBuyInPrice * additionalStock)) / newQuantity
+        : existingBatch.buy_in_price;
       const { error: batchUpdateError } = await window.supabaseClient
         .from('product_batches')
         .update({
           quantity: newQuantity,
           remaining_quantity: newRemainingQuantity,
-          buy_in_price: newBuyInPrice
+          buy_in_price: newBuyInPrice,
+          vendor_id: vendorId || existingBatch.vendor_id
         })
         .eq('id', existingBatch.id);
       if (batchUpdateError) throw batchUpdateError;
@@ -441,9 +486,9 @@ async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId
       // Create new batch
       const batch = {
         product_barcode: barcode,
-        vendor_id: vendorId,
+        vendor_id: vendorId || null,
         quantity: additionalStock,
-        buy_in_price: buyInPrice,
+        buy_in_price: effectiveBuyInPrice,
         remaining_quantity: additionalStock,
         batch_number: batchNumber
       };
@@ -464,7 +509,7 @@ async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
-      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${barcode}) 的庫存已更新為 ${newStock}，進貨價 $${buyInPrice.toFixed(2)}` : `Stock for product ${product.name} (${barcode}) updated to ${newStock} at buy-in price $${buyInPrice.toFixed(2)}`}`;
+      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${barcode}) 的庫存已更新為 ${newStock}，進貨價 $${effectiveBuyInPrice.toFixed(2)}` : `Stock for product ${product.name} (${barcode}) updated to ${newStock} at buy-in price $${effectiveBuyInPrice.toFixed(2)}`}`;
       clearMessage('message');
     }
     await loadProducts();
@@ -535,10 +580,10 @@ async function deleteProduct(barcode) {
       .eq('barcode', barcode);
     if (error) throw error;
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const messageEl = document.getElementById('message');
+    const messageEl = document.getElementById('error');
     if (messageEl) {
       messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${barcode}) 已刪除` : `Product ${product.name} (${barcode}) deleted`}`;
-      clearMessage('message');
+      clearMessage('error');
     }
     await loadProducts();
   } catch (error) {
