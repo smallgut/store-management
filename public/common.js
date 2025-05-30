@@ -369,18 +369,6 @@ async function addProduct(product) {
       .from('products')
       .insert([{ ...product, stock: 0 }]);
     if (productError) throw productError;
-    // Add the initial batch
-    const batch = {
-      product_barcode: product.barcode,
-      vendor_id: product.vendor_id,
-      quantity: product.stock,
-      buy_in_price: product.price,
-      remaining_quantity: product.stock
-    };
-    const { error: batchError } = await window.supabaseClient
-      .from('product_batches')
-      .insert([batch]);
-    if (batchError) throw batchError;
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
@@ -420,6 +408,51 @@ async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId
     if (!vendorId) {
       throw new Error('Vendor is required for adding stock');
     }
+
+    // Generate daily batch number (DDMMYYYY)
+    const today = new Date();
+    const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`; // e.g., 31052025
+
+    // Check if a batch for this product and day already exists
+    const { data: existingBatch, error: batchFetchError } = await window.supabaseClient
+      .from('product_batches')
+      .select('*')
+      .eq('product_barcode', barcode)
+      .eq('batch_number', batchNumber)
+      .single();
+    if (batchFetchError && batchFetchError.code !== 'PGRST116') throw batchFetchError; // Ignore "no rows" error
+
+    if (existingBatch) {
+      // Update existing batch
+      const newQuantity = existingBatch.quantity + additionalStock;
+      const newRemainingQuantity = existingBatch.remaining_quantity + additionalStock;
+      // Recalculate buy_in_price as a weighted average
+      const newBuyInPrice = ((existingBatch.buy_in_price * existingBatch.quantity) + (buyInPrice * additionalStock)) / newQuantity;
+      const { error: batchUpdateError } = await window.supabaseClient
+        .from('product_batches')
+        .update({
+          quantity: newQuantity,
+          remaining_quantity: newRemainingQuantity,
+          buy_in_price: newBuyInPrice
+        })
+        .eq('id', existingBatch.id);
+      if (batchUpdateError) throw batchUpdateError;
+    } else {
+      // Create new batch
+      const batch = {
+        product_barcode: barcode,
+        vendor_id: vendorId,
+        quantity: additionalStock,
+        buy_in_price: buyInPrice,
+        remaining_quantity: additionalStock,
+        batch_number: batchNumber
+      };
+      const { error: batchError } = await window.supabaseClient
+        .from('product_batches')
+        .insert([batch]);
+      if (batchError) throw batchError;
+    }
+
     // Update total stock in products table
     const newStock = product.stock + additionalStock;
     const { error: updateError } = await window.supabaseClient
@@ -427,18 +460,7 @@ async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId
       .update({ stock: newStock })
       .eq('barcode', barcode);
     if (updateError) throw updateError;
-    // Add a new batch
-    const batch = {
-      product_barcode: barcode,
-      vendor_id: vendorId,
-      quantity: additionalStock,
-      buy_in_price: buyInPrice,
-      remaining_quantity: additionalStock
-    };
-    const { error: batchError } = await window.supabaseClient
-      .from('product_batches')
-      .insert([batch]);
-    if (batchError) throw batchError;
+
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
@@ -910,15 +932,43 @@ async function addVendorSale(sale) {
     }
 
     // Fetch batches with remaining stock, ordered by created_at (FIFO)
-    const { data: batches, error: batchError } = await window.supabaseClient
+    let { data: batches, error: batchError } = await window.supabaseClient
       .from('product_batches')
       .select('*')
       .eq('product_barcode', sale.product_barcode)
       .gt('remaining_quantity', 0)
       .order('created_at', { ascending: true });
     if (batchError) throw batchError;
+
+    // If no batches exist but stock is available, create a new batch
     if (!batches || batches.length === 0) {
-      throw new Error('No available batches found');
+      if (product.stock > 0) {
+        const today = new Date();
+        const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`; // e.g., 31052025
+        const batch = {
+          product_barcode: sale.product_barcode,
+          vendor_id: sale.vendor_id,
+          quantity: product.stock,
+          buy_in_price: product.price, // Use product price as default
+          remaining_quantity: product.stock,
+          batch_number: batchNumber
+        };
+        const { error: batchInsertError } = await window.supabaseClient
+          .from('product_batches')
+          .insert([batch]);
+        if (batchInsertError) throw batchInsertError;
+        // Refetch batches
+        const { data: newBatches, error: newBatchError } = await window.supabaseClient
+          .from('product_batches')
+          .select('*')
+          .eq('product_barcode', sale.product_barcode)
+          .gt('remaining_quantity', 0)
+          .order('created_at', { ascending: true });
+        if (newBatchError) throw newBatchError;
+        batches = newBatches;
+      } else {
+        throw new Error('No stock available and no batches found');
+      }
     }
 
     // Deduct stock from batches
@@ -995,8 +1045,6 @@ async function addVendorSale(sale) {
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `無法添加供應商貸貨：${error.message}` : `Failed to add vendor loan: ${error.message}`}`;
       clearMessage('error');
-    } else {
-      console.warn('Error element not found in DOM');
     }
   } finally {
     setLoading(false);
