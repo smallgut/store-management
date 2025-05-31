@@ -71,6 +71,31 @@
       </table>
     </div>
 
+    <!-- Add Vendor Form -->
+    <div class="mb-4 p-4 bg-gray-100 rounded">
+      <h2 class="text-xl font-semibold mb-2">Add New Vendor</h2>
+      <form onsubmit="event.preventDefault(); addVendor({
+        name: document.getElementById('vendor-name').value,
+        contact_email: document.getElementById('vendor-email').value.trim() || null,
+        contact_number: document.getElementById('vendor-contact').value.trim() || null,
+        address: document.getElementById('vendor-address').value.trim() || null
+      })" class="space-y-2">
+        <div>
+          <input id="vendor-name" type="text" placeholder="Vendor Name" class="border p-1 rounded w-32" required>
+        </div>
+        <div>
+          <input id="vendor-email" type="email" placeholder="Email" class="border p-1 rounded w-32">
+        </div>
+        <div>
+          <input id="vendor-contact" type="text" placeholder="Contact No." class="border p-1 rounded w-32">
+        </div>
+        <div>
+          <input id="vendor-address" type="text" placeholder="Address" class="border p-1 rounded w-32">
+        </div>
+        <button type="submit" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600">Add Vendor</button>
+      </form>
+    </div>
+
     <!-- Vendors Table -->
     <div class="mb-4">
       <h2 class="text-xl font-semibold mb-2">Vendors</h2>
@@ -81,6 +106,43 @@
             <th class="border p-2">Email</th>
             <th class="border p-2">Contact No.</th>
             <th class="border p-2">Address</th>
+            <th class="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Customer Sales Table -->
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold mb-2">Customer Sales</h2>
+      <table id="customer-sales" class="w-full border-collapse border">
+        <thead>
+          <tr>
+            <th class="border p-2">Product Name</th>
+            <th class="border p-2">Customer Name</th>
+            <th class="border p-2">Quantity</th>
+            <th class="border p-2">Selling Price</th>
+            <th class="border p-2">Sale Date</th>
+            <th class="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Vendor Sales Table -->
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold mb-2">Vendor Sales</h2>
+      <table id="vendor-sales" class="w-full border-collapse border">
+        <thead>
+          <tr>
+            <th class="border p-2">Product Name</th>
+            <th class="border p-2">Vendor Name</th>
+            <th class="border p-2">Quantity</th>
+            <th class="border p-2">Price</th>
+            <th class="border p-2">Buy-in Price</th>
+            <th class="border p-2">Sale Date</th>
             <th class="border p-2">Actions</th>
           </tr>
         </thead>
@@ -121,6 +183,8 @@
     document.addEventListener('DOMContentLoaded', () => {
       loadProducts();
       loadVendors();
+      loadCustomerSales();
+      loadVendorSales();
     });
   </script>
 </body>
