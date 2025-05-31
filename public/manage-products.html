@@ -3,168 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>
-    <span lang="en">Manage Products</span>
-    <span lang="zh">管理產品</span>
-  </title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <title>Manage Products</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="common.js" defer></script>
   <style>
-    .hidden { display: none; }
-    [lang="zh"] { display: none; }
-    .lang-en [lang="en"] { display: inline; }
-    .lang-en [lang="zh"] { display: none; }
-    .lang-zh [lang="zh"] { display: inline; }
-    .lang-zh [lang="en"] { display: none; }
+    #lang-body.lang-zh .text-content { font-family: 'Noto Serif CJK SC', serif; }
+    #lang-body.lang-en .text-content { font-family: 'Arial', sans-serif; }
+    .fade-out { animation: fadeOut 2s forwards; }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
   </style>
 </head>
-<body class="p-6 bg-gray-100 min-h-screen" id="lang-body">
-  <h1 class="text-3xl font-bold mb-6">
-    <span lang="en">Manage Products</span>
-    <span lang="zh">管理產品</span>
-  </h1>
-  <nav class="mb-6">
-    <ul class="flex space-x-4">
-      <li><a href="index.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Home</span>
-        <span lang="zh">首頁</span>
-      </a></li>
-      <li><a href="analytics.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Analytics</span>
-        <span lang="zh">分析</span>
-      </a></li>
-      <li><a href="manage-vendors.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Manage Vendors</span>
-        <span lang="zh">管理供應商</span>
-      </a></li>
-      <li><a href="record-customer-sales.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Record Customer Sales</span>
-        <span lang="zh">記錄客戶銷售</span>
-      </a></li>
-      <li><a href="vendor-loan-record.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Vendor Loan Record</span>
-        <span lang="zh">供應商貸貨記錄</span>
-      </a></li>
-    </ul>
-  </nav>
+<body id="lang-body" class="lang-en text-content">
+  <div class="container mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-4">Manage Products</h1>
 
-  <button onclick="toggleLanguage()" class="mb-4 bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
-    <span lang="en">Switch to Chinese</span>
-    <span lang="zh">切換到英文</span>
-  </button>
+    <!-- Add Product Form -->
+    <div class="mb-4 p-4 bg-gray-100 rounded">
+      <h2 class="text-xl font-semibold mb-2">Add New Product</h2>
+      <form onsubmit="event.preventDefault(); addProduct({
+        barcode: document.getElementById('product-barcode').value,
+        name: document.getElementById('product-name').value,
+        stock_in_qty: document.getElementById('stock-in-qty').value,
+        stock_in_price: document.getElementById('stock-in-price').value,
+        vendor_id: document.getElementById('vendor-id').value ? parseInt(document.getElementById('vendor-id').value) : null
+      })" class="space-y-2">
+        <div>
+          <input id="product-barcode" type="text" placeholder="Barcode" class="border p-1 rounded w-32" required>
+        </div>
+        <div>
+          <input id="product-name" type="text" placeholder="Product Name" class="border p-1 rounded w-32" required>
+        </div>
+        <div>
+          <input id="stock-in-qty" type="number" min="0" placeholder="Initial Stock" class="border p-1 rounded w-32" required>
+        </div>
+        <div>
+          <input id="stock-in-price" type="number" step="0.01" min="0" placeholder="Buy-in Price" class="border p-1 rounded w-32" required>
+        </div>
+        <div>
+          <select id="vendor-id" class="border p-1 rounded w-32">
+            <option value="">Select Vendor (Optional)</option>
+            <!-- Populated by loadVendors -->
+          </select>
+        </div>
+        <button type="submit" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600">Add Product</button>
+      </form>
+    </div>
 
-  <form onsubmit="event.preventDefault(); addProduct({ barcode: document.getElementById('barcode').value.trim(), name: document.getElementById('name').value.trim(), price: parseFloat(document.getElementById('price').value), stock: parseInt(document.getElementById('stock').value), vendor_id: parseInt(document.getElementById('vendor-id').value) || null })" class="mb-4 space-y-2">
-    <input id="barcode" type="text" placeholder="Barcode" required class="border p-2 rounded">
-    <input id="name" type="text" placeholder="Name" required class="border p-2 rounded">
-    <input id="price" type="number" step="0.01" min="0" placeholder="Price" required class="border p-2 rounded">
-    <input id="stock" type="number" min="0" placeholder="Stock" required class="border p-2 rounded">
-    <select id="vendor-id" class="border p-2 rounded">
-      <option value="">
-        <span lang="en">Select Vendor (Optional)</span>
-        <span lang="zh">選擇供應商（可選）</span>
-      </option>
-    </select>
-    <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
-      <span lang="en">Add Product</span>
-      <span lang="zh">添加產品</span>
-    </button>
-  </form>
-  <p class="text-gray-600 text-sm mb-2">
-    <span lang="en">Note: Barcodes must be unique.</span>
-    <span lang="zh">注意：條碼必須唯一。</span>
-  </p>
-  <button onclick="sortProducts('price')" class="bg-gray-300 p-2 rounded mr-2 hover:bg-gray-400">
-    <span lang="en">Sort by Price</span>
-    <span lang="zh">按價格排序</span>
-  </button>
-  <button onclick="sortProducts('stock')" class="bg-gray-300 p-2 rounded hover:bg-gray-400">
-    <span lang="en">Sort by Stock</span>
-    <span lang="zh">按庫存排序</span>
-  </button>
-  <table id="products" class="w-full border-collapse mt-4 bg-white shadow">
-    <thead>
-      <tr class="bg-gray-200">
-        <th class="border p-2">
-          <span lang="en">Name</span>
-          <span lang="zh">名稱</span>
-        </th>
-        <th class="border p-2">
-          <span lang="en">Barcode</span>
-          <span lang="zh">條碼</span>
-        </th>
-        <th class="border p-2">
-          <span lang="en">Price</span>
-          <span lang="zh">價格</span>
-        </th>
-        <th class="border p-2">
-          <span lang="en">Stock</span>
-          <span lang="zh">庫存</span>
-        </th>
-        <th class="border p-2">
-          <span lang="en">Vendor</span>
-          <span lang="zh">供應商</span>
-        </th>
-        <th class="border p-2">
-          <span lang="en">Actions</span>
-          <span lang="zh">操作</span>
-        </th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <!-- Products Table -->
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold mb-2">Products</h2>
+      <table id="products" class="w-full border-collapse border">
+        <thead>
+          <tr>
+            <th class="border p-2 cursor-pointer" onclick="sortProducts('name')">Name</th>
+            <th class="border p-2 cursor-pointer" onclick="sortProducts('barcode')">Barcode</th>
+            <th class="border p-2 cursor-pointer" onclick="sortProducts('price')">Price</th>
+            <th class="border p-2 cursor-pointer" onclick="sortProducts('stock')">Stock</th>
+            <th class="border p-2">Vendor</th>
+            <th class="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-  <div id="message" class="text-green-600 mb-4"></div>
-  <div id="error" class="text-red-600 mb-4"></div>
-  <div id="loading" class="text-blue-600 mb-4 hidden">
-    <svg class="animate-spin h-5 w-5 inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-    <span lang="en">Loading...</span>
-    <span lang="zh">加載中...</span>
+    <!-- Vendors Table -->
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold mb-2">Vendors</h2>
+      <table id="vendors" class="w-full border-collapse border">
+        <thead>
+          <tr>
+            <th class="border p-2">Name</th>
+            <th class="border p-2">Email</th>
+            <th class="border p-2">Contact No.</th>
+            <th class="border p-2">Address</th>
+            <th class="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Messages -->
+    <div id="message" class="text-green-600 mb-2"></div>
+    <div id="error" class="text-red-600 mb-2"></div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="hidden">Loading...</div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
-    function clearMessage(type = 'error') {
-      setTimeout(() => {
-        document.getElementById(type).textContent = '';
-      }, 5000);
-    }
-
-    function setLoading(isLoading) {
+    function setLoading(loading) {
       const loadingEl = document.getElementById('loading');
-      loadingEl.classList.toggle('hidden', !isLoading);
-    }
-
-    function toggleLanguage() {
-      const body = document.getElementById('lang-body');
-      const isEnglish = body.classList.contains('lang-en');
-      body.classList.toggle('lang-en', !isEnglish);
-      body.classList.toggle('lang-zh', isEnglish);
-      localStorage.setItem('language', isEnglish ? 'zh' : 'en');
-    }
-
-    async function populateVendorDropdowns() {
-      try {
-        const { data: vendors, error } = await window.supabaseClient.from('vendors').select('*');
-        if (error) throw error;
-        const addVendorSelect = document.getElementById('vendor-id');
-        const isChinese = document.getElementById('lang-body').classList.contains('lang-zh');
-        addVendorSelect.innerHTML = `<option value="">${isChinese ? '選擇供應商（可選）' : 'Select Vendor (Optional)'}</option>` + vendors.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
-      } catch (error) {
-        console.error('Error loading vendors for dropdown:', error.message);
+      if (loadingEl) {
+        loadingEl.classList.toggle('hidden', !loading);
       }
     }
 
+    function clearMessage(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        setTimeout(() => {
+          el.classList.add('fade-out');
+          setTimeout(() => {
+            el.textContent = '';
+            el.classList.remove('fade-out');
+          }, 2000);
+        }, 3000);
+      }
+    }
+
+    // Initial load
     document.addEventListener('DOMContentLoaded', () => {
-      const preferredLang = localStorage.getItem('language') || 'en';
-      const body = document.getElementById('lang-body');
-      body.classList.add(`lang-${preferredLang}`);
-      populateVendorDropdowns();
       loadProducts();
+      loadVendors();
     });
   </script>
-  <script src="common.js"></script>
 </body>
 </html>
