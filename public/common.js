@@ -10,11 +10,12 @@ function debounce(func, wait) {
   };
 }
 
-// Custom fetch to fix potential 406 errors by setting Accept header
+// Custom fetch to include the Authorization header with the anon key
 const customFetch = (url, options = {}) => {
   const headers = {
     ...options.headers,
     Accept: 'application/json',
+    Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k`,
   };
   return fetch(url, { ...options, headers });
 };
@@ -27,9 +28,9 @@ if (!window.supabaseClient) {
   }
   const { createClient } = supabase;
   window.supabaseClient = createClient(
-    'https://aouduygmcspiqauhrabx.supabase.co', // Replace with your Supabase Project URL, e.g., https://your-project-id.supabase.co
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k', // Replace with your anon key
-    { global: { fetch: customFetch } }
+    'https://aouduygmcspiqauhrabx.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k',
+    { fetch: customFetch } // Use fetch directly instead of global
   );
   console.log('Supabase Client Initialized in common.js:', Object.keys(window.supabaseClient));
 }
