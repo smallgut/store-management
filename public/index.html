@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manage Products</title>
+  <title>Barcode System</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="/common.js"></script>
 </head>
 <body id="lang-body" class="lang-en">
   <nav class="bg-gray-800 p-4 text-white flex justify-between">
-    <div>
+    <div class="flex space-x-4">
       <a href="/index.html" class="px-2 hover:underline">Home</a>
       <a href="/analytics.html" class="px-2 hover:underline">Analytics</a>
-      <a href="/manage-products.html" class="px-2 hover:underline font-bold">Manage Products</a>
+      <a href="/manage-products.html" class="px-2 hover:underline">Manage Products</a>
       <a href="/customer-sales.html" class="px-2 hover:underline">Record Customer Sales</a>
       <a href="/vendor-sales.html" class="px-2 hover:underline">Vendor Loan Record</a>
     </div>
@@ -23,56 +23,38 @@
   </nav>
 
   <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-4">Manage Products</h1>
-    <div id="loading" class="hidden text-blue-500">Loading...</div>
-    <div id="message" class="text-green-500 mb-2"></div>
-    <div id="error" class="text-red-500 mb-2"></div>
-
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold mb-2">Add New Product</h2>
-      <form onsubmit="event.preventDefault(); addProduct({
-        barcode: document.getElementById('barcode').value.trim(),
-        name: document.getElementById('name').value.trim(),
-        stock_in_qty: parseInt(document.getElementById('stock-in-qty').value) || 0,
-        stock_in_price: parseFloat(document.getElementById('stock-in-price').value) || 0,
-        vendor_id: parseInt(document.getElementById('vendor-id').value) || null
-      })">
-        <input id="barcode" type="text" placeholder="Barcode" class="border p-2 rounded mr-2" required>
-        <input id="name" type="text" placeholder="Name" class="border p-2 rounded mr-2" required>
-        <input id="stock-in-qty" type="number" placeholder="Initial Stock" class="border p-2 rounded mr-2" min="0">
-        <input id="stock-in-price" type="number" step="0.01" placeholder="Buy-in Price" class="border p-2 rounded mr-2" min="0">
-        <select id="vendor-id" class="border p-2 rounded mr-2">
-          <option value="">Select Vendor (Optional)</option>
-        </select>
-        <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Add Product</button>
-      </form>
-    </div>
-
-    <table id="products" class="w-full border-collapse border">
-      <thead>
-        <tr class="bg-gray-200">
-          <th class="border p-2"><a href="#" onclick="sortProducts('name')">Name</a></th>
-          <th class="border p-2">Barcode</th>
-          <th class="border p-2"><a href="#" onclick="sortProducts('price')">Price</a></th>
-          <th class="border p-2"><a href="#" onclick="sortProducts('stock')">Stock</a></th>
-          <th class="border p-2">Vendor</th>
-          <th class="border p-2">Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <!-- Page-specific content goes here -->
+    <h1 class="text-2xl font-bold mb-4">Welcome to Home</h1>
+    <p class="mb-4">This is the home page of the barcode system.</p>
   </div>
 
   <script>
+    // Highlight the active page in the navigation bar
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('nav a');
+    navLinks.forEach(link => {
+      if (link.getAttribute('href') === currentPath || (currentPath === '/' && link.getAttribute('href') === '/index.html')) {
+        link.classList.add('font-bold');
+      }
+    });
+
     // Language toggle logic
     const langBody = document.getElementById('lang-body');
     const langToggle = document.getElementById('lang-toggle');
+
+    // Function to update page content based on language
+    function updatePageLanguage() {
+      const isChinese = langBody.classList.contains('lang-zh');
+      document.querySelector('h1').textContent = isChinese ? '歡迎使用條碼系統' : 'Welcome to Home';
+      document.querySelector('p').textContent = isChinese ? '這是條碼系統的主頁。' : 'This is the home page of the barcode system.';
+    }
 
     // Load the saved language preference from localStorage
     const savedLang = localStorage.getItem('language') || 'en';
     langBody.classList.remove('lang-en', 'lang-zh');
     langBody.classList.add(`lang-${savedLang}`);
     langToggle.textContent = savedLang === 'en' ? 'Switch to Chinese' : 'Switch to English';
+    updatePageLanguage();
 
     // Toggle language on click
     langToggle.addEventListener('click', () => {
@@ -82,8 +64,7 @@
       langBody.classList.remove('lang-en', 'lang-zh');
       langBody.classList.add(`lang-${newLang}`);
       langToggle.textContent = newLang === 'en' ? 'Switch to Chinese' : 'Switch to English';
-      // Reload the products to reflect the language change
-      loadProducts();
+      updatePageLanguage();
     });
 
     // Define setLoading and clearMessage if not in common.js
@@ -100,12 +81,6 @@
         if (el) el.textContent = '';
       }, 5000);
     }
-
-    // Load products and vendors on page load
-    document.addEventListener('DOMContentLoaded', () => {
-      loadProducts();
-      loadVendors();
-    });
   </script>
 </body>
 </html>
