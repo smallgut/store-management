@@ -1,127 +1,60 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manage Products</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script src="common.js" defer></script>
-  <style>
-    #lang-body.lang-zh .text-content { font-family: 'Noto Serif CJK SC', serif; }
-    #lang-body.lang-en .text-content { font-family: 'Arial', sans-serif; }
-    .fade-out { animation: fadeOut 2s forwards; }
-    @keyframes fadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-  </style>
-</head>
-<body id="lang-body" class="lang-en text-content">
-  <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-4">Manage Products</h1>
+<div class="container mx-auto p-4">
+  <h1 class="text-2xl font-bold mb-4" id="manage-products-title">Manage Products</h1>
+  <div id="loading" class="hidden text-blue-500">Loading...</div>
+  <div id="message" class="text-green-500 mb-2"></div>
+  <div id="error" class="text-red-500 mb-2"></div>
 
-    <!-- Add Product Form -->
-    <div class="mb-4 p-4 bg-gray-100 rounded">
-      <h2 class="text-xl font-semibold mb-2">Add New Product</h2>
-      <form onsubmit="event.preventDefault(); addProduct({
-        barcode: document.getElementById('product-barcode').value,
-        name: document.getElementById('product-name').value,
-        stock_in_qty: document.getElementById('stock-in-qty').value,
-        stock_in_price: document.getElementById('stock-in-price').value,
-        vendor_id: document.getElementById('vendor-id').value ? parseInt(document.getElementById('vendor-id').value) : null
-      })" class="space-y-2">
-        <div>
-          <input id="product-barcode" type="text" placeholder="Barcode" class="border p-1 rounded w-32" required>
-        </div>
-        <div>
-          <input id="product-name" type="text" placeholder="Product Name" class="border p-1 rounded w-32" required>
-        </div>
-        <div>
-          <input id="stock-in-qty" type="number" min="0" placeholder="Initial Stock" class="border p-1 rounded w-32" required>
-        </div>
-        <div>
-          <input id="stock-in-price" type="number" step="0.01" min="0" placeholder="Buy-in Price" class="border p-1 rounded w-32" required>
-        </div>
-        <div>
-          <select id="vendor-id" class="border p-1 rounded w-32">
-            <option value="">Select Vendor (Optional)</option>
-            <!-- Populated by loadVendors -->
-          </select>
-        </div>
-        <button type="submit" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600">Add Product</button>
-      </form>
-    </div>
-
-    <!-- Products Table -->
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold mb-2">Products</h2>
-      <table id="products" class="w-full border-collapse border">
-        <thead>
-          <tr>
-            <th class="border p-2 cursor-pointer" onclick="sortProducts('name')">Name</th>
-            <th class="border p-2 cursor-pointer" onclick="sortProducts('barcode')">Barcode</th>
-            <th class="border p-2 cursor-pointer" onclick="sortProducts('price')">Price</th>
-            <th class="border p-2 cursor-pointer" onclick="sortProducts('stock')">Stock</th>
-            <th class="border p-2">Vendor</th>
-            <th class="border p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <!-- Vendors Table -->
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold mb-2">Vendors</h2>
-      <table id="vendors" class="w-full border-collapse border">
-        <thead>
-          <tr>
-            <th class="border p-2">Name</th>
-            <th class="border p-2">Email</th>
-            <th class="border p-2">Contact No.</th>
-            <th class="border p-2">Address</th>
-            <th class="border p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <!-- Messages -->
-    <div id="message" class="text-green-600 mb-2"></div>
-    <div id="error" class="text-red-600 mb-2"></div>
-
-    <!-- Loading Indicator -->
-    <div id="loading" class="hidden">Loading...</div>
+  <div class="mb-4">
+    <h2 class="text-xl font-semibold mb-2" id="add-product-title">Add New Product</h2>
+    <form onsubmit="event.preventDefault(); addProduct({
+      barcode: document.getElementById('barcode').value.trim(),
+      name: document.getElementById('name').value.trim(),
+      stock_in_qty: parseInt(document.getElementById('stock-in-qty').value) || 0,
+      stock_in_price: parseFloat(document.getElementById('stock-in-price').value) || 0,
+      vendor_id: parseInt(document.getElementById('vendor-id').value) || null
+    })">
+      <input id="barcode" type="text" placeholder="Barcode" class="border p-2 rounded mr-2" required>
+      <input id="name" type="text" placeholder="Name" class="border p-2 rounded mr-2" required>
+      <input id="stock-in-qty" type="number" placeholder="Initial Stock" class="border p-2 rounded mr-2" min="0">
+      <input id="stock-in-price" type="number" step="0.01" placeholder="Buy-in Price" class="border p-2 rounded mr-2" min="0">
+      <select id="vendor-id" class="border p-2 rounded mr-2">
+        <option value="">Select Vendor (Optional)</option>
+      </select>
+      <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" id="add-product-btn">Add Product</button>
+    </form>
   </div>
 
-  <script>
-    function setLoading(loading) {
-      const loadingEl = document.getElementById('loading');
-      if (loadingEl) {
-        loadingEl.classList.toggle('hidden', !loading);
-      }
-    }
+  <table id="products" class="w-full border-collapse border">
+    <thead>
+      <tr class="bg-gray-200">
+        <th class="border p-2"><a href="#" onclick="sortProducts('name')">Name</a></th>
+        <th class="border p-2">Barcode</th>
+        <th class="border p-2"><a href="#" onclick="sortProducts('price')">Price</a></th>
+        <th class="border p-2"><a href="#" onclick="sortProducts('stock')">Stock</a></th>
+        <th class="border p-2">Vendor</th>
+        <th class="border p-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 
-    function clearMessage(id) {
-      const el = document.getElementById(id);
-      if (el) {
-        setTimeout(() => {
-          el.classList.add('fade-out');
-          setTimeout(() => {
-            el.textContent = '';
-            el.classList.remove('fade-out');
-          }, 2000);
-        }, 3000);
-      }
-    }
+<script>
+  // Update form and page language
+  function updatePageLanguage() {
+    const isChinese = langBody.classList.contains('lang-zh');
+    document.getElementById('manage-products-title').textContent = isChinese ? '管理產品' : 'Manage Products';
+    document.getElementById('add-product-title').textContent = isChinese ? '添加新產品' : 'Add New Product';
+    document.getElementById('barcode').placeholder = isChinese ? '條碼' : 'Barcode';
+    document.getElementById('name').placeholder = isChinese ? '名稱' : 'Name';
+    document.getElementById('stock-in-qty').placeholder = isChinese ? '初始庫存' : 'Initial Stock';
+    document.getElementById('stock-in-price').placeholder = isChinese ? '進貨價' : 'Buy-in Price';
+    document.getElementById('add-product-btn').textContent = isChinese ? '添加產品' : 'Add Product';
+  }
 
-    // Initial load
-    document.addEventListener('DOMContentLoaded', () => {
-      loadProducts();
-      loadVendors();
-    });
-  </script>
-</body>
-</html>
+  // Load products and vendors on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    loadProducts();
+    loadVendors();
+  });
+</script>
