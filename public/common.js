@@ -10,12 +10,11 @@ function debounce(func, wait) {
   };
 }
 
-// Custom fetch to fix 406 error by setting Accept header
+// Custom fetch to fix potential 406 errors by setting Accept header
 const customFetch = (url, options = {}) => {
   const headers = {
     ...options.headers,
     Accept: 'application/json',
-    Authorization: options.headers?.Authorization || `Bearer YOUR_ANON_KEY`, // Replace YOUR_ANON_KEY here as well
   };
   return fetch(url, { ...options, headers });
 };
@@ -28,8 +27,8 @@ if (!window.supabaseClient) {
   }
   const { createClient } = supabase;
   window.supabaseClient = createClient(
-    'YOUR_SUPABASE_URL', // Replace with your Supabase Project URL
-    'YOUR_ANON_KEY', // Replace with your anon key
+    'https://aouduygmcspiqauhrabx.supabase.co', // Replace with your Supabase Project URL, e.g., https://your-project-id.supabase.co
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k', // Replace with your anon key
     { global: { fetch: customFetch } }
   );
   console.log('Supabase Client Initialized in common.js:', Object.keys(window.supabaseClient));
@@ -215,6 +214,9 @@ const loadVendors = debounce(async function() {
   }
 }, 300);
 
+// Expose loadVendors globally
+window.loadVendors = loadVendors;
+
 const loadCustomerSales = debounce(async function() {
   try {
     await ensureSupabaseClient();
@@ -259,6 +261,9 @@ const loadCustomerSales = debounce(async function() {
     setLoading(false);
   }
 }, 300);
+
+// Expose loadCustomerSales globally
+window.loadCustomerSales = loadCustomerSales;
 
 const loadVendorSales = debounce(async function() {
   try {
@@ -306,6 +311,9 @@ const loadVendorSales = debounce(async function() {
     setLoading(false);
   }
 }, 300);
+
+// Expose loadVendorSales globally
+window.loadVendorSales = loadVendorSales;
 
 async function sortProducts(by) {
   try {
@@ -383,7 +391,6 @@ async function addProduct(product) {
       throw new Error('Barcode already exists');
     }
 
-    // Ensure stock_in_qty and stock_in_price are valid
     const initialStock = parseInt(product.stock_in_qty) || 0;
     const buyInPrice = parseFloat(product.stock_in_price) || 0;
     if (initialStock < 0) {
@@ -393,16 +400,14 @@ async function addProduct(product) {
       throw new Error('Buy-in price cannot be negative');
     }
 
-    // Insert the product with initial stock and price
     const { error: productError } = await window.supabaseClient
       .from('products')
       .insert([{ ...product, stock: initialStock, price: buyInPrice }]);
     if (productError) throw productError;
 
-    // If initial stock is provided, create a batch
     if (initialStock > 0) {
       const today = new Date();
-      const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`; // e.g., 31052025
+      const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`;
       const batch = {
         product_barcode: product.barcode,
         vendor_id: product.vendor_id || null,
@@ -450,24 +455,20 @@ async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId
     if (isNaN(additionalStock) || additionalStock < 1) {
       throw new Error('Invalid stock value');
     }
-    // Allow buyInPrice to be optional; default to 0 if not provided
     const effectiveBuyInPrice = buyInPrice != null && !isNaN(buyInPrice) && buyInPrice >= 0 ? buyInPrice : 0;
 
-    // Generate daily batch number (DDMMYYYY)
     const today = new Date();
-    const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`; // e.g., 31052025
+    const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`;
 
-    // Check if a batch for this product and day already exists
     const { data: existingBatch, error: batchFetchError } = await window.supabaseClient
       .from('product_batches')
       .select('*')
       .eq('product_barcode', barcode)
       .eq('batch_number', batchNumber)
       .single();
-    if (batchFetchError && batchFetchError.code !== 'PGRST116') throw batchFetchError; // Ignore "no rows" error
+    if (batchFetchError && batchFetchError.code !== 'PGRST116') throw batchFetchError;
 
     if (existingBatch) {
-      // Update existing batch
       const newQuantity = existingBatch.quantity + additionalStock;
       const newRemainingQuantity = existingBatch.remaining_quantity + additionalStock;
       const newBuyInPrice = effectiveBuyInPrice > 0
@@ -484,7 +485,6 @@ async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId
         .eq('id', existingBatch.id);
       if (batchUpdateError) throw batchUpdateError;
     } else {
-      // Create new batch
       const batch = {
         product_barcode: barcode,
         vendor_id: vendorId || null,
@@ -499,7 +499,6 @@ async function updateProductStock(barcode, additionalStock, buyInPrice, vendorId
       if (batchError) throw batchError;
     }
 
-    // Update total stock in products table
     const newStock = product.stock + additionalStock;
     const { error: updateError } = await window.supabaseClient
       .from('products')
@@ -792,7 +791,6 @@ async function addCustomerSale(sale) {
     if (product.stock < sale.quantity) {
       throw new Error('Insufficient stock');
     }
-    // Fetch batches with remaining stock, ordered by created_at (FIFO)
     const { data: batches, error: batchError } = await window.supabaseClient
       .from('product_batches')
       .select('*')
@@ -803,7 +801,6 @@ async function addCustomerSale(sale) {
     if (!batches || batches.length === 0) {
       throw new Error('No available batches found');
     }
-    // Deduct stock from batches
     let remainingToDeduct = sale.quantity;
     const updatedBatches = [];
     let totalCost = 0;
@@ -818,7 +815,6 @@ async function addCustomerSale(sale) {
     if (remainingToDeduct > 0) {
       throw new Error('Not enough stock in batches to fulfill sale');
     }
-    // Update batches
     for (const batch of updatedBatches) {
       const { error: updateError } = await window.supabaseClient
         .from('product_batches')
@@ -826,14 +822,12 @@ async function addCustomerSale(sale) {
         .eq('id', batch.id);
       if (updateError) throw updateError;
     }
-    // Update total stock in products table
     const newStock = product.stock - sale.quantity;
     const { error: stockError } = await window.supabaseClient
       .from('products')
       .update({ stock: newStock })
       .eq('barcode', sale.product_barcode);
     if (stockError) throw stockError;
-    // Use the product's price as the default selling price, or the overridden price
     const sellingPrice = sale.price != null ? sale.price : product.price;
     const { error } = await window.supabaseClient
       .from('customer_sales')
@@ -875,7 +869,6 @@ async function deleteCustomerSale(id) {
       .eq('barcode', sale.product_barcode)
       .single();
     if (productError) throw productError;
-    // Add stock back to the most recent batch (LIFO for returns)
     const { data: batches, error: batchError } = await window.supabaseClient
       .from('product_batches')
       .select('*')
@@ -901,7 +894,6 @@ async function deleteCustomerSale(id) {
         .eq('id', batch.id);
       if (updateError) throw updateError;
     }
-    // Update total stock
     const newStock = product.stock + sale.quantity;
     const { error: stockError } = await window.supabaseClient
       .from('products')
@@ -939,7 +931,6 @@ async function addVendorSale(sale) {
     setLoading(true);
     console.log('Adding vendor sale with data:', sale);
 
-    // Validate inputs
     if (!sale.product_barcode) {
       throw new Error('Product barcode is required');
     }
@@ -950,7 +941,6 @@ async function addVendorSale(sale) {
       throw new Error('Quantity must be a positive number');
     }
 
-    // Check if vendor exists
     const { data: vendor, error: vendorError } = await window.supabaseClient
       .from('vendors')
       .select('name')
@@ -961,7 +951,6 @@ async function addVendorSale(sale) {
     }
     console.log('Vendor found:', vendor);
 
-    // Fetch product
     const { data: product, error: fetchError } = await window.supabaseClient
       .from('products')
       .select('stock, name, price')
@@ -972,12 +961,10 @@ async function addVendorSale(sale) {
     }
     console.log('Product found:', product);
 
-    // Check if there's enough stock to loan
     if (product.stock < sale.quantity) {
       throw new Error('Insufficient stock to loan');
     }
 
-    // Fetch batches with remaining stock, ordered by created_at (FIFO)
     let { data: batches, error: batchError } = await window.supabaseClient
       .from('product_batches')
       .select('*')
@@ -986,16 +973,15 @@ async function addVendorSale(sale) {
       .order('created_at', { ascending: true });
     if (batchError) throw batchError;
 
-    // If no batches exist but stock is available, create a new batch
     if (!batches || batches.length === 0) {
       if (product.stock > 0) {
         const today = new Date();
-        const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`; // e.g., 31052025
+        const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`;
         const batch = {
           product_barcode: sale.product_barcode,
           vendor_id: sale.vendor_id,
           quantity: product.stock,
-          buy_in_price: product.price, // Use product price as default
+          buy_in_price: product.price,
           remaining_quantity: product.stock,
           batch_number: batchNumber
         };
@@ -1003,7 +989,6 @@ async function addVendorSale(sale) {
           .from('product_batches')
           .insert([batch]);
         if (batchInsertError) throw batchInsertError;
-        // Refetch batches
         const { data: newBatches, error: newBatchError } = await window.supabaseClient
           .from('product_batches')
           .select('*')
@@ -1017,7 +1002,6 @@ async function addVendorSale(sale) {
       }
     }
 
-    // Deduct stock from batches
     let remainingToDeduct = sale.quantity;
     const updatedBatches = [];
     let totalCost = 0;
@@ -1032,7 +1016,6 @@ async function addVendorSale(sale) {
     if (remainingToDeduct > 0) {
       throw new Error('Not enough stock in batches to fulfill loan');
     }
-    // Update batches
     for (const batch of updatedBatches) {
       const { error: updateError } = await window.supabaseClient
         .from('product_batches')
@@ -1041,7 +1024,6 @@ async function addVendorSale(sale) {
       if (updateError) throw updateError;
     }
 
-    // Update total stock
     const newStock = product.stock - sale.quantity;
     const { error: stockError } = await window.supabaseClient
       .from('products')
@@ -1049,17 +1031,14 @@ async function addVendorSale(sale) {
       .eq('barcode', sale.product_barcode);
     if (stockError) throw stockError;
 
-    // Set price
     const finalPrice = sale.price != null ? sale.price : product.price;
     if (finalPrice < 0) {
       throw new Error('Price cannot be negative');
     }
     console.log('Final price set to:', finalPrice);
 
-    // Calculate average buy-in price for the loaned items
     const averageBuyInPrice = totalCost / sale.quantity;
 
-    // Insert vendor sale (loan record)
     const saleData = {
       product_barcode: sale.product_barcode,
       vendor_id: sale.vendor_id,
@@ -1113,7 +1092,6 @@ async function deleteVendorSale(id) {
       .eq('barcode', sale.product_barcode)
       .single();
     if (productError) throw productError;
-    // Add stock back to the most recent batch (LIFO for returns)
     const { data: batches, error: batchError } = await window.supabaseClient
       .from('product_batches')
       .select('*')
@@ -1139,7 +1117,6 @@ async function deleteVendorSale(id) {
         .eq('id', batch.id);
       if (updateError) throw updateError;
     }
-    // Update total stock
     const newStock = product.stock + sale.quantity;
     const { error: stockError } = await window.supabaseClient
       .from('products')
