@@ -388,8 +388,7 @@ async function addProduct(product) {
       .insert({
         barcode: product.barcode,
         name: product.name,
-        stock_in_qty: product.stock_in_qty,
-        stock: product.stock_in_qty, // Initialize stock with stock_in_qty
+        stock: product.stock_in_qty, // Use stock column for initial quantity
         price: product.stock_in_price, // Use price column for buy-in price
         vendor_id: product.vendor_id
       })
