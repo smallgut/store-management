@@ -383,59 +383,28 @@ async function addProduct(product) {
   try {
     await ensureSupabaseClient();
     setLoading(true);
-    const { data: existing, error: fetchError } = await window.supabaseClient
+    const { data, error } = await window.supabaseClient
       .from('products')
-      .select('barcode')
-      .eq('barcode', product.barcode);
-    if (fetchError) throw fetchError;
-    if (existing.length > 0) {
-      throw new Error('Barcode already exists');
-    }
-
-    const initialStock = parseInt(product.stock_in_qty) || 0;
-    const buyInPrice = parseFloat(product.stock_in_price) || 0;
-    if (initialStock < 0) {
-      throw new Error('Initial stock cannot be negative');
-    }
-    if (buyInPrice < 0) {
-      throw new Error('Buy-in price cannot be negative');
-    }
-
-    const { error: productError } = await window.supabaseClient
-      .from('products')
-      .insert([{ ...product, stock: initialStock, price: buyInPrice }]);
-    if (productError) throw productError;
-
-    if (initialStock > 0) {
-      const today = new Date();
-      const batchNumber = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`;
-      const batch = {
-        product_barcode: product.barcode,
-        vendor_id: product.vendor_id || null,
-        quantity: initialStock,
-        buy_in_price: buyInPrice,
-        remaining_quantity: initialStock,
-        batch_number: batchNumber
-      };
-      const { error: batchError } = await window.supabaseClient
-        .from('product_batches')
-        .insert([batch]);
-      if (batchError) throw batchError;
-    }
-
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const messageEl = document.getElementById('message');
-    if (messageEl) {
-      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `產品 ${product.name} (${product.barcode}) 已添加` : `Product ${product.name} (${product.barcode}) added`}`;
-      clearMessage('message');
-    }
-    await loadProducts();
+      .insert({
+        barcode: product.barcode,
+        name: product.name,
+        stock_in_qty: product.stock_in_qty,
+        stock: product.stock_in_qty, // Initialize stock with stock_in_qty
+        price: product.stock_in_price, // Use price column for buy-in price
+        vendor_id: product.vendor_id
+      })
+      .select();
+    if (error) throw error;
+    console.log('Product added:', data);
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] Product added successfully`;
+    clearMessage('message');
+    loadProducts(); // Refresh the product list
   } catch (error) {
     console.error('Error adding product:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `無法添加產品：${error.message}` : `Failed to add product: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `添加產品失敗：${error.message}` : `Failed to add product: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
