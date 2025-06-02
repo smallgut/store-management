@@ -748,73 +748,53 @@ async function addCustomerSale(sale) {
   try {
     await ensureSupabaseClient();
     setLoading(true);
-    const { data: product, error: fetchError } = await window.supabaseClient
+
+    // Step 1: Verify the product exists
+    const { data: product, error: productError } = await window.supabaseClient
       .from('products')
-      .select('stock, name, price')
+      .select('id, barcode, name, stock')
       .eq('barcode', sale.product_barcode)
       .single();
-    if (fetchError) throw fetchError;
+    if (productError) throw productError;
     if (!product) {
       throw new Error('Product not found');
     }
+
+    // Step 2: Check if there's enough stock
     if (product.stock < sale.quantity) {
-      throw new Error('Insufficient stock');
+      throw new Error('Insufficient stock available');
     }
-    const { data: batches, error: batchError } = await window.supabaseClient
-      .from('product_batches')
-      .select('*')
-      .eq('product_barcode', sale.product_barcode)
-      .gt('remaining_quantity', 0)
-      .order('created_at', { ascending: true });
-    if (batchError) throw batchError;
-    if (!batches || batches.length === 0) {
-      throw new Error('No available batches found');
-    }
-    let remainingToDeduct = sale.quantity;
-    const updatedBatches = [];
-    let totalCost = 0;
-    for (const batch of batches) {
-      if (remainingToDeduct <= 0) break;
-      const deductFromBatch = Math.min(remainingToDeduct, batch.remaining_quantity);
-      remainingToDeduct -= deductFromBatch;
-      const newRemaining = batch.remaining_quantity - deductFromBatch;
-      updatedBatches.push({ id: batch.id, remaining_quantity: newRemaining });
-      totalCost += deductFromBatch * batch.buy_in_price;
-    }
-    if (remainingToDeduct > 0) {
-      throw new Error('Not enough stock in batches to fulfill sale');
-    }
-    for (const batch of updatedBatches) {
-      const { error: updateError } = await window.supabaseClient
-        .from('product_batches')
-        .update({ remaining_quantity: batch.remaining_quantity })
-        .eq('id', batch.id);
-      if (updateError) throw updateError;
-    }
-    const newStock = product.stock - sale.quantity;
-    const { error: stockError } = await window.supabaseClient
-      .from('products')
-      .update({ stock: newStock })
-      .eq('barcode', sale.product_barcode);
-    if (stockError) throw stockError;
-    const sellingPrice = sale.price != null ? sale.price : product.price;
-    const { error } = await window.supabaseClient
+
+    // Step 3: Record the sale
+    const { data: newSale, error: saleError } = await window.supabaseClient
       .from('customer_sales')
-      .insert([{ ...sale, sale_date: new Date().toISOString(), selling_price: sellingPrice }]);
-    if (error) throw error;
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const messageEl = document.getElementById('message');
-    if (messageEl) {
-      messageEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `客戶銷售記錄 ${sale.quantity} 個 ${product.name} 已添加，售價 $${sellingPrice.toFixed(2)}` : `Customer sale of ${sale.quantity} ${product.name} recorded at $${sellingPrice.toFixed(2)}`}`;
-      clearMessage('message');
-    }
-    await loadCustomerSales();
+      .insert({
+        product_id: product.id,
+        customer_name: sale.customer_name || null,
+        quantity: sale.quantity,
+        price: sale.price,
+        sale_date: new Date().toISOString()
+      })
+      .select();
+    if (saleError) throw saleError;
+
+    // Step 4: Update the product's stock
+    const { error: updateError } = await window.supabaseClient
+      .from('products')
+      .update({ stock: product.stock - sale.quantity })
+      .eq('id', product.id);
+    if (updateError) throw updateError;
+
+    console.log('Customer sale added:', newSale);
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] Customer sale added successfully`;
+    clearMessage('message');
+    loadCustomerSales(); // Refresh the sales list
   } catch (error) {
     console.error('Error adding customer sale:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `無法添加客戶銷售：${error.message}` : `Failed to add customer sale: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `添加客戶銷售失敗：${error.message}` : `Failed to add customer sale: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
