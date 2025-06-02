@@ -3,355 +3,122 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>
-    <span lang="en">Analytics</span>
-    <span lang="zh">分析</span>
-  </title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <style>
-    .hidden { display: none; }
-    [lang="zh"] { display: none; }
-    .lang-en [lang="en"] { display: inline; }
-    .lang-en [lang="zh"] { display: none; }
-    .lang-zh [lang="zh"] { display: inline; }
-    .lang-zh [lang="en"] { display: none; }
-  </style>
+  <title>Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="/common.js"></script>
 </head>
-<body class="p-6 bg-gray-100 min-h-screen" id="lang-body">
-  <h1 class="text-3xl font-bold mb-6">
-    <span lang="en">Analytics</span>
-    <span lang="zh">分析</span>
-  </h1>
-  <nav class="mb-6">
-    <ul class="flex space-x-4">
-      <li><a href="index.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Home</span>
-        <span lang="zh">首頁</span>
-      </a></li>
-      <li><a href="manage-products.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Manage Products</span>
-        <span lang="zh">管理產品</span>
-      </a></li>
-      <li><a href="manage-vendors.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Manage Vendors</span>
-        <span lang="zh">管理供應商</span>
-      </a></li>
-      <li><a href="record-customer-sales.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Record Customer Sales</span>
-        <span lang="zh">記錄客戶銷售</span>
-      </a></li>
-      <li><a href="vendor-loan-record.html" class="text-blue-500 hover:text-blue-700">
-        <span lang="en">Vendor Loan Record</span>
-        <span lang="zh">供應商貸貨記錄</span>
-      </a></li>
-    </ul>
+<body id="lang-body" class="lang-en">
+  <nav class="bg-gray-800 p-4 text-white flex justify-between">
+    <div class="flex space-x-4">
+      <a href="/index.html" class="px-2 hover:underline" id="nav-home">Home</a>
+      <a href="/analytics.html" class="px-2 hover:underline font-bold" id="nav-analytics">Analytics</a>
+      <a href="/manage-products.html" class="px-2 hover:underline" id="nav-manage-products">Manage Products</a>
+      <a href="/manage-vendors.html" class="px-2 hover:underline" id="nav-manage-vendors">Manage Vendors</a>
+      <a href="/customer-sales.html" class="px-2 hover:underline" id="nav-customer-sales">Record Customer Sales</a>
+      <a href="/vendor-sales.html" class="px-2 hover:underline" id="nav-vendor-sales">Vendor Loan Record</a>
+    </div>
+    <div>
+      <a href="#" id="lang-toggle" class="px-2 hover:underline">Switch to Chinese</a>
+    </div>
   </nav>
 
-  <button onclick="toggleLanguage()" class="mb-4 bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
-    <span lang="en">Switch to Chinese</span>
-    <span lang="zh">切換到英文</span>
-  </button>
+  <div class="container mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-4" id="analytics-title">Analytics</h1>
+    <div id="loading" class="hidden text-blue-500">Loading...</div>
+    <div id="message" class="text-green-500 mb-2"></div>
+    <div id="error" class="text-red-500 mb-2"></div>
 
-  <div class="mb-6">
-    <h2 class="text-2xl font-semibold mb-4">
-      <span lang="en">Sales Report</span>
-      <span lang="zh">銷售報告</span>
-    </h2>
-    <form onsubmit="event.preventDefault(); generateReport(document.getElementById('start-date').value, document.getElementById('end-date').value)" class="mb-4 space-y-2">
-      <input id="start-date" type="date" required class="border p-2 rounded">
-      <input id="end-date" type="date" required class="border p-2 rounded">
-      <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
-        <span lang="en">Generate Report</span>
-        <span lang="zh">生成報告</span>
-      </button>
-    </form>
-    <table id="sales-report" class="w-full border-collapse bg-white shadow">
-      <thead>
-        <tr class="bg-gray-200">
-          <th class="border p-2">
-            <span lang="en">Product</span>
-            <span lang="zh">產品</span>
-          </th>
-          <th class="border p-2">
-            <span lang="en">Customer</span>
-            <span lang="zh">客戶</span>
-          </th>
-          <th class="border p-2">
-            <span lang="en">Quantity</span>
-            <span lang="zh">數量</span>
-          </th>
-          <th class="border p-2">
-            <span lang="en">Date</span>
-            <span lang="zh">日期</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold mb-2" id="analytics-overview-title">Overview</h2>
+      <div id="analytics-overview" class="border p-4 rounded">
+        <p id="analytics-overview-text">This section will display an overview of sales, stock, and vendor data.</p>
+      </div>
+    </div>
 
-  <div class="mb-6">
-    <h2 class="text-2xl font-semibold mb-4">
-      <span lang="en">Sales Analytics</span>
-      <span lang="zh">銷售分析</span>
-    </h2>
-    <div id="analytics" class="bg-white p-4 rounded shadow">
-      <p>
-        <span lang="en">Total Customer Sales Quantity:</span>
-        <span lang="zh">總客戶銷售數量：</span>
-        <span id="total-sales">0</span>
-      </p>
-      <p>
-        <span lang="en">Total Stock Value: $</span>
-        <span lang="zh">總庫存價值：$</span>
-        <span id="total-stock-value">0</span>
-      </p>
-      <canvas id="salesChart" class="mt-4"></canvas>
-    </div>
-    <div id="vendor-sales" class="mt-4 bg-white p-4 rounded shadow">
-      <h3 class="text-xl font-semibold">
-        <span lang="en">Purchases from Vendors (To Pay)</span>
-        <span lang="zh">從供應商購買（需支付）</span>
-      </h3>
-      <table id="vendor-sales-table" class="w-full border-collapse mt-2">
-        <thead>
-          <tr class="bg-gray-200">
-            <th class="border p-2">
-              <span lang="en">Vendor</span>
-              <span lang="zh">供應商</span>
-            </th>
-            <th class="border p-2">
-              <span lang="en">Total Quantity</span>
-              <span lang="zh">總數量</span>
-            </th>
-            <th class="border p-2">
-              <span lang="en">Total Amount ($)</span>
-              <span lang="zh">總金額 ($)</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div id="customer-sales" class="mt-4 bg-white p-4 rounded shadow">
-      <h3 class="text-xl font-semibold">
-        <span lang="en">Sales by Customer</span>
-        <span lang="zh">按客戶銷售</span>
-      </h3>
-      <table id="customer-sales-table" class="w-full border-collapse mt-2">
-        <thead>
-          <tr class="bg-gray-200">
-            <th class="border p-2">
-              <span lang="en">Customer</span>
-              <span lang="zh">客戶</span>
-            </th>
-            <th class="border p-2">
-              <span lang="en">Total Quantity</span>
-              <span lang="zh">總數量</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold mb-2" id="analytics-charts-title">Charts</h2>
+      <div id="analytics-charts" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div id="sales-chart" class="border p-4 rounded">
+          <p id="sales-chart-text">Sales data chart placeholder.</p>
+        </div>
+        <div id="stock-chart" class="border p-4 rounded">
+          <p id="stock-chart-text">Stock levels chart placeholder.</p>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div id="message" class="text-green-600 mb-4"></div>
-  <div id="error" class="text-red-600 mb-4"></div>
-  <div id="loading" class="text-blue-600 mb-4 hidden">
-    <svg class="animate-spin h-5 w-5 inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-    <span lang="en">Loading...</span>
-    <span lang="zh">加載中...</span>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    function clearMessage(type = 'error') {
+    // Highlight the active page in the navigation bar
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('nav a');
+    navLinks.forEach(link => {
+      if (link.getAttribute('href') === currentPath || (currentPath === '/' && link.getAttribute('href') === '/index.html')) {
+        link.classList.add('font-bold');
+      }
+    });
+
+    // Update navigation and page content language
+    function updatePageLanguage() {
+      const isChinese = langBody.classList.contains('lang-zh');
+      // Update navigation bar
+      document.getElementById('nav-home').textContent = isChinese ? '首頁' : 'Home';
+      document.getElementById('nav-analytics').textContent = isChinese ? '分析' : 'Analytics';
+      document.getElementById('nav-manage-products').textContent = isChinese ? '管理產品' : 'Manage Products';
+      document.getElementById('nav-manage-vendors').textContent = isChinese ? '管理供應商' : 'Manage Vendors';
+      document.getElementById('nav-customer-sales').textContent = isChinese ? '記錄客戶銷售' : 'Record Customer Sales';
+      document.getElementById('nav-vendor-sales').textContent = isChinese ? '供應商貸貨記錄' : 'Vendor Loan Record';
+      document.getElementById('lang-toggle').textContent = isChinese ? '切換到英文' : 'Switch to Chinese';
+      // Update page content
+      document.getElementById('analytics-title').textContent = isChinese ? '分析' : 'Analytics';
+      document.getElementById('analytics-overview-title').textContent = isChinese ? '概覽' : 'Overview';
+      document.getElementById('analytics-overview-text').textContent = isChinese ? '此部分將顯示銷售、庫存和供應商數據的概覽。' : 'This section will display an overview of sales, stock, and vendor data.';
+      document.getElementById('analytics-charts-title').textContent = isChinese ? '圖表' : 'Charts';
+      document.getElementById('sales-chart-text').textContent = isChinese ? '銷售數據圖表佔位符。' : 'Sales data chart placeholder.';
+      document.getElementById('stock-chart-text').textContent = isChinese ? '庫存水平圖表佔位符。' : 'Stock levels chart placeholder.';
+    }
+
+    // Language toggle logic
+    const langBody = document.getElementById('lang-body');
+    const langToggle = document.getElementById('lang-toggle');
+
+    // Load the saved language preference from localStorage
+    const savedLang = localStorage.getItem('language') || 'en';
+    langBody.classList.remove('lang-en', 'lang-zh');
+    langBody.classList.add(`lang-${savedLang}`);
+    updatePageLanguage();
+
+    // Toggle language on click
+    langToggle.addEventListener('click', () => {
+      const currentLang = langBody.classList.contains('lang-zh') ? 'zh' : 'en';
+      const newLang = currentLang === 'en' ? 'zh' : 'en';
+      localStorage.setItem('language', newLang);
+      langBody.classList.remove('lang-en', 'lang-zh');
+      langBody.classList.add(`lang-${newLang}`);
+      updatePageLanguage();
+      loadAnalytics(); // Refresh analytics data if available
+    });
+
+    // Define setLoading and clearMessage if not in common.js
+    function setLoading(isLoading) {
+      const loadingEl = document.getElementById('loading');
+      if (loadingEl) {
+        loadingEl.style.display = isLoading ? 'block' : 'none';
+      }
+    }
+
+    function clearMessage(type) {
       setTimeout(() => {
-        document.getElementById(type).textContent = '';
+        const el = document.getElementById(type);
+        if (el) el.textContent = '';
       }, 5000);
     }
 
-    function setLoading(isLoading) {
-      const loadingEl = document.getElementById('loading');
-      loadingEl.classList.toggle('hidden', !isLoading);
-    }
-
-    function toggleLanguage() {
-      const body = document.getElementById('lang-body');
-      const isEnglish = body.classList.contains('lang-en');
-      body.classList.toggle('lang-en', !isEnglish);
-      body.classList.toggle('lang-zh', isEnglish);
-      localStorage.setItem('language', isEnglish ? 'zh' : 'en');
-    }
-
-    let salesChartInstance = null;
-    async function updateSalesChart() {
-      try {
-        const { data: sales } = await window.supabaseClient
-          .from('customer_sales')
-          .select('product_barcode, quantity')
-          .order('sale_date');
-        const { data: products } = await window.supabaseClient
-          .from('products')
-          .select('barcode, name');
-        const salesByProduct = {};
-        sales.forEach(s => {
-          const productName = products.find(p => p.barcode === s.product_barcode)?.name || s.product_barcode;
-          salesByProduct[productName] = (salesByProduct[productName] || 0) + s.quantity;
-        });
-        const labels = Object.keys(salesByProduct);
-        const data = Object.values(salesByProduct);
-
-        if (salesChartInstance) {
-          salesChartInstance.destroy();
-        }
-        const ctx = document.getElementById('salesChart').getContext('2d');
-        salesChartInstance = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [{
-              label: document.getElementById('lang-body').classList.contains('lang-zh') ? '按產品的客戶銷售數量' : 'Customer Sales Quantity by Product',
-              data: data,
-              backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
-              borderColor: ['#1e40af', '#047857', '#b45309', '#b91c1c', '#5b21b6', '#be185d'],
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              y: { beginAtZero: true, title: { display: true, text: document.getElementById('lang-body').classList.contains('lang-zh') ? '銷售數量' : 'Quantity Sold' } },
-              x: { title: { display: true, text: document.getElementById('lang-body').classList.contains('lang-zh') ? '產品' : 'Product' } }
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Error updating sales chart:', error.message);
-      }
-    }
-
-    async function updateAnalytics() {
-      try {
-        const { data: sales } = await window.supabaseClient.from('customer_sales').select('quantity');
-        const { data: products } = await window.supabaseClient.from('products').select('price, stock');
-        const totalSales = sales.reduce((sum, s) => sum + s.quantity, 0);
-        const totalStockValue = products.reduce((sum, p) => sum + p.price * p.stock, 0).toFixed(2);
-        document.getElementById('total-sales').textContent = totalSales;
-        document.getElementById('total-stock-value').textContent = totalStockValue;
-        await updateSalesChart();
-        await updateVendorSales();
-        await updateCustomerSales();
-      } catch (error) {
-        console.error('Error updating analytics:', error.message);
-      }
-    }
-
-    async function updateVendorSales() {
-      try {
-        const { data: sales } = await window.supabaseClient
-          .from('vendor_sales')
-          .select('vendor_id, quantity, price, products(price)')
-          .order('vendor_id');
-        const { data: vendors } = await window.supabaseClient
-          .from('vendors')
-          .select('id, name');
-        const vendorSales = {};
-        sales.forEach(s => {
-          const vendorName = vendors.find(v => v.id === s.vendor_id)?.name || 'Unknown';
-          if (!vendorSales[vendorName]) {
-            vendorSales[vendorName] = { quantity: 0, amount: 0 };
-          }
-          vendorSales[vendorName].quantity += s.quantity;
-          vendorSales[vendorName].amount += s.price * s.quantity;
-        });
-        const tbody = document.querySelector('#vendor-sales-table tbody');
-        tbody.innerHTML = Object.entries(vendorSales).map(([vendor, { quantity, amount }]) => `
-          <tr>
-            <td class="border p-2">${vendor}</td>
-            <td class="border p-2">${quantity}</td>
-            <td class="border p-2">$${amount.toFixed(2)}</td>
-          </tr>
-        `).join('');
-      } catch (error) {
-        console.error('Error updating vendor sales:', error.message);
-      }
-    }
-
-    async function updateCustomerSales() {
-      try {
-        const { data: sales } = await window.supabaseClient
-          .from('customer_sales')
-          .select('customer_name, quantity')
-          .order('customer_name');
-        const customerSales = {};
-        sales.forEach(s => {
-          customerSales[s.customer_name || 'Unknown'] = (customerSales[s.customer_name || 'Unknown'] || 0) + s.quantity;
-        });
-        const tbody = document.querySelector('#customer-sales-table tbody');
-        tbody.innerHTML = Object.entries(customerSales).map(([customer, qty]) => `
-          <tr>
-            <td class="border p-2">${customer}</td>
-            <td class="border p-2">${qty}</td>
-          </tr>
-        `).join('');
-      } catch (error) {
-        console.error('Error updating customer sales:', error.message);
-      }
-    }
-
-    async function generateReport(startDate, endDate) {
-      setLoading(true);
-      try {
-        const { data, error } = await window.supabaseClient
-          .from('customer_sales')
-          .select(`
-            id,
-            product_barcode,
-            customer_name,
-            quantity,
-            sale_date,
-            products (name)
-          `)
-          .gte('sale_date', startDate)
-          .lte('sale_date', endDate);
-        if (error) throw error;
-        const tbody = document.querySelector('#sales-report tbody');
-        const isChinese = document.getElementById('lang-body').classList.contains('lang-zh');
-        tbody.innerHTML = data.length
-          ? data.map(s => `
-              <tr>
-                <td class="border p-2">${s.products.name}</td>
-                <td class="border p-2">${s.customer_name || '-'}</td>
-                <td class="border p-2">${s.quantity}</td>
-                <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
-              </tr>
-            `).join('')
-          : `<tr><td colspan="4" class="border p-2">${isChinese ? '未找到銷售記錄。' : 'No sales found.'}</td></tr>`;
-        document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? `為 ${startDate} 至 ${endDate} 生成報告` : `Report generated for ${startDate} to ${endDate}`}`;
-        clearMessage('message');
-      } catch (error) {
-        console.error('Error generating report:', error.message);
-        document.getElementById('error').textContent = `[${new Date().toISOString()}] ${isChinese ? `生成報告錯誤：${error.message}` : `Error generating report: ${error.message}`}`;
-        clearMessage('error');
-      } finally {
-        setLoading(false);
-      }
-    }
-
+    // Load analytics data on page load (placeholder function)
     document.addEventListener('DOMContentLoaded', () => {
-      const preferredLang = localStorage.getItem('language') || 'en';
-      const body = document.getElementById('lang-body');
-      body.classList.add(`lang-${preferredLang}`);
-      updateAnalytics();
+      loadAnalytics(); // Assumes a loadAnalytics function exists in common.js
     });
   </script>
-  <script src="common.js"></script>
 </body>
 </html>
