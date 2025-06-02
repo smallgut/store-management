@@ -769,11 +769,10 @@ async function addCustomerSale(sale) {
     const { data: newSale, error: saleError } = await window.supabaseClient
       .from('customer_sales')
       .insert({
-        product_id: product.id,
+        product_barcode: sale.product_barcode, // Use product_barcode instead of product_id
         customer_name: sale.customer_name || null,
         quantity: sale.quantity,
-        price: sale.price,
-        sale_date: new Date().toISOString()
+        sale_date: new Date().toISOString() // Removed price since it’s not in the schema
       })
       .select();
     if (saleError) throw saleError;
@@ -782,7 +781,7 @@ async function addCustomerSale(sale) {
     const { error: updateError } = await window.supabaseClient
       .from('products')
       .update({ stock: product.stock - sale.quantity })
-      .eq('id', product.id);
+      .eq('barcode', sale.product_barcode);
     if (updateError) throw updateError;
 
     console.log('Customer sale added:', newSale);
