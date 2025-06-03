@@ -3,11 +3,19 @@ let supabaseClient = null;
 
 async function ensureSupabaseClient() {
   if (!supabaseClient) {
-    supabaseClient = supabase.createClient(
-      'https://aouduygmcspiqauhrabx.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
-    );
-    console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient));
+    try {
+      if (typeof supabase === 'undefined') {
+        throw new Error('Supabase library not loaded');
+      }
+      supabaseClient = supabase.createClient(
+        'https://aouduygmcspiqauhrabx.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+      );
+      console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient));
+    } catch (error) {
+      console.error('Failed to initialize Supabase client:', error.message);
+      throw error;
+    }
   }
   return supabaseClient;
 }
@@ -30,9 +38,9 @@ function clearMessage(type) {
 // Load Products
 async function loadProducts() {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
-    const { data: products, error } = await window.supabaseClient
+    const { data: products, error } = await client
       .from('products')
       .select('barcode, name, stock, price, vendor_id, vendors(name)')
       .order('name');
@@ -72,9 +80,9 @@ async function loadProducts() {
 // Add Product
 async function addProduct(product) {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
-    const { data, error } = await window.supabaseClient
+    const { data, error } = await client
       .from('products')
       .insert({
         barcode: product.barcode,
@@ -102,12 +110,12 @@ async function addProduct(product) {
   }
 }
 
-// Delete Product (Placeholder - Implement based on your ID column)
+// Delete Product
 async function deleteProduct(productId) {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
-    const { error } = await window.supabaseClient
+    const { error } = await client
       .from('products')
       .delete()
       .eq('id', productId);
@@ -132,9 +140,9 @@ async function deleteProduct(productId) {
 // Load Vendors
 async function loadVendors() {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
-    const { data: vendors, error } = await window.supabaseClient
+    const { data: vendors, error } = await client
       .from('vendors')
       .select('*')
       .order('name');
@@ -169,12 +177,12 @@ async function loadVendors() {
   }
 }
 
-// Add Vendor (Placeholder - Implement based on your form)
+// Add Vendor
 async function addVendor(vendor) {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
-    const { data, error } = await window.supabaseClient
+    const { data, error } = await client
       .from('vendors')
       .insert({
         name: vendor.name,
@@ -200,12 +208,12 @@ async function addVendor(vendor) {
   }
 }
 
-// Delete Vendor (Placeholder - Implement based on your ID column)
+// Delete Vendor
 async function deleteVendor(vendorId) {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
-    const { error } = await window.supabaseClient
+    const { error } = await client
       .from('vendors')
       .delete()
       .eq('id', vendorId);
@@ -230,9 +238,9 @@ async function deleteVendor(vendorId) {
 // Load Customer Sales
 async function loadCustomerSales() {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
-    const { data: sales, error } = await window.supabaseClient
+    const { data: sales, error } = await client
       .from('customer_sales')
       .select(`
         id,
@@ -289,11 +297,11 @@ async function loadCustomerSales() {
 // Add Customer Sale
 async function addCustomerSale(sale) {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
 
     // Step 1: Verify the product exists
-    const { data: product, error: productError } = await window.supabaseClient
+    const { data: product, error: productError } = await client
       .from('products')
       .select('id, barcode, name, stock')
       .eq('barcode', sale.product_barcode)
@@ -309,7 +317,7 @@ async function addCustomerSale(sale) {
     }
 
     // Step 3: Record the sale
-    const { data: newSale, error: saleError } = await window.supabaseClient
+    const { data: newSale, error: saleError } = await client
       .from('customer_sales')
       .insert({
         product_barcode: sale.product_barcode,
@@ -322,7 +330,7 @@ async function addCustomerSale(sale) {
     if (saleError) throw saleError;
 
     // Step 4: Update the product's stock
-    const { error: updateError } = await window.supabaseClient
+    const { error: updateError } = await client
       .from('products')
       .update({ stock: product.stock - sale.quantity })
       .eq('barcode', sale.product_barcode);
@@ -348,25 +356,25 @@ async function addCustomerSale(sale) {
 // Delete Customer Sale
 async function deleteCustomerSale(saleId, productBarcode, quantity) {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
 
     // Step 1: Delete the sale
-    const { error: deleteError } = await window.supabaseClient
+    const { error: deleteError } = await client
       .from('customer_sales')
       .delete()
       .eq('id', saleId);
     if (deleteError) throw deleteError;
 
     // Step 2: Restore the product's stock
-    const { data: product, error: productError } = await window.supabaseClient
+    const { data: product, error: productError } = await client
       .from('products')
       .select('stock')
       .eq('barcode', productBarcode)
       .single();
     if (productError) throw productError;
 
-    const { error: updateError } = await window.supabaseClient
+    const { error: updateError } = await client
       .from('products')
       .update({ stock: product.stock + quantity })
       .eq('barcode', productBarcode);
@@ -389,17 +397,17 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
   }
 }
 
-// Load Analytics (Placeholder)
+// Load Analytics
 async function loadAnalytics() {
   try {
-    await ensureSupabaseClient();
+    const client = await ensureSupabaseClient();
     setLoading(true);
-    const { data: products, error: productsError } = await window.supabaseClient
+    const { data: products, error: productsError } = await client
       .from('products')
       .select('name, stock, price');
     if (productsError) throw productsError;
 
-    const { data: sales, error: salesError } = await window.supabaseClient
+    const { data: sales, error: salesError } = await client
       .from('customer_sales')
       .select('quantity, price');
     if (salesError) throw salesError;
