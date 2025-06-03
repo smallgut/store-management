@@ -9,7 +9,7 @@ async function ensureSupabaseClient() {
       }
       supabaseClient = supabase.createClient(
         'https://aouduygmcspiqauhrabx.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+        'your-supabase-anon-key'
       );
       console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient));
     } catch (error) {
@@ -247,12 +247,13 @@ async function loadCustomerSales() {
         product_barcode,
         customer_name,
         quantity,
+        price,
         sale_date,
         products (
           name,
           price:price
         )
-      `) // Removed 'price' from customer_sales select
+      `)
       .order('sale_date', { ascending: false });
     if (error) throw error;
     console.log('Customer Sales:', sales);
@@ -261,9 +262,9 @@ async function loadCustomerSales() {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       salesBody.innerHTML = sales.length
         ? sales.map(s => {
-            const sellingPrice = s.products?.price || (isChinese ? '無' : 'N/A'); // Use product price as fallback
-            const buyInPrice = s.products?.price || 0; // Use product price as buy-in price
-            const profit = s.products?.price ? (s.products.price - buyInPrice) * s.quantity : 'N/A'; // Adjust profit calculation
+            const sellingPrice = s.price !== null ? s.price : (isChinese ? '無' : 'N/A');
+            const buyInPrice = s.products?.price || 0;
+            const profit = s.price !== null ? (s.price - buyInPrice) * s.quantity : 'N/A';
             return `
               <tr>
                 <td class="border p-2">${s.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
@@ -322,17 +323,20 @@ async function addCustomerSale(sale) {
         product_barcode: sale.product_barcode,
         customer_name: sale.customer_name || null,
         quantity: sale.quantity,
+        price: sale.price || null, // Ensure price is stored, even if null
         sale_date: new Date().toISOString()
       })
       .select();
     if (saleError) throw saleError;
 
     // Step 4: Update the product's stock
-    const { error: updateError } = await client
+    const { data: updatedProduct, error: updateError } = await client
       .from('products')
       .update({ stock: product.stock - sale.quantity })
-      .eq('barcode', sale.product_barcode);
+      .eq('barcode', sale.product_barcode)
+      .select();
     if (updateError) throw updateError;
+    console.log('Updated product stock:', updatedProduct);
 
     console.log('Customer sale added:', newSale);
     document.getElementById('message').textContent = `[${new Date().toISOString()}] Customer sale added successfully`;
@@ -407,14 +411,14 @@ async function loadAnalytics() {
 
     const { data: sales, error: salesError } = await client
       .from('customer_sales')
-      .select('quantity, sale_date, products(price:price)');
+      .select('quantity, price');
     if (salesError) throw salesError;
 
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const overviewEl = document.getElementById('analytics-overview-text');
     if (overviewEl) {
       const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
-      const totalSalesValue = sales.reduce((sum, s) => sum + (s.quantity * (s.products?.price || 0)), 0);
+      const totalSalesValue = sales.reduce((sum, s) => sum + (s.quantity * (s.price || 0)), 0);
       overviewEl.textContent = isChinese
         ? `總庫存：${totalStock}，總銷售額：${totalSalesValue.toFixed(2)}`
         : `Total Stock: ${totalStock}, Total Sales Value: ${totalSalesValue.toFixed(2)}`;
