@@ -247,7 +247,7 @@ async function loadCustomerSales() {
         product_barcode,
         customer_name,
         quantity,
-        price,
+        selling_price,
         sale_date,
         products (
           name,
@@ -257,15 +257,15 @@ async function loadCustomerSales() {
       .order('sale_date', { ascending: false });
     if (error) throw error;
     console.log('Customer Sales:', sales);
-    console.log('Sample sale data:', sales[0]); // Debug: Check the data structure
+    console.log('Sample sale data:', sales[0]);
     const salesBody = document.querySelector('#customer-sales tbody');
     if (salesBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       salesBody.innerHTML = sales.length
         ? sales.map(s => {
-            const sellingPrice = s.price !== null ? s.price : (isChinese ? '無' : 'N/A');
+            const sellingPrice = s.selling_price !== null ? s.selling_price : (isChinese ? '無' : 'N/A');
             const buyInPrice = s.products?.price || 0;
-            const profit = s.price !== null ? (s.price - buyInPrice) * s.quantity : 'N/A';
+            const profit = s.selling_price !== null ? (s.selling_price - buyInPrice) * s.quantity : 'N/A';
             return `
               <tr>
                 <td class="border p-2">${s.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
@@ -318,14 +318,14 @@ async function addCustomerSale(sale) {
     }
 
     // Step 3: Record the sale
-    console.log('Sale data to insert:', sale); // Debug: Check the sale object
+    console.log('Sale data to insert:', sale);
     const { data: newSale, error: saleError } = await client
       .from('customer_sales')
       .insert({
         product_barcode: sale.product_barcode,
         customer_name: sale.customer_name || null,
         quantity: sale.quantity,
-        price: sale.price || null,
+        selling_price: sale.price || null,
         sale_date: new Date().toISOString()
       })
       .select();
@@ -413,14 +413,14 @@ async function loadAnalytics() {
 
     const { data: sales, error: salesError } = await client
       .from('customer_sales')
-      .select('quantity, price');
+      .select('quantity, selling_price');
     if (salesError) throw salesError;
 
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const overviewEl = document.getElementById('analytics-overview-text');
     if (overviewEl) {
       const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
-      const totalSalesValue = sales.reduce((sum, s) => sum + (s.quantity * (s.price || 0)), 0);
+      const totalSalesValue = sales.reduce((sum, s) => sum + (s.quantity * (s.selling_price || 0)), 0);
       overviewEl.textContent = isChinese
         ? `總庫存：${totalStock}，總銷售額：${totalSalesValue.toFixed(2)}`
         : `Total Stock: ${totalStock}, Total Sales Value: ${totalSalesValue.toFixed(2)}`;
