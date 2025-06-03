@@ -9,7 +9,7 @@ async function ensureSupabaseClient() {
       }
       supabaseClient = supabase.createClient(
         'https://aouduygmcspiqauhrabx.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+        'your-supabase-anon-key'
       );
       console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient));
     } catch (error) {
@@ -257,6 +257,7 @@ async function loadCustomerSales() {
       .order('sale_date', { ascending: false });
     if (error) throw error;
     console.log('Customer Sales:', sales);
+    console.log('Sample sale data:', sales[0]); // Debug: Check the data structure
     const salesBody = document.querySelector('#customer-sales tbody');
     if (salesBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -317,13 +318,14 @@ async function addCustomerSale(sale) {
     }
 
     // Step 3: Record the sale
+    console.log('Sale data to insert:', sale); // Debug: Check the sale object
     const { data: newSale, error: saleError } = await client
       .from('customer_sales')
       .insert({
         product_barcode: sale.product_barcode,
         customer_name: sale.customer_name || null,
         quantity: sale.quantity,
-        price: sale.price || null, // Ensure price is stored, even if null
+        price: sale.price || null,
         sale_date: new Date().toISOString()
       })
       .select();
