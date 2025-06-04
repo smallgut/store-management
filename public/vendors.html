@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vendors</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="common.js" defer></script>
+</head>
+<body id="lang-body" class="p-4">
+  <nav class="bg-gray-800 text-white p-4 mb-4">
+    <ul class="flex space-x-4">
+      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-customer-sales">Record Customer Sales</a></li>
+      <li><a href="products.html" class="hover:underline" data-lang-key="nav-products">Products</a></li>
+      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-vendors">Vendors</a></li>
+    </ul>
+  </nav>
+  <h1 class="text-2xl font-bold mb-4" data-lang-key="nav-vendors">Vendors</h1>
+  <div id="vendors" class="p-4">
+    <table class="w-full border-collapse border">
+      <thead>
+        <tr>
+          <th class="border p-2" data-lang-key="vendor">Name</th>
+          <th class="border p-2" data-lang-key="contact">Contact</th>
+          <th class="border p-2" data-lang-key="phone">Phone</th>
+          <th class="border p-2" data-lang-key="actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="loading" class="hidden text-center p-4">Loading...</div>
+  <div id="message" class="text-green-500 text-center p-2"></div>
+  <div id="error" class="text-red-500 text-center p-2"></div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      loadVendors();
+    });
+  </script>
+</body>
+</html>
