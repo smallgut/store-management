@@ -27,7 +27,7 @@
   <!-- Add Customer Sale Form -->
   <div class="p-4">
     <h2 class="text-xl font-bold mb-4" data-lang-key="add-customer-sale">Add Customer Sale</h2>
-    <form onsubmit="event.preventDefault(); addCustomerSale({ product_barcode: document.getElementById('product-barcode').value || document.getElementById('product-select').value, customer_name: document.getElementById('customer-name').value, quantity: parseInt(document.getElementById('quantity').value), price: parseFloat(document.getElementById('selling-price').value) });">
+    <form id="add-sale-form" onsubmit="event.preventDefault(); handleAddCustomerSale();">
       <div class="mb-4">
         <label class="block mb-1" data-lang-key="select-product">Select Product (or input barcode)</label>
         <select id="product-select" class="border p-2 w-full" onchange="document.getElementById('product-barcode').value = this.value;">
