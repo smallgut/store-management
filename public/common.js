@@ -57,16 +57,16 @@ function applyTranslations() {
     const key = element.getAttribute('data-lang-key');
     element.textContent = translations[lang][key] || element.textContent;
   });
-  console.log('Applied translations for:', lang); // Debug
+  console.log('Applied translations for:', lang);
 }
 
 // Toggle Language Function
 function toggleLanguage() {
-  console.log('Toggling language...'); // Debug
+  console.log('Toggling language...');
   const body = document.getElementById('lang-body');
   body.classList.toggle('lang-zh');
   applyTranslations();
-  loadCustomerSales(); // Re-render the page
+  loadCustomerSales();
 }
 
 async function ensureSupabaseClient() {
@@ -101,6 +101,17 @@ function clearMessage(type) {
     const el = document.getElementById(type);
     if (el) el.textContent = '';
   }, 5000);
+}
+
+// Handle Add Customer Sale Form Submission
+function handleAddCustomerSale() {
+  const sale = {
+    product_barcode: document.getElementById('product-barcode').value || document.getElementById('product-select').value,
+    customer_name: document.getElementById('customer-name').value,
+    quantity: parseInt(document.getElementById('quantity').value),
+    price: parseFloat(document.getElementById('selling-price').value)
+  };
+  addCustomerSale(sale);
 }
 
 // Populate Product Dropdown
