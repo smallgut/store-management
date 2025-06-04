@@ -18,8 +18,11 @@
     </ul>
   </nav>
 
-  <!-- Header -->
-  <h1 class="text-2xl font-bold mb-4" data-lang-key="record-customer-sales">Record Customer Sales</h1>
+  <!-- Header and Language Toggle -->
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold" data-lang-key="record-customer-sales">Record Customer Sales</h1>
+    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
+  </div>
 
   <!-- Add Customer Sale Form -->
   <div class="p-4">
@@ -27,7 +30,7 @@
     <form onsubmit="event.preventDefault(); addCustomerSale({ product_barcode: document.getElementById('product-barcode').value || document.getElementById('product-select').value, customer_name: document.getElementById('customer-name').value, quantity: parseInt(document.getElementById('quantity').value), price: parseFloat(document.getElementById('selling-price').value) });">
       <div class="mb-4">
         <label class="block mb-1" data-lang-key="select-product">Select Product (or input barcode)</label>
-        <select id="product-select" class="border p-2 w-full" onchange="document.getElementById('product-barcode').value = this.value">
+        <select id="product-select" class="border p-2 w-full" onchange="document.getElementById('product-barcode').value = this.value;">
           <option value="">-- Select a Product --</option>
         </select>
       </div>
