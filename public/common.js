@@ -24,6 +24,7 @@ const translations = {
     'no-products-found': 'No products found.',
     'unknown-product': 'Unknown Product',
     'no-customer-sales-found': 'No customer sales found.',
+    'delete-confirm': 'Delete this sale?'
   },
   zh: {
     'record-customer-sales': '記錄客戶銷售',
@@ -46,6 +47,7 @@ const translations = {
     'no-products-found': '未找到產品。',
     'unknown-product': '未知產品',
     'no-customer-sales-found': '未找到客戶銷售記錄。',
+    'delete-confirm': '刪除此銷售記錄？'
   }
 };
 
@@ -114,6 +116,15 @@ function handleAddCustomerSale() {
   addCustomerSale(sale);
 }
 
+// Helper function to handle delete button click
+function handleDeleteSale(saleId, productBarcode, quantity) {
+  const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+  console.log('Delete clicked:', saleId, productBarcode, quantity);
+  if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
+    deleteCustomerSale(saleId, productBarcode, quantity);
+  }
+}
+
 // Populate Product Dropdown
 async function populateProductDropdown() {
   try {
@@ -180,7 +191,7 @@ async function loadCustomerSales() {
                 <td class="border p-2">${typeof profit === 'number' ? profit.toFixed(2) : profit}</td>
                 <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
                 <td class="border p-2">
-                  <button onclick="console.log('Delete clicked:', '${s.id}', '${s.product_barcode}', ${s.quantity}); if (confirm('${isChinese ? `刪除此銷售記錄？` : `Delete this sale?`})) deleteCustomerSale('${s.id}', '${s.product_barcode}', ${s.quantity});" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                  <button onclick="handleDeleteSale('${s.id}', '${s.product_barcode}', ${s.quantity})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
                 </td>
               </tr>
             `;
