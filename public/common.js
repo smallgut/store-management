@@ -57,10 +57,12 @@ function applyTranslations() {
     const key = element.getAttribute('data-lang-key');
     element.textContent = translations[lang][key] || element.textContent;
   });
+  console.log('Applied translations for:', lang); // Debug
 }
 
 // Toggle Language Function
 function toggleLanguage() {
+  console.log('Toggling language...'); // Debug
   const body = document.getElementById('lang-body');
   body.classList.toggle('lang-zh');
   applyTranslations();
