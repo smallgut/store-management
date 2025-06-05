@@ -3,41 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Products</title>
+  <title>Manage Products</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js" defer></script>
 </head>
 <body id="lang-body" class="p-4">
+  <!-- Navigation -->
   <nav class="bg-gray-800 text-white p-4 mb-4">
     <ul class="flex space-x-4">
-      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-customer-sales">Record Customer Sales</a></li>
-      <li><a href="products.html" class="hover:underline" data-lang-key="nav-products">Products</a></li>
-      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-vendors">Vendors</a></li>
+      <li><a href="index.html" class="hover:underline" data-lang-key="nav-home">Home</a></li>
+      <li><a href="analytics.html" class="hover:underline" data-lang-key="nav-analytics">Analytics</a></li>
+      <li><a href="products.html" class="hover:underline" data-lang-key="nav-manage-products">Manage Products</a></li>
+      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html" class="hover:underline" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
     </ul>
   </nav>
-  <h1 class="text-2xl font-bold mb-4" data-lang-key="nav-products">Products</h1>
-  <div id="products" class="p-4">
-    <table class="w-full border-collapse border">
-      <thead>
-        <tr>
-          <th class="border p-2" data-lang-key="product-barcode">Barcode</th>
-          <th class="border p-2" data-lang-key="product-name">Name</th>
-          <th class="border p-2" data-lang-key="quantity">Stock</th>
-          <th class="border p-2" data-lang-key="selling-price">Price</th>
-          <th class="border p-2" data-lang-key="vendor">Vendor</th>
-          <th class="border p-2" data-lang-key="actions">Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+
+  <!-- Header and Language Toggle -->
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold" data-lang-key="nav-manage-products">Manage Products</h1>
+    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
   </div>
+
+  <!-- Manage Products Content -->
+  <div class="p-4">
+    <p data-lang-key="manage-products-welcome">Welcome to Manage Products!</p>
+  </div>
+
   <div id="loading" class="hidden text-center p-4">Loading...</div>
   <div id="message" class="text-green-500 text-center p-2"></div>
   <div id="error" class="text-red-500 text-center p-2"></div>
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      loadProducts();
+      applyTranslations();
     });
   </script>
 </body>
