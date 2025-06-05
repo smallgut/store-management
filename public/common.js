@@ -4,26 +4,17 @@ let supabaseClient = null;
 // Translation dictionary
 const translations = {
   en: {
-    'record-customer-sales': 'Record Customer Sales',
-    'toggle-language': 'Toggle Language',
-    'add-customer-sale': 'Add Customer Sale',
-    'select-product': 'Select Product (or input barcode)',
-    'product-barcode': 'Product Barcode',
-    'customer-name': 'Customer Name',
-    'quantity': 'Quantity',
-    'selling-price': 'Selling Price',
-    'add-sale': 'Add Sale',
-    'customer-sales': 'Customer Sales',
-    'product-name': 'Product Name',
-    'profit': 'Profit',
-    'sale-date': 'Sale Date',
-    'actions': 'Actions',
     'nav-home': 'Home',
     'nav-analytics': 'Analytics',
     'nav-manage-products': 'Manage Products',
     'nav-manage-vendors': 'Manage Vendors',
     'nav-record-customer-sales': 'Record Customer Sales',
     'nav-vendor-loan-record': 'Vendor Loan Record',
+    'toggle-language': 'Toggle Language',
+    'home-welcome': 'Welcome to the Home page!',
+    'manage-products-welcome': 'Welcome to Manage Products!',
+    'manage-vendors-welcome': 'Welcome to Manage Vendors!',
+    'vendor-loan-record-welcome': 'Welcome to Vendor Loan Record!',
     'no-products-found': 'No products found.',
     'unknown-product': 'Unknown Product',
     'no-customer-sales-found': 'No customer sales found.',
@@ -31,26 +22,17 @@ const translations = {
     'sub-total': 'Sub-Total'
   },
   zh: {
-    'record-customer-sales': '記錄客戶銷售',
-    'toggle-language': '切換語言',
-    'add-customer-sale': '添加客戶銷售',
-    'select-product': '選擇產品（或輸入條碼）',
-    'product-barcode': '產品條碼',
-    'customer-name': '客戶名稱',
-    'quantity': '數量',
-    'selling-price': '售價',
-    'add-sale': '添加銷售',
-    'customer-sales': '客戶銷售',
-    'product-name': '產品名稱',
-    'profit': '利潤',
-    'sale-date': '銷售日期',
-    'actions': '操作',
     'nav-home': '首頁',
     'nav-analytics': '分析',
     'nav-manage-products': '管理產品',
     'nav-manage-vendors': '管理供應商',
     'nav-record-customer-sales': '記錄客戶銷售',
     'nav-vendor-loan-record': '供應商貸款記錄',
+    'toggle-language': '切換語言',
+    'home-welcome': '歡迎來到首頁！',
+    'manage-products-welcome': '歡迎來到管理產品！',
+    'manage-vendors-welcome': '歡迎來到管理供應商！',
+    'vendor-loan-record-welcome': '歡迎來到供應商貸款記錄！',
     'no-products-found': '未找到產品。',
     'unknown-product': '未知產品',
     'no-customer-sales-found': '未找到客戶銷售記錄。',
@@ -76,9 +58,11 @@ function toggleLanguage() {
   const body = document.getElementById('lang-body');
   body.classList.toggle('lang-zh');
   applyTranslations();
-  loadCustomerSales();
 }
 
+// Other functions (ensureSupabaseClient, setLoading, clearMessage, etc.) remain unchanged
+// Include the rest of common.js as per the previous version, but only showing the updated parts here
+// For brevity, assume the rest (e.g., handleAddCustomerSale, loadCustomerSales, etc.) stays the same unless modified
 async function ensureSupabaseClient() {
   if (!supabaseClient) {
     try {
