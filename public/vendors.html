@@ -27,9 +27,35 @@
     <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
   </div>
 
-  <!-- Manage Vendors Content -->
+  <!-- Add Vendor Form -->
   <div class="p-4">
-    <p data-lang-key="manage-vendors-welcome">Welcome to Manage Vendors!</p>
+    <h2 class="text-xl font-bold mb-4" data-lang-key="add-vendor">Add Vendor</h2>
+    <form id="add-vendor-form" onsubmit="event.preventDefault(); handleAddVendor();">
+      <div class="mb-4">
+        <label class="block mb-1" data-lang-key="vendor-name">Vendor Name</label>
+        <input type="text" id="vendor-name" class="border p-2 w-full" required>
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1" data-lang-key="vendor-contact">Vendor Contact</label>
+        <input type="text" id="vendor-contact" class="border p-2 w-full" required>
+      </div>
+      <button type="submit" class="bg-green-500 text-white p-2 rounded hover:bg-green-600" data-lang-key="add-vendor">Add Vendor</button>
+    </form>
+  </div>
+
+  <!-- Vendors Table -->
+  <div class="p-4">
+    <h2 class="text-xl font-bold mb-4" data-lang-key="manage-vendors">Manage Vendors</h2>
+    <table id="vendors-table" class="w-full border-collapse border">
+      <thead>
+        <tr>
+          <th class="border p-2" data-lang-key="vendor-name">Vendor Name</th>
+          <th class="border p-2" data-lang-key="vendor-contact">Vendor Contact</th>
+          <th class="border p-2" data-lang-key="actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
   <div id="loading" class="hidden text-center p-4">Loading...</div>
@@ -38,7 +64,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      applyTranslations();
+      loadVendors();
     });
   </script>
 </body>
