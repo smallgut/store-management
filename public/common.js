@@ -18,13 +18,17 @@ const translations = {
     'profit': 'Profit',
     'sale-date': 'Sale Date',
     'actions': 'Actions',
-    'nav-customer-sales': 'Record Customer Sales',
-    'nav-products': 'Products',
-    'nav-vendors': 'Vendors',
+    'nav-home': 'Home',
+    'nav-analytics': 'Analytics',
+    'nav-manage-products': 'Manage Products',
+    'nav-manage-vendors': 'Manage Vendors',
+    'nav-record-customer-sales': 'Record Customer Sales',
+    'nav-vendor-loan-record': 'Vendor Loan Record',
     'no-products-found': 'No products found.',
     'unknown-product': 'Unknown Product',
     'no-customer-sales-found': 'No customer sales found.',
-    'delete-confirm': 'Delete this sale?'
+    'delete-confirm': 'Delete this sale?',
+    'sub-total': 'Sub-Total'
   },
   zh: {
     'record-customer-sales': '記錄客戶銷售',
@@ -41,13 +45,17 @@ const translations = {
     'profit': '利潤',
     'sale-date': '銷售日期',
     'actions': '操作',
-    'nav-customer-sales': '記錄客戶銷售',
-    'nav-products': '產品',
-    'nav-vendors': '供應商',
+    'nav-home': '首頁',
+    'nav-analytics': '分析',
+    'nav-manage-products': '管理產品',
+    'nav-manage-vendors': '管理供應商',
+    'nav-record-customer-sales': '記錄客戶銷售',
+    'nav-vendor-loan-record': '供應商貸款記錄',
     'no-products-found': '未找到產品。',
     'unknown-product': '未知產品',
     'no-customer-sales-found': '未找到客戶銷售記錄。',
-    'delete-confirm': '刪除此銷售記錄？'
+    'delete-confirm': '刪除此銷售記錄？',
+    'sub-total': '小計'
   }
 };
 
@@ -181,6 +189,7 @@ async function loadCustomerSales() {
         ? sales.map(s => {
             const sellingPrice = s.selling_price !== null ? s.selling_price : (isChinese ? '無' : 'N/A');
             const buyInPrice = s.products?.price || 0;
+            const subTotal = s.selling_price !== null ? s.quantity * s.selling_price : (isChinese ? '無' : 'N/A');
             const profit = s.selling_price !== null ? (s.selling_price - buyInPrice) * s.quantity : 'N/A';
             return `
               <tr>
@@ -188,6 +197,7 @@ async function loadCustomerSales() {
                 <td class="border p-2">${s.customer_name || (isChinese ? '無' : 'N/A')}</td>
                 <td class="border p-2">${s.quantity}</td>
                 <td class="border p-2">${typeof sellingPrice === 'number' ? sellingPrice.toFixed(2) : sellingPrice}</td>
+                <td class="border p-2">${typeof subTotal === 'number' ? subTotal.toFixed(2) : subTotal}</td>
                 <td class="border p-2">${typeof profit === 'number' ? profit.toFixed(2) : profit}</td>
                 <td class="border p-2">${new Date(s.sale_date).toLocaleString()}</td>
                 <td class="border p-2">
@@ -196,7 +206,7 @@ async function loadCustomerSales() {
               </tr>
             `;
           }).join('')
-        : `<tr><td colspan="7" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
+        : `<tr><td colspan="8" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
       applyTranslations();
     }
     await populateProductDropdown();
