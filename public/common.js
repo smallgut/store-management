@@ -31,6 +31,7 @@ const translations = {
     'add-product': 'Add Product',
     'stock': 'Stock',
     'buy-in-price': 'Buy-In Price',
+    'inventory-value': 'Inventory Value',
     'add-vendor': 'Add Vendor',
     'vendor-name': 'Vendor Name',
     'vendor-contact': 'Vendor Contact',
@@ -46,6 +47,7 @@ const translations = {
     'unknown-product': 'Unknown Product',
     'no-customer-sales-found': 'No customer sales found.',
     'delete-confirm': 'Delete this record?',
+    'update': 'Update',
     'sub-total': 'Sub-Total'
   },
   zh: {
@@ -76,6 +78,7 @@ const translations = {
     'add-product': '添加產品',
     'stock': '庫存',
     'buy-in-price': '進貨價',
+    'inventory-value': '庫存價值',
     'add-vendor': '添加供應商',
     'vendor-name': '供應商名稱',
     'vendor-contact': '供應商聯繫方式',
@@ -91,6 +94,7 @@ const translations = {
     'unknown-product': '未知產品',
     'no-customer-sales-found': '未找到客戶銷售記錄。',
     'delete-confirm': '刪除此記錄？',
+    'update': '更新',
     'sub-total': '小計'
   }
 };
@@ -436,18 +440,23 @@ async function loadProducts() {
     if (productsBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       productsBody.innerHTML = products.length
-        ? products.map(p => `
+        ? products.map(p => {
+            const inventoryValue = p.stock * p.price;
+            return `
           <tr>
             <td class="border p-2">${p.barcode}</td>
             <td class="border p-2">${p.name}</td>
             <td class="border p-2">${p.stock}</td>
             <td class="border p-2">${p.price.toFixed(2)}</td>
+            <td class="border p-2">${inventoryValue.toFixed(2)}</td>
             <td class="border p-2">
+              <button onclick="handleUpdateProduct('${p.id}', ${p.stock}, ${p.price})" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">${isChinese ? '更新' : 'Update'}</button>
               <button onclick="handleDeleteProduct('${p.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
             </td>
           </tr>
-        `).join('')
-        : `<tr><td colspan="5" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
+        `;
+          }).join('')
+        : `<tr><td colspan="6" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
       applyTranslations();
     }
   } catch (error) {
@@ -484,6 +493,52 @@ async function addProduct(product) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `添加產品失敗：${error.message}` : `Failed to add product: ${error.message}`}`;
+      clearMessage('error');
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+// Handle Update Product
+function handleUpdateProduct(productId, currentStock, currentPrice) {
+  const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+  const newStock = prompt(isChinese ? '輸入新的庫存數量：' : 'Enter new stock quantity:', currentStock);
+  const newPrice = prompt(isChinese ? '輸入新的進貨價：' : 'Enter new buy-in price:', currentPrice);
+  
+  if (newStock !== null && newPrice !== null) {
+    const stock = parseInt(newStock);
+    const price = parseFloat(newPrice);
+    if (!isNaN(stock) && stock >= 0 && !isNaN(price) && price >= 0) {
+      updateProduct(productId, stock, price);
+    } else {
+      alert(isChinese ? '請輸入有效的庫存和價格！' : 'Please enter valid stock and price!');
+    }
+  }
+}
+
+// Update Product
+async function updateProduct(productId, stock, price) {
+  try {
+    const client = await ensureSupabaseClient();
+    setLoading(true);
+    const { data, error } = await client
+      .from('products')
+      .update({ stock, price })
+      .eq('id', productId)
+      .select();
+    if (error) throw error;
+    console.log('Product updated:', data);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('message').textContent = `[${new Date().toISOString()}] ${isChinese ? '產品更新成功' : 'Product updated successfully'}`;
+    clearMessage('message');
+    loadProducts();
+  } catch (error) {
+    console.error('Error updating product:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString()}] ${isChinese ? `更新產品失敗：${error.message}` : `Failed to update product: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
