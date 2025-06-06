@@ -81,10 +81,25 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       loadProducts();
-      // Set initial batch number based on current date
-      const today = new Date().toISOString().slice(0, 10).split('-');
-      const batchNo = `${today[2]}${today[1]}${today[0].slice(-2)}`;
+      const batchNo = getGMT8Date();
       document.getElementById('batch-no').value = batchNo;
+      // Observe changes to message and error elements for debugging
+      const messageEl = document.getElementById('message');
+      const errorEl = document.getElementById('error');
+      new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+          if (mutation.target.textContent) {
+            console.log(`${mutation.target.id.toUpperCase()}: ${mutation.target.textContent}`);
+          }
+        });
+      }).observe(messageEl, { childList: true });
+      new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+          if (mutation.target.textContent) {
+            console.log(`${mutation.target.id.toUpperCase()}: ${mutation.target.textContent}`);
+          }
+        });
+      }).observe(errorEl, { childList: true });
     });
   </script>
 </body>
