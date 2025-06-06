@@ -32,6 +32,7 @@ const translations = {
     'stock': 'Stock',
     'buy-in-price': 'Buy-In Price',
     'inventory-value': 'Inventory Value',
+    'batch-no': 'Batch No.',
     'add-vendor': 'Add Vendor',
     'vendor-name': 'Vendor Name',
     'vendor-contact': 'Vendor Contact',
@@ -79,6 +80,7 @@ const translations = {
     'stock': '庫存',
     'buy-in-price': '進貨價',
     'inventory-value': '庫存價值',
+    'batch-no': '批號',
     'add-vendor': '添加供應商',
     'vendor-name': '供應商名稱',
     'vendor-contact': '供應商聯繫方式',
@@ -416,10 +418,13 @@ async function loadAnalytics() {
 
 // Handle Add Product
 function handleAddProduct() {
+  const today = new Date().toISOString().slice(0, 10).split('-');
+  const batchNo = `${today[2]}${today[1]}${today[0].slice(-2)}`;
   const product = {
     barcode: document.getElementById('product-barcode').value,
     name: document.getElementById('product-name').value,
     stock: parseInt(document.getElementById('stock').value),
+    batch_no: batchNo,
     price: parseFloat(document.getElementById('buy-in-price').value)
   };
   addProduct(product);
@@ -447,16 +452,17 @@ async function loadProducts() {
             <td class="border p-2">${p.barcode}</td>
             <td class="border p-2">${p.name}</td>
             <td class="border p-2">${p.stock}</td>
+            <td class="border p-2">${p.batch_no}</td>
             <td class="border p-2">${p.price.toFixed(2)}</td>
             <td class="border p-2">${inventoryValue.toFixed(2)}</td>
             <td class="border p-2">
-              <button onclick="handleUpdateProduct('${p.id}', ${p.stock}, ${p.price})" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">${isChinese ? '更新' : 'Update'}</button>
+              <button onclick="handleUpdateProduct('${p.id}', ${p.stock}, ${p.price}, '${p.batch_no}')" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">${isChinese ? '更新' : 'Update'}</button>
               <button onclick="handleDeleteProduct('${p.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
             </td>
           </tr>
         `;
           }).join('')
-        : `<tr><td colspan="6" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
+        : `<tr><td colspan="7" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
       applyTranslations();
     }
   } catch (error) {
@@ -501,7 +507,7 @@ async function addProduct(product) {
 }
 
 // Handle Update Product
-function handleUpdateProduct(productId, currentStock, currentPrice) {
+function handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
   const newStock = prompt(isChinese ? '輸入新的庫存數量：' : 'Enter new stock quantity:', currentStock);
   const newPrice = prompt(isChinese ? '輸入新的進貨價：' : 'Enter new buy-in price:', currentPrice);
@@ -510,7 +516,10 @@ function handleUpdateProduct(productId, currentStock, currentPrice) {
     const stock = parseInt(newStock);
     const price = parseFloat(newPrice);
     if (!isNaN(stock) && stock >= 0 && !isNaN(price) && price >= 0) {
-      updateProduct(productId, stock, price);
+      // Keep the original batch_no or regenerate based on current date
+      const today = new Date().toISOString().slice(0, 10).split('-');
+      const batchNo = `${today[2]}${today[1]}${today[0].slice(-2)}`;
+      updateProduct(productId, stock, price, batchNo);
     } else {
       alert(isChinese ? '請輸入有效的庫存和價格！' : 'Please enter valid stock and price!');
     }
@@ -518,13 +527,13 @@ function handleUpdateProduct(productId, currentStock, currentPrice) {
 }
 
 // Update Product
-async function updateProduct(productId, stock, price) {
+async function updateProduct(productId, stock, price, batchNo) {
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
     const { data, error } = await client
       .from('products')
-      .update({ stock, price })
+      .update({ stock, price, batch_no: batchNo })
       .eq('id', productId)
       .select();
     if (error) throw error;
