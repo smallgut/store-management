@@ -19,6 +19,7 @@ const translations = {
     'add-customer-sale': 'Add Customer Sale',
     'select-product': 'Select Product (or input barcode)',
     'product-barcode': 'Product Barcode',
+    'batch-no': 'Batch No.',
     'customer-name': 'Customer Name',
     'quantity': 'Quantity',
     'selling-price': 'Selling Price',
@@ -32,7 +33,6 @@ const translations = {
     'stock': 'Stock',
     'buy-in-price': 'Buy-In Price',
     'inventory-value': 'Inventory Value',
-    'batch-no': 'Batch No.',
     'add-vendor': 'Add Vendor',
     'vendor-name': 'Vendor Name',
     'vendor-contact': 'Vendor Contact',
@@ -67,6 +67,7 @@ const translations = {
     'add-customer-sale': '添加客戶銷售',
     'select-product': '選擇產品（或輸入條碼）',
     'product-barcode': '產品條碼',
+    'batch-no': '批號',
     'customer-name': '客戶名稱',
     'quantity': '數量',
     'selling-price': '售價',
@@ -80,7 +81,6 @@ const translations = {
     'stock': '庫存',
     'buy-in-price': '進貨價',
     'inventory-value': '庫存價值',
-    'batch-no': '批號',
     'add-vendor': '添加供應商',
     'vendor-name': '供應商名稱',
     'vendor-contact': '供應商聯繫方式',
@@ -172,6 +172,7 @@ function clearMessage(type) {
 function handleAddCustomerSale() {
   const sale = {
     product_barcode: document.getElementById('product-barcode').value || document.getElementById('product-select').value,
+    batch_no: document.getElementById('batch-no').value,
     customer_name: document.getElementById('customer-name').value,
     quantity: parseInt(document.getElementById('quantity').value),
     price: parseFloat(document.getElementById('selling-price').value)
@@ -194,19 +195,40 @@ async function populateProductDropdown() {
     const client = await ensureSupabaseClient();
     const { data: products, error } = await client
       .from('products')
-      .select('id, barcode, name, stock')
+      .select('id, barcode, name, stock, batch_no')
       .order('name');
     if (error) throw error;
     console.log('Products for dropdown:', products);
     const productSelect = document.getElementById('product-select');
-    if (productSelect) {
+    const batchNoSelect = document.getElementById('batch-no');
+    if (productSelect && batchNoSelect) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       productSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇產品 --' : '-- Select a Product --'}</option>`;
+      batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+      const batchesByBarcode = {};
       products.forEach(p => {
         const option = document.createElement('option');
-        option.value = p.id; // Changed from barcode to id
-        option.textContent = `${p.name} (Barcode: ${p.barcode}, Stock: ${p.stock})`;
+        option.value = p.id;
+        option.textContent = `${p.name} (Barcode: ${p.barcode})`;
         productSelect.appendChild(option);
+        if (!batchesByBarcode[p.barcode]) batchesByBarcode[p.barcode] = [];
+        batchesByBarcode[p.barcode].push(p.batch_no);
+      });
+      // Populate batch_no options based on selected barcode
+      productSelect.addEventListener('change', () => {
+        const selectedBarcodeId = productSelect.value;
+        const selectedProduct = products.find(p => p.id === parseInt(selectedBarcodeId));
+        if (selectedProduct) {
+          batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+          batchesByBarcode[selectedProduct.barcode].forEach(batch => {
+            const option = document.createElement('option');
+            option.value = batch;
+            option.textContent = batch;
+            batchNoSelect.appendChild(option);
+          });
+        } else {
+          batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+        }
       });
     }
   } catch (error) {
@@ -231,7 +253,8 @@ async function loadCustomerSales() {
         products (
           name,
           price:price,
-          barcode
+          barcode,
+          batch_no
         )
       `)
       .order('sale_date', { ascending: false });
@@ -251,6 +274,7 @@ async function loadCustomerSales() {
               <tr>
                 <td class="border p-2">${s.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
                 <td class="border p-2">${s.products?.barcode || (isChinese ? '無' : 'N/A')}</td>
+                <td class="border p-2">${s.products?.batch_no || (isChinese ? '無' : 'N/A')}</td>
                 <td class="border p-2">${s.customer_name || (isChinese ? '無' : 'N/A')}</td>
                 <td class="border p-2">${s.quantity}</td>
                 <td class="border p-2">${typeof sellingPrice === 'number' ? sellingPrice.toFixed(2) : sellingPrice}</td>
@@ -263,7 +287,7 @@ async function loadCustomerSales() {
               </tr>
             `;
           }).join('')
-        : `<tr><td colspan="9" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
+        : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
       applyTranslations();
     }
     await populateProductDropdown();
@@ -287,11 +311,12 @@ async function addCustomerSale(sale) {
     setLoading(true);
     console.log('Sale data to insert:', sale);
 
-    // Step 1: Find the product ID based on barcode
+    // Step 1: Find the product ID based on barcode and batch_no
     const { data: product, error: productError } = await client
       .from('products')
       .select('id, barcode, name, stock, price')
       .eq('barcode', sale.product_barcode)
+      .eq('batch_no', sale.batch_no)
       .single();
     if (productError && productError.code !== 'PGRST116') throw productError; // PGRST116 is "no rows"
     if (!product) {
@@ -307,7 +332,7 @@ async function addCustomerSale(sale) {
     const { data: newSale, error: saleError } = await client
       .from('customer_sales')
       .insert({
-        product_id: product.id, // Use product_id instead of product_barcode
+        product_id: product.id,
         customer_name: sale.customer_name || null,
         quantity: sale.quantity,
         selling_price: sale.price || null,
