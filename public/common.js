@@ -49,7 +49,8 @@ const translations = {
     'no-customer-sales-found': 'No customer sales found.',
     'delete-confirm': 'Delete this record?',
     'update': 'Update',
-    'sub-total': 'Sub-Total'
+    'sub-total': 'Sub-Total',
+    'on-hand-stock': 'On-Hand Stock'
   },
   zh: {
     'nav-home': '首頁',
@@ -97,7 +98,8 @@ const translations = {
     'no-customer-sales-found': '未找到客戶銷售記錄。',
     'delete-confirm': '刪除此記錄？',
     'update': '更新',
-    'sub-total': '小計'
+    'sub-total': '小計',
+    'on-hand-stock': '現有庫存'
   }
 };
 
@@ -190,7 +192,7 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
 }
 
 // Populate Product Dropdown
-async function populateProductDropdown() {
+async function populateProductDropdown(barcodeInput = null) {
   try {
     const client = await ensureSupabaseClient();
     const { data: products, error } = await client
@@ -201,35 +203,42 @@ async function populateProductDropdown() {
     console.log('Products for dropdown:', products);
     const productSelect = document.getElementById('product-select');
     const batchNoSelect = document.getElementById('batch-no');
-    if (productSelect && batchNoSelect) {
+    const productBarcodeInput = document.getElementById('product-barcode');
+    const stockDisplay = document.getElementById('stock-display');
+    if (productSelect && batchNoSelect && productBarcodeInput && stockDisplay) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       productSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇產品 --' : '-- Select a Product --'}</option>`;
-      batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
-      const batchesByBarcode = {};
       products.forEach(p => {
         const option = document.createElement('option');
-        option.value = p.id;
+        option.value = p.barcode; // Use barcode as value for dropdown
         option.textContent = `${p.name} (Barcode: ${p.barcode})`;
         productSelect.appendChild(option);
-        if (!batchesByBarcode[p.barcode]) batchesByBarcode[p.barcode] = [];
-        batchesByBarcode[p.barcode].push(p.batch_no);
       });
-      // Populate batch_no options based on selected barcode
-      productSelect.addEventListener('change', () => {
-        const selectedBarcodeId = productSelect.value;
-        const selectedProduct = products.find(p => p.id === parseInt(selectedBarcodeId));
+
+      // Handle selection or manual input
+      const updateSelection = () => {
+        const selectedBarcode = barcodeInput || productSelect.value || productBarcodeInput.value;
+        const selectedProduct = products.find(p => p.barcode === selectedBarcode);
+        batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+        stockDisplay.textContent = selectedProduct ? `${translations[lang]['on-hand-stock']}: ${selectedProduct.stock}` : '';
         if (selectedProduct) {
-          batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
-          batchesByBarcode[selectedProduct.barcode].forEach(batch => {
+          productBarcodeInput.value = selectedProduct.barcode; // Set barcode, not id
+          const batches = products.filter(p => p.barcode === selectedBarcode).map(p => p.batch_no);
+          batches.forEach(batch => {
             const option = document.createElement('option');
             option.value = batch;
             option.textContent = batch;
             batchNoSelect.appendChild(option);
           });
         } else {
+          productBarcodeInput.value = barcodeInput || '';
           batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
         }
-      });
+      };
+
+      productSelect.addEventListener('change', updateSelection);
+      productBarcodeInput.addEventListener('input', () => populateProductDropdown(productBarcodeInput.value));
+      updateSelection();
     }
   } catch (error) {
     console.error('Error populating product dropdown:', error.message);
