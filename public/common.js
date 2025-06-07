@@ -194,7 +194,7 @@ async function populateProductDropdown() {
     const client = await ensureSupabaseClient();
     const { data: products, error } = await client
       .from('products')
-      .select('barcode, name, stock')
+      .select('id, barcode, name, stock')
       .order('name');
     if (error) throw error;
     console.log('Products for dropdown:', products);
@@ -204,8 +204,8 @@ async function populateProductDropdown() {
       productSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇產品 --' : '-- Select a Product --'}</option>`;
       products.forEach(p => {
         const option = document.createElement('option');
-        option.value = p.barcode;
-        option.textContent = `${p.name} (Stock: ${p.stock})`;
+        option.value = p.id; // Changed from barcode to id
+        option.textContent = `${p.name} (Barcode: ${p.barcode}, Stock: ${p.stock})`;
         productSelect.appendChild(option);
       });
     }
@@ -223,14 +223,15 @@ async function loadCustomerSales() {
       .from('customer_sales')
       .select(`
         id,
-        product_barcode,
+        product_id,
         customer_name,
         quantity,
         selling_price,
         sale_date,
         products (
           name,
-          price:price
+          price:price,
+          barcode
         )
       `)
       .order('sale_date', { ascending: false });
@@ -249,6 +250,7 @@ async function loadCustomerSales() {
             return `
               <tr>
                 <td class="border p-2">${s.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
+                <td class="border p-2">${s.products?.barcode || (isChinese ? '無' : 'N/A')}</td>
                 <td class="border p-2">${s.customer_name || (isChinese ? '無' : 'N/A')}</td>
                 <td class="border p-2">${s.quantity}</td>
                 <td class="border p-2">${typeof sellingPrice === 'number' ? sellingPrice.toFixed(2) : sellingPrice}</td>
@@ -256,12 +258,12 @@ async function loadCustomerSales() {
                 <td class="border p-2">${typeof profit === 'number' ? profit.toFixed(2) : profit}</td>
                 <td class="border p-2">${new Date(s.sale_date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' })}</td>
                 <td class="border p-2">
-                  <button onclick="handleDeleteSale('${s.id}', '${s.product_barcode}', ${s.quantity})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                  <button onclick="handleDeleteSale('${s.id}', '${s.products?.barcode}', ${s.quantity})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
                 </td>
               </tr>
             `;
           }).join('')
-        : `<tr><td colspan="8" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
+        : `<tr><td colspan="9" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
       applyTranslations();
     }
     await populateProductDropdown();
@@ -285,13 +287,13 @@ async function addCustomerSale(sale) {
     setLoading(true);
     console.log('Sale data to insert:', sale);
 
-    // Step 1: Verify the product exists
+    // Step 1: Find the product ID based on barcode
     const { data: product, error: productError } = await client
       .from('products')
       .select('id, barcode, name, stock, price')
       .eq('barcode', sale.product_barcode)
       .single();
-    if (productError) throw productError;
+    if (productError && productError.code !== 'PGRST116') throw productError; // PGRST116 is "no rows"
     if (!product) {
       throw new Error('Product not found');
     }
@@ -305,7 +307,7 @@ async function addCustomerSale(sale) {
     const { data: newSale, error: saleError } = await client
       .from('customer_sales')
       .insert({
-        product_barcode: sale.product_barcode,
+        product_id: product.id, // Use product_id instead of product_barcode
         customer_name: sale.customer_name || null,
         quantity: sale.quantity,
         selling_price: sale.price || null,
@@ -318,7 +320,7 @@ async function addCustomerSale(sale) {
     const { data: updatedProduct, error: updateError } = await client
       .from('products')
       .update({ stock: product.stock - sale.quantity })
-      .eq('barcode', sale.product_barcode)
+      .eq('id', product.id)
       .select();
     if (updateError) throw updateError;
     console.log('Updated product stock:', updatedProduct);
@@ -348,6 +350,17 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
+    // Step 1: Find the product ID based on barcode
+    const { data: product, error: productError } = await client
+      .from('products')
+      .select('id, stock')
+      .eq('barcode', productBarcode)
+      .single();
+    if (productError && productError.code !== 'PGRST116') throw productError;
+    if (!product) {
+      throw new Error('Product not found');
+    }
+
     // Step 1: Delete the sale
     const { error: deleteError } = await client
       .from('customer_sales')
@@ -356,17 +369,10 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
     if (deleteError) throw deleteError;
 
     // Step 2: Restore the product's stock
-    const { data: product, error: productError } = await client
-      .from('products')
-      .select('stock')
-      .eq('barcode', productBarcode)
-      .single();
-    if (productError) throw productError;
-
     const { error: updateError } = await client
       .from('products')
       .update({ stock: product.stock + quantity })
-      .eq('barcode', productBarcode);
+      .eq('id', product.id);
     if (updateError) throw updateError;
 
     console.log('Customer sale deleted:', saleId);
