@@ -23,23 +23,26 @@
 
   <!-- Header and Language Toggle -->
   <div class="flex justify-between items-center mb-4">
-    <h1 class="text-2xl font-bold" data-lang-key="record-customer-sales">Record Customer Sales</h1>
+    <h1 class="text-2xl font-bold" data-lang-key="nav-record-customer-sales">Record Customer Sales</h1>
     <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
   </div>
 
   <!-- Add Customer Sale Form -->
   <div class="p-4">
     <h2 class="text-xl font-bold mb-4" data-lang-key="add-customer-sale">Add Customer Sale</h2>
-    <form id="add-sale-form" onsubmit="event.preventDefault(); handleAddCustomerSale();">
+    <form id="add-customer-sale-form" onsubmit="event.preventDefault(); handleAddCustomerSale();">
       <div class="mb-4">
         <label class="block mb-1" data-lang-key="select-product">Select Product (or input barcode)</label>
-        <select id="product-select" class="border p-2 w-full" onchange="document.getElementById('product-barcode').value = this.value;">
+        <select id="product-select" class="border p-2 w-full" onchange="document.getElementById('product-barcode').value = this.value">
           <option value="">-- Select a Product --</option>
         </select>
+        <input type="text" id="product-barcode" class="border p-2 w-full mt-2" placeholder="Enter Barcode">
       </div>
       <div class="mb-4">
-        <label class="block mb-1" data-lang-key="product-barcode">Product Barcode</label>
-        <input type="text" id="product-barcode" class="border p-2 w-full" placeholder="Scan or enter barcode">
+        <label class="block mb-1" data-lang-key="batch-no">Batch No.</label>
+        <select id="batch-no" class="border p-2 w-full">
+          <option value="">-- Select Batch No. --</option>
+        </select>
       </div>
       <div class="mb-4">
         <label class="block mb-1" data-lang-key="customer-name">Customer Name</label>
@@ -64,6 +67,8 @@
       <thead>
         <tr>
           <th class="border p-2" data-lang-key="product-name">Product Name</th>
+          <th class="border p-2" data-lang-key="product-barcode">Product Barcode</th>
+          <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
           <th class="border p-2" data-lang-key="customer-name">Customer Name</th>
           <th class="border p-2" data-lang-key="quantity">Quantity</th>
           <th class="border p-2" data-lang-key="selling-price">Selling Price</th>
