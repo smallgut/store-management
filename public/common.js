@@ -207,7 +207,8 @@ async function populateProductDropdown(barcodeInput = null) {
     const stockDisplay = document.getElementById('stock-display');
     if (productSelect && batchNoSelect && productBarcodeInput && stockDisplay) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      productSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇產品 --' : '-- Select a Product --'}</option>`;
+      const lang = isChinese ? 'zh' : 'en';
+      productSelect.innerHTML = `<option value="">${translations[lang]['select-product']}</option>`;
       products.forEach(p => {
         const option = document.createElement('option');
         option.value = p.barcode; // Use barcode as value for dropdown
@@ -219,7 +220,7 @@ async function populateProductDropdown(barcodeInput = null) {
       const updateSelection = () => {
         const selectedBarcode = barcodeInput || productSelect.value || productBarcodeInput.value;
         const selectedProduct = products.find(p => p.barcode === selectedBarcode);
-        batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+        batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
         stockDisplay.textContent = selectedProduct ? `${translations[lang]['on-hand-stock']}: ${selectedProduct.stock}` : '';
         if (selectedProduct) {
           productBarcodeInput.value = selectedProduct.barcode; // Set barcode, not id
@@ -232,7 +233,7 @@ async function populateProductDropdown(barcodeInput = null) {
           });
         } else {
           productBarcodeInput.value = barcodeInput || '';
-          batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+          batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
         }
       };
 
