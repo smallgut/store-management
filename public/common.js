@@ -165,7 +165,7 @@ function clearMessage(type) {
 
 function handleAddCustomerSale() {
   const sale = {
-    product_barcode: document.getElementById('product-barcode').value || document.getElementById('product-select').value,
+    product_barcode: document.getElementById('product-barcode').value || document.getElementById('product-select').value.split('|')[0],
     batch_no: document.getElementById('batch-no').value,
     customer_name: document.getElementById('customer-name').value,
     quantity: parseInt(document.getElementById('quantity').value),
@@ -187,18 +187,11 @@ async function populateProductDropdown(barcodeInput = null) {
     const client = await ensureSupabaseClient();
     const { data: products, error: productError } = await client
       .from('products')
-      .select('id, barcode, name, stock, vendor_id')
+      .select('id, barcode, name, stock, batch_no')
       .order('name');
     if (productError) throw productError;
 
-    const { data: batches, error: batchError } = await client
-      .from('product_batches')
-      .select('id, product_id, batch_number, remaining_quantity')
-      .order('batch_number');
-    if (batchError) throw batchError;
-
     console.log('Products for dropdown:', products);
-    console.log('Batches for dropdown:', batches);
 
     const productSelect = document.getElementById('product-select');
     const batchNoSelect = document.getElementById('batch-no');
@@ -210,22 +203,13 @@ async function populateProductDropdown(barcodeInput = null) {
       const lang = isChinese ? 'zh' : 'en';
       productSelect.innerHTML = `<option value="">${translations[lang]['select-product']}</option>`;
 
-      // Create a map of product batches for quick lookup
-      const productBatches = batches.reduce((acc, batch) => {
-        if (!acc[batch.product_id]) acc[batch.product_id] = [];
-        acc[batch.product_id].push(batch);
-        return acc;
-      }, {});
-
-      // Populate product dropdown with enhanced information
-      products.forEach(p => {
-        const productBatchesList = productBatches[p.id] || [];
-        productBatchesList.forEach(batch => {
-          const option = document.createElement('option');
-          option.value = `${p.barcode}|${batch.batch_number}`; // Combine barcode and batch_number for unique identification
-          option.textContent = `${p.name} (Barcode: ${p.barcode}, Batch: ${batch.batch_number}, Stock: ${batch.remaining_quantity})`;
-          productSelect.appendChild(option);
-        });
+      // Filter products with valid batch_no
+      const validProducts = products.filter(p => p.batch_no);
+      validProducts.forEach(p => {
+        const option = document.createElement('option');
+        option.value = `${p.barcode}|${p.batch_no}`;
+        option.textContent = `${p.name} (Barcode: ${p.barcode}, Batch: ${p.batch_no}, Stock: ${p.stock})`;
+        productSelect.appendChild(option);
       });
 
       const updateSelection = () => {
@@ -239,39 +223,30 @@ async function populateProductDropdown(barcodeInput = null) {
           selectedBarcode = inputValue;
         }
 
-        const selectedProduct = products.find(p => p.barcode === selectedBarcode);
-        const selectedProductBatches = selectedProduct ? productBatches[selectedProduct.id] || [] : [];
+        const selectedProduct = products.find(p => p.barcode === selectedBarcode && p.batch_no);
 
         batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
         stockDisplay.textContent = '';
 
         if (selectedProduct) {
           productBarcodeInput.value = selectedBarcode;
-          selectedProductBatches.forEach(batch => {
-            const option = document.createElement('option');
-            option.value = batch.batch_number;
-            option.textContent = `${batch.batch_number} (Stock: ${batch.remaining_quantity})`;
-            batchNoSelect.appendChild(option);
-          });
-
-          const selectedBatch = selectedProductBatches.find(b => b.batch_number === selectedBatchNo);
-          if (selectedBatch) {
-            batchNoSelect.value = selectedBatchNo;
-            stockDisplay.textContent = `${translations[lang]['on-hand-stock']}: ${selectedBatch.remaining_quantity}`;
-          } else if (selectedProductBatches.length > 0) {
-            const firstBatch = selectedProductBatches[0];
-            batchNoSelect.value = firstBatch.batch_number;
-            stockDisplay.textContent = `${translations[lang]['on-hand-stock']}: ${firstBatch.remaining_quantity}`;
-          }
+          const option = document.createElement('option');
+          option.value = selectedProduct.batch_no;
+          option.textContent = `${selectedProduct.batch_no} (Stock: ${selectedProduct.stock})`;
+          batchNoSelect.appendChild(option);
+          batchNoSelect.value = selectedProduct.batch_no;
+          stockDisplay.textContent = `${translations[lang]['on-hand-stock']}: ${selectedProduct.stock}`;
         } else {
           productBarcodeInput.value = barcodeInput || '';
-          batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
-          stockDisplay.textContent = '';
+          stockDisplay.textContent = isChinese ? '無匹配產品' : 'No matching product';
         }
       };
 
       productSelect.addEventListener('change', updateSelection);
-      productBarcodeInput.addEventListener('input', () => populateProductDropdown(productBarcodeInput.value));
+      productBarcodeInput.addEventListener('input', () => {
+        stockDisplay.textContent = isChinese ? '正在搜索...' : 'Searching...';
+        populateProductDropdown(productBarcodeInput.value);
+      });
       updateSelection();
     }
   } catch (error) {
@@ -360,28 +335,17 @@ async function addCustomerSale(sale) {
 
     const { data: product, error: productError } = await client
       .from('products')
-      .select('id, barcode, name, stock, price')
+      .select('id, barcode, name, stock, price, batch_no')
       .eq('barcode', sale.product_barcode)
       .eq('batch_no', sale.batch_no)
       .single();
     if (productError && productError.code !== 'PGRST116') throw productError;
     if (!product) {
-      throw new Error('Product not found');
+      throw new Error('Product or batch not found');
     }
 
-    const { data: batch, error: batchError } = await client
-      .from('product_batches')
-      .select('id, remaining_quantity')
-      .eq('product_id', product.id)
-      .eq('batch_number', sale.batch_no)
-      .single();
-    if (batchError && batchError.code !== 'PGRST116') throw batchError;
-    if (!batch) {
-      throw new Error('Batch not found');
-    }
-
-    if (batch.remaining_quantity < sale.quantity) {
-      throw new Error('Insufficient stock available in this batch');
+    if (product.stock < sale.quantity) {
+      throw new Error('Insufficient stock available');
     }
 
     const { data: newSale, error: saleError } = await client
@@ -396,15 +360,13 @@ async function addCustomerSale(sale) {
       .select();
     if (saleError) throw saleError;
 
-    const { data: updatedBatch, error: updateBatchError } = await client
-      .from('product_batches')
-      .update({ remaining_quantity: batch.remaining_quantity - sale.quantity })
-      .eq('id', batch.id)
-      .select();
-    if (updateBatchError) throw updateBatchError;
+    const { error: updateError } = await client
+      .from('products')
+      .update({ stock: product.stock - sale.quantity })
+      .eq('id', product.id);
+    if (updateError) throw updateError;
 
     console.log('Customer sale added:', newSale);
-    console.log('Updated batch stock:', updatedBatch);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '客戶銷售添加成功' : 'Customer sale added successfully'}`;
     clearMessage('message');
