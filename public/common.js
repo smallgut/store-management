@@ -212,8 +212,8 @@ async function populateProductDropdown(barcodeInput = null) {
         productSelect.appendChild(option);
       });
 
-      const updateSelection = () => {
-        const inputValue = barcodeInput || productSelect.value || productBarcodeInput.value;
+      const updateSelection = (inputBarcode = null) => {
+        const inputValue = inputBarcode || productSelect.value || productBarcodeInput.value;
         let selectedBarcode = '';
         let selectedBatchNo = '';
 
@@ -237,15 +237,17 @@ async function populateProductDropdown(barcodeInput = null) {
           batchNoSelect.value = selectedProduct.batch_no;
           stockDisplay.textContent = `${translations[lang]['on-hand-stock']}: ${selectedProduct.stock}`;
         } else {
-          productBarcodeInput.value = barcodeInput || '';
+          productBarcodeInput.value = inputBarcode || productBarcodeInput.value;
           stockDisplay.textContent = isChinese ? '無匹配產品' : 'No matching product';
         }
       };
 
-      productSelect.addEventListener('change', updateSelection);
-      productBarcodeInput.addEventListener('input', () => {
-        stockDisplay.textContent = isChinese ? '正在搜索...' : 'Searching...';
-        populateProductDropdown(productBarcodeInput.value);
+      productSelect.addEventListener('change', () => updateSelection());
+      productBarcodeInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          stockDisplay.textContent = isChinese ? '正在搜索...' : 'Searching...';
+          updateSelection(productBarcodeInput.value);
+        }
       });
       updateSelection();
     }
@@ -390,22 +392,41 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
+    // Fetch the sale to get the product_id
+    const { data: sale, error: saleError } = await client
+      .from('customer_sales')
+      .select('product_id')
+      .eq('id', saleId)
+      .single();
+    if (saleError && saleError.code !== 'PGRST116') throw saleError;
+    if (!sale) {
+      throw new Error('Sale not found');
+    }
+
+    // Fetch the product using product_id
     const { data: product, error: productError } = await client
       .from('products')
-      .select('id, stock')
-      .eq('barcode', productBarcode)
+      .select('id, stock, barcode')
+      .eq('id', sale.product_id)
       .single();
     if (productError && productError.code !== 'PGRST116') throw productError;
     if (!product) {
       throw new Error('Product not found');
     }
 
+    // Verify barcode matches
+    if (product.barcode !== productBarcode) {
+      throw new Error('Barcode mismatch');
+    }
+
+    // Delete the sale
     const { error: deleteError } = await client
       .from('customer_sales')
       .delete()
       .eq('id', saleId);
     if (deleteError) throw deleteError;
 
+    // Update product stock
     const { error: updateError } = await client
       .from('products')
       .update({ stock: product.stock + quantity })
@@ -557,7 +578,7 @@ function handleUpdateProduct(productId, currentStock, currentPrice, currentBatch
   const newStock = prompt(isChinese ? '輸入新的庫存數量：' : 'Enter new stock quantity:', currentStock);
   const newPrice = prompt(isChinese ? '輸入新的進貨價：' : 'Enter new buy-in price:', currentPrice);
   
-  if (newStock !== null && newPrice !== null) {
+  if shaders(newStock !== null && newPrice !== null) {
     const stock = parseInt(newStock);
     const price = parseFloat(newPrice);
     if (!isNaN(stock) && stock >= 0 && !isNaN(price) && price >= 0) {
