@@ -17,6 +17,7 @@ const translations = {
     'add-customer-sale': 'Add Customer Sale',
     'select-product': 'Select Product (or input barcode)',
     'select-vendor': 'Select Vendor',
+    'select-loaner': 'Select Loaner',
     'product-barcode': 'Product Barcode',
     'batch-no': 'Batch No.',
     'customer-name': 'Customer Name',
@@ -68,6 +69,7 @@ const translations = {
     'add-customer-sale': '添加客戶銷售',
     'select-product': '選擇產品（或輸入條碼）',
     'select-vendor': '選擇供應商',
+    'select-loaner': '選擇貸貨人',
     'product-barcode': '產品條碼',
     'batch-no': '批號',
     'customer-name': '客戶名稱',
@@ -226,7 +228,7 @@ async function populateProductDropdown(barcodeInput = null) {
 
       products.forEach(p => {
         const option = document.createElement('option');
-        option.value = `${p.barcode}|${p.batch_no || 'NO_BATCH'}`;
+        option.value = `${p.barcode}|${p.batch_no || ''}`;
         option.textContent = `${p.name} (Barcode: ${p.barcode}, Batch: ${p.batch_no || 'None'}, Stock: ${p.stock}, Buy-In Price: ${p.price ? p.price.toFixed(2) : 'N/A'})`;
         productSelect.appendChild(option);
       });
@@ -238,7 +240,7 @@ async function populateProductDropdown(barcodeInput = null) {
 
         if (inputValue.includes('|')) {
           [selectedBarcode, selectedBatchNo] = inputValue.split('|');
-          if (selectedBatchNo === 'NO_BATCH') selectedBatchNo = null;
+          if (selectedBatchNo === '') selectedBatchNo = null;
         } else {
           selectedBarcode = inputValue;
         }
@@ -250,17 +252,17 @@ async function populateProductDropdown(barcodeInput = null) {
         if (selectedProduct) {
           productBarcodeInput.value = selectedBarcode;
           const option = document.createElement('option');
-          option.value = selectedProduct.batch_no || 'NO_BATCH';
+          option.value = selectedProduct.batch_no || '';
           option.textContent = `${selectedProduct.batch_no || 'None'} (Stock: ${selectedProduct.stock}, Buy-In Price: ${selectedProduct.price ? selectedProduct.price.toFixed(2) : 'N/A'})`;
           batchNoSelect.appendChild(option);
-          batchNoSelect.value = selectedProduct.batch_no || 'NO_BATCH';
+          batchNoSelect.value = selectedProduct.batch_no || '';
         } else if (selectedBarcode) {
           const matchingProducts = products.filter(p => p.barcode === selectedBarcode);
           if (matchingProducts.length > 0) {
             productBarcodeInput.value = selectedBarcode;
             matchingProducts.forEach(p => {
               const option = document.createElement('option');
-              option.value = p.batch_no || 'NO_BATCH';
+              option.value = p.batch_no || '';
               option.textContent = `${p.batch_no || 'None'} (Stock: ${p.stock}, Buy-In Price: ${p.price ? p.price.toFixed(2) : 'N/A'})`;
               batchNoSelect.appendChild(option);
             });
@@ -275,7 +277,7 @@ async function populateProductDropdown(barcodeInput = null) {
       productSelect.addEventListener('change', () => updateSelection());
       productBarcodeInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-          updateSelection(productBarcodeInput.value);
+          updateSelection(e.target.value);
         }
       });
       updateSelection(barcodeInput);
@@ -305,6 +307,8 @@ async function populateLoanProductDropdown(barcodeInput = null) {
     const loanProductSelect = document.getElementById('loan-product-select');
     const loanProductBatchNoSelect = document.getElementById('loan-product-batch-no');
     const loanProductBarcodeInput = document.getElementById('loan-product-barcode');
+    const loanProductDisplay = document.getElementById('loan-product-display');
+    const loanBatchNoDisplay = document.getElementById('loan-product-batch-no-display');
 
     if (loanProductSelect && loanProductBatchNoSelect && loanProductBarcodeInput) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -313,7 +317,7 @@ async function populateLoanProductDropdown(barcodeInput = null) {
 
       products.forEach(p => {
         const option = document.createElement('option');
-        option.value = `${p.barcode}|${p.batch_no || 'NO_BATCH'}`;
+        option.value = `${p.barcode}|${p.batch_no || ''}`;
         option.textContent = `${p.name} (Barcode: ${p.barcode}, Batch: ${p.batch_no || 'None'}, Stock: ${p.stock}, Buy-In Price: ${p.price ? p.price.toFixed(2) : 'N/A'})`;
         loanProductSelect.appendChild(option);
       });
@@ -325,7 +329,7 @@ async function populateLoanProductDropdown(barcodeInput = null) {
 
         if (inputValue.includes('|')) {
           [selectedBarcode, selectedBatchNo] = inputValue.split('|');
-          if (selectedBatchNo === 'NO_BATCH') selectedBatchNo = null;
+          if (selectedBatchNo === '') selectedBatchNo = null;
         } else {
           selectedBarcode = inputValue;
         }
@@ -333,24 +337,35 @@ async function populateLoanProductDropdown(barcodeInput = null) {
         const selectedProduct = products.find(p => p.barcode === selectedBarcode && (p.batch_no === selectedBatchNo || (!p.batch_no && selectedBatchNo === null)));
 
         loanProductBatchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
+        if (loanProductDisplay) loanProductDisplay.textContent = '';
+        if (loanBatchNoDisplay) loanBatchNoDisplay.textContent = '';
 
         if (selectedProduct) {
           loanProductBarcodeInput.value = selectedBarcode;
           const option = document.createElement('option');
-          option.value = selectedProduct.batch_no || 'NO_BATCH';
+          option.value = selectedProduct.batch_no || '';
           option.textContent = `${selectedProduct.batch_no || 'None'} (Stock: ${selectedProduct.stock}, Buy-In Price: ${selectedProduct.price ? selectedProduct.price.toFixed(2) : 'N/A'})`;
           loanProductBatchNoSelect.appendChild(option);
-          loanProductBatchNoSelect.value = selectedProduct.batch_no || 'NO_BATCH';
+          loanProductBatchNoSelect.value = selectedProduct.batch_no || '';
+          if (loanProductDisplay) {
+            loanProductDisplay.textContent = `${selectedProduct.name} (Barcode: ${selectedBarcode})`;
+          }
+          if (loanBatchNoDisplay) {
+            loanBatchNoDisplay.textContent = `Batch: ${selectedProduct.batch_no || 'None'}`;
+          }
         } else if (selectedBarcode) {
           const matchingProducts = products.filter(p => p.barcode === selectedBarcode);
           if (matchingProducts.length > 0) {
             loanProductBarcodeInput.value = selectedBarcode;
             matchingProducts.forEach(p => {
               const option = document.createElement('option');
-              option.value = p.batch_no || 'NO_BATCH';
+              option.value = p.batch_no || '';
               option.textContent = `${p.batch_no || 'None'} (Stock: ${p.stock}, Buy-In Price: ${p.price ? p.price.toFixed(2) : 'N/A'})`;
               loanProductBatchNoSelect.appendChild(option);
             });
+            if (loanProductDisplay && matchingProducts.length === 1) {
+              loanProductDisplay.textContent = `${matchingProducts[0].name} (Barcode: ${selectedBarcode})`;
+            }
           } else {
             loanProductBarcodeInput.value = inputBarcode || loanProductBarcodeInput.value;
           }
@@ -362,7 +377,7 @@ async function populateLoanProductDropdown(barcodeInput = null) {
       loanProductSelect.addEventListener('change', () => updateLoanProductSelection());
       loanProductBarcodeInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-          updateLoanProductSelection(loanProductBarcodeInput.value);
+          updateLoanProductSelection(e.target.value);
         }
       });
       updateLoanProductSelection(barcodeInput);
@@ -390,16 +405,23 @@ async function populateVendorDropdown() {
     console.log('Vendors for dropdown:', vendors);
 
     const vendorSelect = document.getElementById('vendor-name');
+    const vendorDisplay = document.getElementById('vendor-name-display');
     if (vendorSelect) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       const lang = isChinese ? 'zh' : 'en';
-      vendorSelect.innerHTML = `<option value="">${translations[lang]['select-vendor']}</option>`;
+      vendorSelect.innerHTML = `<option value="">${translations[lang]['select-loaner']}</option>`;
 
       vendors.forEach(v => {
         const option = document.createElement('option');
         option.value = v.name;
         option.textContent = v.name;
         vendorSelect.appendChild(option);
+      });
+
+      vendorSelect.addEventListener('change', () => {
+        if (vendorDisplay) {
+          vendorDisplay.textContent = vendorSelect.value ? `Selected: ${vendorSelect.value}` : '';
+        }
       });
     }
   } catch (error) {
@@ -442,23 +464,23 @@ async function loadCustomerSales() {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       salesBody.innerHTML = sales.length
         ? sales.map(s => {
-            const sellingPrice = s.selling_price !== null ? s.selling_price : (isChinese ? '無' : 'N/A');
+            const sellingPrice = s.selling_price !== null ? s.selling_price : '';
             const buyInPrice = s.products?.price || 0;
-            const subTotal = s.selling_price !== null ? s.quantity * s.selling_price : (isChinese ? '無' : 'N/A');
-            const profit = s.selling_price !== null ? (s.selling_price - buyInPrice) * s.quantity : 'N/A';
+            const subTotal = sellingPrice * (s.selling_price !== null ? s.quantity * s.selling_price : 0);
+            const profit = s.sellingPrice !== null ? (s.selling_price - buyInPrice) * s.quantity : null;
             return `
               <tr>
                 <td class="border p-2">${s.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
-                <td class="border p-2">${s.products?.barcode || (isChinese ? '無' : 'N/A')}</td>
-                <td class="border p-2">${s.products?.batch_no || (isChinese ? '無' : 'N/A')}</td>
-                <td class="border p-2">${s.customer_name || (isChinese ? '無' : 'N/A')}</td>
+                <td class="border p-2">${s.products?.barcode || ''}</td>
+                <td class="border p-2">${s.products?.batch_no || ''}</td>
+                <td class="border p-2">${s.customer_name || ''}</td>
                 <td class="border p-2">${s.quantity}</td>
-                <td class="border p-2">${typeof sellingPrice === 'number' ? sellingPrice.toFixed(2) : sellingPrice}</td>
-                <td class="border p-2">${typeof subTotal === 'number' ? subTotal.toFixed(2) : subTotal}</td>
-                <td class="border p-2">${typeof profit === 'number' ? profit.toFixed(2) : profit}</td>
-                <td class="border p-2">${new Date(s.sale_date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' })}</td>
+                <td class="border p-2">${typeof sellingPrice === 'number' ? sellingPrice.toFixed(2) : 'N/A'}</td>
+                <td class="border p-2">${typeof subTotal === 'number' ? subTotal.toFixed(2) : 'N/A'}</td>
+                <td class="border p-2">${typeof profit === 'number' ? profit.toFixed(2) : 'N/A'}</td>
+                <td class="border p-2">${new Date(s.sale_date).toLocaleString('en-GB', { timeZone: 'UTC' })}</td>
                 <td class="border p-2">
-                  <button onclick="handleDeleteSale('${s.id}', '${s.products?.barcode || ''}', ${s.quantity})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                  <button onclick="deleteCustomerSale(${s.id}, '${s.products?.barcode || ''}', ${s.quantity})" class="bg-red-500 text-white p-2 rounded hover:bg-red-600">Delete</button>
                 </td>
               </tr>
             `;
@@ -486,7 +508,7 @@ async function addCustomerSale(sale) {
     setLoading(true);
     console.log('Sale data to insert:', sale);
 
-    const batchNo = sale.batch_no === 'NO_BATCH' ? null : sale.batch_no;
+    const batchNo = sale.batch_no === '' ? null : sale.batch_no;
     const { data: product, error: productError } = await client
       .from('products')
       .select('id, barcode, name, stock, price, batch_no')
@@ -509,7 +531,7 @@ async function addCustomerSale(sale) {
         customer_name: sale.customer_name || null,
         quantity: sale.quantity,
         selling_price: sale.price || null,
-        sale_date: new Date().toISOString().replace('Z', '+08:00')
+        sale_date: new Date().toISOString()
       })
       .select();
     if (saleError) throw saleError;
@@ -681,12 +703,12 @@ async function loadProducts() {
                 <td class="border p-2">${p.barcode}</td>
                 <td class="border p-2">${p.name}</td>
                 <td class="border p-2">${p.stock}</td>
-                <td class="border p-2">${p.batch_no || 'N/A'}</td>
-                <td class="border p-2">${p.price ? p.price.toFixed(2) : 'N/A'}</td>
+                <td class="border p-2">${p.batch_no || ''}</td>
+                <td class="border p-2">${p.price ? p.price.toFixed(2) : ''}</td>
                 <td class="border p-2">${inventoryValue.toFixed(2)}</td>
                 <td class="border p-2">
-                  <button onclick="handleUpdateProduct('${p.id}', ${p.stock}, ${p.price || 0}, '${p.batch_no || ''}')" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">${isChinese ? '更新' : 'Update'}</button>
-                  <button onclick="handleDeleteProduct('${p.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                  <button onclick="handleUpdateProduct(${p.id}, ${p.stock}, ${p.price || 0}, '${p.batch_no || ''}')" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">Update</button>
+                  <button onclick="deleteProduct(${p.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
                 </td>
               </tr>
             `;
@@ -850,7 +872,7 @@ async function loadVendors() {
               <td class="border p-2">${v.name}</td>
               <td class="border p-2">${v.contact}</td>
               <td class="border p-2">
-                <button onclick="handleDeleteVendor('${v.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                <button onclick="deleteVendor(${v.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
               </td>
             </tr>
           `).join('')
@@ -952,7 +974,7 @@ function handleAddLoanRecord() {
     vendor_name: vendorName,
     product_barcode: productBarcode,
     amount: loanQuantity,
-    date,
+    date
   };
   addLoanRecord(loan);
 }
@@ -963,7 +985,17 @@ async function loadLoanRecords() {
     setLoading(true);
     const { data: loans, error } = await client
       .from('vendor_loans')
-      .select('id, vendor_name, product_barcode, amount, date')
+      .select(`
+        id,
+        vendor_name,
+        product_barcode,
+        amount,
+        date,
+        products (
+          batch_no,
+          price
+        )
+      `)
       .order('date');
     if (error) throw error;
     console.log('Loan Records:', loans);
@@ -973,16 +1005,18 @@ async function loadLoanRecords() {
       loansBody.innerHTML = loans.length
         ? loans.map(l => `
             <tr>
-              <td class="border p-2">${l.vendor_name || 'N/A'}</td>
-              <td class="border p-2">${l.product_barcode || 'N/A'}</td>
+              <td class="border p-2">${l.vendor_name || ''}</td>
+              <td class="border p-2">${l.product_barcode || ''}</td>
+              <td class="border p-2">${l.products?.batch_no || ''}</td>
+              <td class="border p-2">${l.products?.price ? l.products.price.toFixed(2) : ''}</td>
               <td class="border p-2">${l.amount ? l.amount.toFixed(2) : '0.00'}</td>
-              <td class="border p-2">${l.date ? new Date(l.date).toLocaleDateString('en-GB', { timeZone: 'Asia/Singapore' }) : 'N/A'}</td>
+              <td class="border p-2">${l.date ? new Date(l.date).toLocaleDateString('en-GB') : ''}</td>
               <td class="border p-2">
-                <button onclick="handleDeleteLoanRecord('${l.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                <button onclick="deleteLoanRecord(${l.id})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="5" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄' : 'No loan records found.'}</td></tr>`;
+        : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄。' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
     }
     await populateVendorDropdown();
@@ -1006,7 +1040,7 @@ async function addLoanRecord(loan) {
     setLoading(true);
     const { data, error } = await client
       .from('vendor_loans')
-      .insert({ ...loan, date: new Date(loan.date).toISOString().replace('Z', '+08:00') })
+      .insert({ ...loan, date: new Date(loan.date).toISOString() })
       .select();
     if (error) throw error;
     console.log('Loan record added:', data);
