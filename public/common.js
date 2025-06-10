@@ -134,7 +134,7 @@ function getGMT8Date() {
 
 async function ensureSupabaseClient() {
   try {
-    if (!supabase' in window)) {
+    if (!('supabase' in window)) {
       throw new Error('Supabase library not loaded');
     }
     if (!supabaseClient) {
@@ -503,7 +503,7 @@ async function loadAnalytics() {
       const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
       const totalSalesValue = sales.reduce((sum, s) => sum + (s.quantity * (s.selling_price || 0)), 0);
       overviewEl.textContent = isChinese
-        ? `總庫存：${totalStock}，總銷售額：${totalSalesValue.toFixed(2)}`
+        ? `總庫存：${totalStock}，總銷售值：${totalSalesValue.toFixed(2)}`
         : `Total Stock: ${totalStock}, Total Sales Value: ${totalSalesValue.toFixed(2)}`;
     }
   } catch (error) {
