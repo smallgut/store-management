@@ -24,18 +24,22 @@
 
   <!-- Main Content -->
   <div class="p-4 max-w-4xl mx-auto">
+    <h1 data-lang-key="vendor-loan-records" class="text-3xl font-bold mb-4">Vendor Loan Records</h1>
     <h2 data-lang-key="add-loan-record" class="text-2xl font-bold mb-4">Add Loan Record</h2>
     <div class="grid grid-cols-1 gap-4 mb-4">
-      <select id="vendor-name" class="border p-2 rounded" data-lang-key="select-vendor">
-        <option value="">Select Vendor</option>
+      <select id="vendor-name" class="border p-2 rounded" data-lang-key="select-loaner">
+        <option value="">Select Loaner</option>
       </select>
+      <p id="vendor-name-display" class="text-sm text-gray-600"></p>
       <select id="loan-product-select" class="border p-2 rounded" data-lang-key="select-product">
         <option value="">Select Product (or input barcode)</option>
       </select>
+      <p id="loan-product-display" class="text-sm text-gray-600"></p>
       <input type="text" id="loan-product-barcode" placeholder="Product Barcode" class="border p-2 rounded" data-lang-key="product-barcode">
       <select id="loan-product-batch-no" class="border p-2 rounded" data-lang-key="batch-no">
         <option value="">Batch No.</option>
       </select>
+      <p id="loan-product-batch-no-display" class="text-sm text-gray-600"></p>
       <input type="number" id="loan-quantity" placeholder="Loan Quantity" class="border p-2 rounded" data-lang-key="loan-quantity" min="0">
       <input type="date" id="loan-date" class="border p-2 rounded" data-lang-key="loan-date">
       <button onclick="handleAddLoanRecord()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="add-loan-record">Add Loan Record</button>
@@ -51,6 +55,8 @@
         <tr class="bg-gray-200">
           <th class="border p-2" data-lang-key="vendor-name">Vendor Name</th>
           <th class="border p-2" data-lang-key="product-barcode">Product Barcode</th>
+          <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
+          <th class="border p-2" data-lang-key="buy-in-price">Buy-In Price</th>
           <th class="border p-2" data-lang-key="loan-quantity">Loan Quantity</th>
           <th class="border p-2" data-lang-key="loan-date">Loan Date</th>
           <th class="border p-2" data-lang-key="actions">Actions</th>
