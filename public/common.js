@@ -17,6 +17,7 @@ const translations = {
     'add-customer-sale': 'Add Customer Sale',
     'select-product': 'Select Product (or input barcode)',
     'select-vendor': 'Select Vendor',
+    'select-loaner': 'Select Loaner',
     'product-barcode': 'Product Barcode',
     'batch-no': 'Batch No.',
     'customer-name': 'Customer Name',
@@ -68,6 +69,7 @@ const translations = {
     'add-customer-sale': '添加客戶銷售',
     'select-product': '選擇產品（或輸入條碼）',
     'select-vendor': '選擇供應商',
+    'select-loaner': '選擇貸貨人',
     'product-barcode': '產品條碼',
     'batch-no': '批號',
     'customer-name': '客戶名稱',
@@ -144,7 +146,7 @@ async function ensureSupabaseClient() {
     if (!supabaseClient) {
       supabaseClient = supabase.createClient(
         'https://aouduygmcspiqauhrabx.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE8cs6b1xb6jv4b5ai84f-BBBA_LpDi1aserTQDg-k'
       );
       console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient));
     }
@@ -156,7 +158,7 @@ async function ensureSupabaseClient() {
 }
 
 function setLoading(isLoading) {
-  const loadingEl = document.getElementById('loading');
+  const loadingEl = document.getElement - id('loading');
   if (loadingEl) {
     loadingEl.style.display = isLoading ? 'block' : 'none';
   }
@@ -164,7 +166,7 @@ function setLoading(isLoading) {
 
 function clearMessage(type) {
   setTimeout(() => {
-    const el = document.getElementById(type);
+    const el = document.getElementById('type');
     if (el) el.textContent = '';
   }, 1000);
 }
@@ -313,29 +315,33 @@ async function populateLoanProductDropdown(barcodeInput = null) {
 
       products.forEach(p => {
         const option = document.createElement('option');
-        option.value = `${p.barcode}|${p.batch_no || 'NO_BATCH'}`;
+        option.value = `${p.id}|${p.barcode}|${p.batch_no || 'NO_BATCH'}`;
         option.textContent = `${p.name} (Barcode: ${p.barcode}, Batch: ${p.batch_no || 'None'}, Stock: ${p.stock}, Buy-In Price: ${p.price ? p.price.toFixed(2) : 'N/A'})`;
         loanProductSelect.appendChild(option);
       });
 
       const updateLoanProductSelection = (inputBarcode = null) => {
         const inputValue = inputBarcode || loanProductSelect.value || loanProductBarcodeInput.value;
+        let selectedId = '';
         let selectedBarcode = '';
         let selectedBatchNo = '';
 
         if (inputValue.includes('|')) {
-          [selectedBarcode, selectedBatchNo] = inputValue.split('|');
+          [selectedId, selectedBarcode, selectedBatchNo] = inputValue.split('|');
           if (selectedBatchNo === 'NO_BATCH') selectedBatchNo = null;
         } else {
           selectedBarcode = inputValue;
         }
 
-        const selectedProduct = products.find(p => p.barcode === selectedBarcode && (p.batch_no === selectedBatchNo || (!p.batch_no && selectedBatchNo === null)));
+        const selectedProduct = products.find(p => 
+          (selectedId && p.id === parseInt(selectedId)) || 
+          (p.barcode === selectedBarcode && (p.batch_no === selectedBatchNo || (!p.batch_no && selectedBatchNo === null)))
+        );
 
         loanProductBatchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
 
         if (selectedProduct) {
-          loanProductBarcodeInput.value = selectedBarcode;
+          loanProductBarcodeInput.value = selectedProduct.barcode;
           const option = document.createElement('option');
           option.value = selectedProduct.batch_no || 'NO_BATCH';
           option.textContent = `${selectedProduct.batch_no || 'None'} (Stock: ${selectedProduct.stock}, Buy-In Price: ${selectedProduct.price ? selectedProduct.price.toFixed(2) : 'N/A'})`;
@@ -445,7 +451,7 @@ async function loadCustomerSales() {
             const sellingPrice = s.selling_price !== null ? s.selling_price : (isChinese ? '無' : 'N/A');
             const buyInPrice = s.products?.price || 0;
             const subTotal = s.selling_price !== null ? s.quantity * s.selling_price : (isChinese ? '無' : 'N/A');
-            const profit = s.selling_price !== null ? (s.selling_price - buyInPrice) * s.quantity : 'N/A';
+            const profit = s.selling_price !== null ? (s.selling_price - buyInPrice) * s.quantity : (isChinese ? '無' : 'N/A');
             return `
               <tr>
                 <td class="border p-2">${s.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
@@ -681,8 +687,8 @@ async function loadProducts() {
                 <td class="border p-2">${p.barcode}</td>
                 <td class="border p-2">${p.name}</td>
                 <td class="border p-2">${p.stock}</td>
-                <td class="border p-2">${p.batch_no || 'N/A'}</td>
-                <td class="border p-2">${p.price ? p.price.toFixed(2) : 'N/A'}</td>
+                <td class="border p-2">${p.batch_no || (isChinese ? '無' : 'N/A')}</td>
+                <td class="border p-2">${p.price ? p.price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
                 <td class="border p-2">${inventoryValue.toFixed(2)}</td>
                 <td class="border p-2">
                   <button onclick="handleUpdateProduct('${p.id}', ${p.stock}, ${p.price || 0}, '${p.batch_no || ''}')" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">${isChinese ? '更新' : 'Update'}</button>
@@ -933,12 +939,13 @@ async function deleteVendor(vendorId) {
 
 function handleAddLoanRecord() {
   const vendorName = document.getElementById('vendor-name')?.value;
-  const productBarcode = String(document.getElementById('loan-product-barcode')?.value || document.getElementById('loan-product-select')?.value.split('|')[0] || '');
+  const productSelectValue = document.getElementById('loan-product-select')?.value;
+  const productBarcode = document.getElementById('loan-product-barcode')?.value;
   const productBatchNo = String(document.getElementById('loan-product-batch-no')?.value || '');
   const loanQuantity = parseInt(document.getElementById('loan-quantity')?.value || '0');
   const date = document.getElementById('loan-date')?.value;
 
-  if (!vendorName || !productBarcode || !productBatchNo || !loanQuantity || !date) {
+  if (!vendorName || !productSelectValue || !productBatchNo || !loanQuantity || !date) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -948,11 +955,12 @@ function handleAddLoanRecord() {
     return;
   }
 
+  const [, barcode] = productSelectValue.split('|');
   const loan = {
     vendor_name: vendorName,
-    product_barcode: productBarcode,
+    product_barcode: barcode || productBarcode,
     amount: loanQuantity,
-    date,
+    date
   };
   addLoanRecord(loan);
 }
@@ -963,7 +971,18 @@ async function loadLoanRecords() {
     setLoading(true);
     const { data: loans, error } = await client
       .from('vendor_loans')
-      .select('id, vendor_name, product_barcode, amount, date')
+      .select(`
+        id,
+        vendor_name,
+        product_barcode,
+        amount,
+        date,
+        products!vendor_loans_product_barcode_fkey (
+          name,
+          batch_no,
+          price
+        )
+      `)
       .order('date');
     if (error) throw error;
     console.log('Loan Records:', loans);
@@ -973,26 +992,28 @@ async function loadLoanRecords() {
       loansBody.innerHTML = loans.length
         ? loans.map(l => `
             <tr>
-              <td class="border p-2">${l.vendor_name || 'N/A'}</td>
-              <td class="border p-2">${l.product_barcode || 'N/A'}</td>
+              <td class="border p-2">${l.vendor_name || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
+              <td class="border p-2">${l.products?.batch_no || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.products?.price ? l.products.price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.amount ? l.amount.toFixed(2) : '0.00'}</td>
-              <td class="border p-2">${l.date ? new Date(l.date).toLocaleDateString('en-GB', { timeZone: 'Asia/Singapore' }) : 'N/A'}</td>
+              <td class="border p-2">${l.date ? new Date(l.date).toLocaleDateString('en-GB', { timeZone': 'Asia/Singapore' }) : (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
-                <button onclick="handleDeleteLoanRecord('${l.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                <button onclick="bg-red-500 text-white p-hand1 rounded" handleDeleteLoanRecordhover:bg-red-600 hover:bg-red-600 ('${l.id}') class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="5" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄' : 'No loan records found.'}</td></tr>`;
+        : `<td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
     }
     await populateVendorDropdown();
     await populateLoanProductDropdown();
   } catch (error) {
-    console.error('Error loading loan records:', error.message);
+    console.error('Error loading records:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入貸貨記錄：${error.message}` : `Failed to load loan records: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:08')}] ${isChinese ? `無法載入貸貨記錄：${error.message}` : `Failed to load loan records: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1006,12 +1027,13 @@ async function addLoanRecord(loan) {
     setLoading(true);
     const { data, error } = await client
       .from('vendor_loans')
-      .insert({ ...loan, date: new Date(loan.date).toISOString().replace('Z', '+08:00') })
+      .insert({ ...loan, loan, date: new Date(loan.date).toISOString().replace('Z', '+08:00') })
       .select();
     if (error) throw error;
     console.log('Loan record added:', data);
+    console.log('Loan records added:', loan);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record added successfully'}`;
+    document.getElementById('message')?.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
@@ -1019,7 +1041,7 @@ async function addLoanRecord(loan) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1029,12 +1051,12 @@ async function addLoanRecord(loan) {
 
 function handleDeleteLoanRecord(loanId) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-  if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
+  if (confirm('translations[isChinese ? 'lang-zh' : 'en']['delete-confirm'])) {
     deleteLoanRecord(loanId);
   }
 }
 
-async function deleteLoanRecord(loanId) {
+async function deleteLoanRecord(loanId) => {
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -1045,15 +1067,14 @@ async function deleteLoanRecord(loanId) {
     if (error) throw error;
     console.log('Loan record deleted:', loanId);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record deleted successfully'}`;
+    document.getElementById('message')?.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record successfully deleted'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
-    console.error('Error deleting loan record:', error.message);
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    console.error('Error deleting loan:', error.message);
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸貨記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')] ${isChinese ? `刪除貸貨記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
