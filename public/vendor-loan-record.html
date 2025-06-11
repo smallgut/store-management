@@ -9,48 +9,66 @@
   <script src="common.js"></script>
 </head>
 <body id="lang-body" class="lang-en">
-  <!-- Navigation Bar -->
-  <nav class="bg-gray-800 text-white p-4">
+  <nav class="bg-blue-600 p-4 text-white">
     <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home" class="hover:underline">Home</a></li>
+      <li><a href="/index.html" data-lang-key="nav-home" class="hover:underline">Home</a></li>
       <li><a href="analytics.html" data-lang-key="nav-analytics" class="hover:underline">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products" class="hover:underline">Manage Products</a></li>
+      <li><a href="/products.html" data-lang-key="nav-manage-products" class="hover:underline">Manage Products</a></li>
       <li><a href="vendors.html" data-lang-key="nav-manage-vendors" class="hover:underline">Manage Vendors</a></li>
       <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales" class="hover:underline">Record Customer Sales</a></li>
       <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record" class="hover:underline">Vendor Loan Record</a></li>
-      <li><button onclick="toggleLanguage()" data-lang-key="toggle-language" class="bg-blue-500 px-2 py-1 rounded hover:bg-blue-600">Toggle Language</button></li>
+      <li><button onclick="toggleLanguage()" data-lang-key="toggle-language" class="bg-blue-500 px-2 py-1 rounded hover:bg-blue-700">Toggle Language</button></li>
     </ul>
   </nav>
 
-  <!-- Main Content -->
   <div class="p-4 max-w-4xl mx-auto">
-    <h2 data-lang-key="add-loan-record" class="text-2xl font-bold mb-4">Add Loan Record</h2>
+    <h1 data-lang-key="vendor-loan-records" class="text-3xl font-bold mb-4">Vendor Loan Records</h1>
+    <h2 data-lang-key="add-loan-record" class="text-2xl font-semibold mb-4">Add Loan Record</h2>
     <div class="grid grid-cols-1 gap-4 mb-4">
-      <select id="vendor-name" class="border p-2 rounded" data-lang-key="select-vendor">
-        <option value="">Select Vendor</option>
-      </select>
-      <select id="loan-product-select" class="border p-2 rounded" data-lang-key="select-product">
-        <option value="">Select Product (or input barcode)</option>
-      </select>
-      <input type="text" id="loan-product-barcode" placeholder="Product Barcode" class="border p-2 rounded" data-lang-key="product-barcode">
-      <select id="loan-product-batch-no" class="border p-2 rounded" data-lang-key="batch-no">
-        <option value="">Batch No.</option>
-      </select>
-      <input type="number" id="loan-quantity" placeholder="Loan Quantity" class="border p-2 rounded" data-lang-key="loan-quantity" min="0">
-      <input type="date" id="loan-date" class="border p-2 rounded" data-lang-key="loan-date">
+      <div>
+        <label for="vendor-name" data-lang-key="select-vendor" class="block text-sm font-medium text-gray-700">Select Vendor</label>
+        <select id="vendor-name" class="border p-2 rounded w-full">
+          <option value="">Select Vendor</option>
+        </select>
+      </div>
+      <div>
+        <label for="loan-product-select" data-lang-key="select-product" class="block text-sm font-medium text-gray-700">Select Product (or input barcode)</label>
+        <select id="loan-product-select" class="border p-2 rounded w-full">
+          <option value="">Select Product (or input barcode)</option>
+        </select>
+      </div>
+      <div>
+        <label for="loan-product-barcode" data-lang-key="product-barcode" class="block text-sm font-medium text-gray-700">Product Barcode</label>
+        <input type="text" id="loan-product-barcode" class="border p-2 rounded w-full">
+      </div>
+      <div>
+        <label for="loan-product-batch-no" data-lang-key="batch-no" class="block text-sm font-medium text-gray-700">Batch No.</label>
+        <select id="loan-product-batch-no" class="border p-2 rounded w-full">
+          <option value="">Batch No.</option>
+        </select>
+      </div>
+      <div>
+        <label for="loan-quantity" data-lang-key="loan-quantity" class="block text-sm font-medium text-gray-700">Loan Quantity</label>
+        <input type="number" id="loan-quantity" class="border p-2 rounded w-full" min="0">
+      </div>
+      <div>
+        <label for="loan-date" data-lang-key="loan-date" class="block text-sm font-medium text-gray-700">Loan Date</label>
+        <input type="date" id="loan-date" class="border p-2 rounded w-full">
+      </div>
       <button onclick="handleAddLoanRecord()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="add-loan-record">Add Loan Record</button>
     </div>
     <p id="message" class="text-green-500 mb-2"></p>
     <p id="error" class="text-red-500 mb-2"></p>
     <div id="loading" class="hidden text-gray-500 mb-2">Loading...</div>
 
-    <!-- Loan Records Table -->
     <h3 data-lang-key="vendor-loan-records" class="text-xl font-semibold mb-2">Vendor Loan Records</h3>
     <table id="loan-records-table" class="w-full border-collapse">
       <thead>
         <tr class="bg-gray-200">
           <th class="border p-2" data-lang-key="vendor-name">Vendor Name</th>
-          <th class="border p-2" data-lang-key="product-barcode">Product Barcode</th>
+          <th class="border p-2" data-lang-key="product-name">Product Name</th>
+          <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
+          <th class="border p-2" data-lang-key="buy-in-price">Buy-In Price</th>
           <th class="border p-2" data-lang-key="loan-quantity">Loan Quantity</th>
           <th class="border p-2" data-lang-key="loan-date">Loan Date</th>
           <th class="border p-2" data-lang-key="actions">Actions</th>
