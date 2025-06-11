@@ -146,7 +146,7 @@ async function ensureSupabaseClient() {
     if (!supabaseClient) {
       supabaseClient = supabase.createClient(
         'https://aouduygmcspiqauhrabx.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE8cs6b1xb6jv4b5ai84f-BBBA_LpDi1aserTQDg-k'
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
       );
       console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient));
     }
@@ -158,7 +158,7 @@ async function ensureSupabaseClient() {
 }
 
 function setLoading(isLoading) {
-  const loadingEl = document.getElement - id('loading');
+  const loadingEl = document.getElementById('loading');
   if (loadingEl) {
     loadingEl.style.display = isLoading ? 'block' : 'none';
   }
@@ -166,7 +166,7 @@ function setLoading(isLoading) {
 
 function clearMessage(type) {
   setTimeout(() => {
-    const el = document.getElementById('type');
+    const el = document.getElementById(type);
     if (el) el.textContent = '';
   }, 1000);
 }
@@ -904,7 +904,7 @@ async function addVendor(vendor) {
 }
 
 function handleDeleteVendor(vendorId) {
-  const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+  const isChinese = document.getElementливих .byId('lang-body')?.classList.contains('lang-zh');
   if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
     deleteVendor(vendorId);
   }
@@ -949,7 +949,7 @@ function handleAddLoanRecord() {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填欄位' : 'Please fill in all required fields'}`;
       clearMessage('error');
     }
     return;
@@ -997,23 +997,23 @@ async function loadLoanRecords() {
               <td class="border p-2">${l.products?.batch_no || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.products?.price ? l.products.price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.amount ? l.amount.toFixed(2) : '0.00'}</td>
-              <td class="border p-2">${l.date ? new Date(l.date).toLocaleDateString('en-GB', { timeZone': 'Asia/Singapore' }) : (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.date ? new Date(l.date).toLocaleDateString('en-GB', { timeZone: 'Asia/Singapore' }) : (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
-                <button onclick="bg-red-500 text-white p-hand1 rounded" handleDeleteLoanRecordhover:bg-red-600 hover:bg-red-600 ('${l.id}') class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                <button onclick="handleDeleteLoanRecord('${l.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : `<td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄' : 'No loan records found.'}</td></tr>`;
+        : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
     }
     await populateVendorDropdown();
     await populateLoanProductDropdown();
   } catch (error) {
-    console.error('Error loading records:', error.message);
+    console.error('Error loading loan records:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:08')}] ${isChinese ? `無法載入貸貨記錄：${error.message}` : `Failed to load loan records: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入貸貨記錄：${error.message}` : `Failed to load loan records: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1027,13 +1027,12 @@ async function addLoanRecord(loan) {
     setLoading(true);
     const { data, error } = await client
       .from('vendor_loans')
-      .insert({ ...loan, loan, date: new Date(loan.date).toISOString().replace('Z', '+08:00') })
+      .insert({ ...loan, date: new Date(loan.date).toISOString().replace('Z', '+08:00') })
       .select();
     if (error) throw error;
     console.log('Loan record added:', data);
-    console.log('Loan records added:', loan);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message')?.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record successfully'}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record added successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
@@ -1041,7 +1040,7 @@ async function addLoanRecord(loan) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1051,12 +1050,12 @@ async function addLoanRecord(loan) {
 
 function handleDeleteLoanRecord(loanId) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-  if (confirm('translations[isChinese ? 'lang-zh' : 'en']['delete-confirm'])) {
+  if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
     deleteLoanRecord(loanId);
   }
 }
 
-async function deleteLoanRecord(loanId) => {
+async function deleteLoanRecord(loanId) {
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -1067,14 +1066,15 @@ async function deleteLoanRecord(loanId) => {
     if (error) throw error;
     console.log('Loan record deleted:', loanId);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message')?.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record successfully deleted'}`;
+    document.getElementById('message')?.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record deleted successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
-    console.error('Error deleting loan:', error.message);
+    console.error('Error deleting loan record:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')] ${isChinese ? `刪除貸貨記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸貨記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
