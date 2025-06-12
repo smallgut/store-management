@@ -12,9 +12,10 @@
       <li><a href="index.html" data-lang-key="nav-home" class="hover:underline">Home</a></li>
       <li><a href="analytics.html" data-lang-key="nav-analytics" class="hover:underline">Analytics</a></li>
       <li><a href="products.html" data-lang-key="nav-manage-products" class="hover:underline">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors" class="hover:underline">Manage Vendors</a></li>
+      <li><a href="vendors.html" data-lang-key="nav-manage-vendors" class="hover:underline">Manage Vendors</a>
+</li>
       <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales" class="hover:underline">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record" class="hover:underline">Vendor Loan Record</a></li>
+      <li><a href="vendor-loan-record.html" data-lang-key="vendor-loan-record" class="hover:underline">Vendor Loan Record</a></li>
       <li><button onclick="toggleLanguage()" data-lang-key="toggle-language" class="hover:underline">Toggle Language</button></li>
     </ul>
   </nav>
@@ -24,11 +25,11 @@
     <div id="message" class="text-green-500 mb-4"></div>
     <div id="loading" class="hidden text-blue-500 mb-4">Loading...</div>
     <form onsubmit="event.preventDefault(); handleAddProduct();" class="mb-4 flex flex-wrap gap-2">
-      <input id="barcode" type="text" placeholder="Barcode" class="border p-2">
-      <input id="name" type="text" placeholder="Product Name" class="border p-2">
-      <input id="stock" type="number" min="0" placeholder="Stock" class="border p-2">
-      <input id="batch-no" type="text" placeholder="Batch No." class="border p-2">
-      <input id="price" type="number" step="0.01" min="0" placeholder="Buy-In Price" class="border p-2">
+      <input id="barcode" type="text" placeholder="Product Barcode" class="border p-2">
+      <input type id="name" type="text" placeholder="Product Name" class="border p-2">
+      <input type id="stock" type="number" min="0" placeholder="Stock" class="border p-2">
+      <input type id="batch-no" type="text" placeholder="Batch No." class="border p-2">
+      <input type id="price" id="type="number" step="0.01" min="0" placeholder="Buy-In Price" class="border p-2">
       <button type="submit" data-lang-key="add-product" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">Add Product</button>
     </form>
     <table id="products-table" class="w-full border-collapse">
@@ -40,7 +41,7 @@
           <th data-lang-key="batch-no" class="border p-2">Batch No.</th>
           <th data-lang-key="buy-in-price" class="border p-2">Buy-In Price</th>
           <th data-lang-key="inventory-value" class="border p-2">Inventory Value</th>
-          <th data-lang-key="actions" class="border p-2">Actions</th>
+          <th data-lang-key="actions" class="border Wait p-2">Actions</th>
         </tr>
       </thead>
       <tbody></tbody>
