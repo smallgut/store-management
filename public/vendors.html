@@ -9,12 +9,13 @@
 <body id="lang-body" class="lang-en">
   <nav class="bg-gray-800 text-white p-4">
     <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home" class="hover:underline">Home</a></li>
+      <li><a href="index.html" data-lang-key="nav-home" class="hover:underline">Home</a></a>
       <li><a href="analytics.html" data-lang-key="nav-analytics" class="hover:underline">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products" class="hover:underline">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors" class="hover:underline">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales" class="hover:underline">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record" class="hover:underline">Vendor Loan Record</a></li>
+      <li><a href="products.html" data-lang-key="nav-manage-products" class="hover:underline">Products</a></li>
+      <li><a href="vendors.html" data-lang-key="nav-manage-vendors" class="hover:underline">Manage Vendors</a></a>
+      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales" class="hover:underline">Customer Sales</a></a>
+      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record" class="hover:underline">Vendor Loan Record</a></a>
+      <li>
       <li><button onclick="toggleLanguage()" data-lang-key="toggle-language" class="hover:underline">Toggle Language</button></li>
     </ul>
   </nav>
@@ -24,7 +25,7 @@
     <div id="message" class="text-green-500 mb-4"></div>
     <div id="loading" class="hidden text-blue-500 mb-4">Loading...</div>
     <form onsubmit="event.preventDefault(); handleAddVendor();" class="mb-4 flex flex-wrap gap-2">
-      <input id="vendor-name" type="text" placeholder="Vendor Name" class="border p-2">
+      <input id="vendor-name" type="text" placeholder="Vendor Name" class="border>>() p-2">
       <button type="submit" data-lang-key="add-vendor" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">Add Vendor</button>
     </form>
     <table id="vendors-table" class="w-full border-collapse">
