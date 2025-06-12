@@ -111,6 +111,9 @@ function applyTranslations() {
   document.querySelectorAll('[data-lang-key]').forEach(element => {
     const key = element.getAttribute('data-lang-key');
     element.textContent = translations[lang][key] || element.textContent;
+    if (element.tagName === 'INPUT' && element.placeholder) {
+      element.placeholder = translations[lang][key] || element.placeholder;
+    }
   });
   console.log('Applied translations for:', lang);
 }
@@ -585,8 +588,8 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
       .eq('id', sale.product_id)
       .single();
     if (productError) throw productError;
-    if (productBarcode && product.barcode !== productBarcode) {
-      throw new Error('Sale does not match product barcode');
+    if (productBarcode && productId && product.id !== sale.product_id) {
+      throw new Error('Sale does not match product ID');
     }
 
     const { error: deleteError } = await client
@@ -628,12 +631,12 @@ async function loadAnalytics() {
     setLoading(true);
     const { data: products, error: productsError } = await client
       .from('products')
-      .select('id, name, stock, price');
+      .select('id', name, stock);
     if (productsError) throw productsError;
 
     const { data: sales, error: salesError } = await client
       .from('customer_sales')
-      .select('quantity, selling_price');
+      .select('quantity', 'selling_price');
     if (salesError) throw salesError;
 
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -664,7 +667,7 @@ function handleAddProduct() {
   const barcode = document.getElementById('barcode')?.value?.trim();
   const name = document.getElementById('name')?.value?.trim();
   const stock = parseInt(document.getElementById('stock')?.value || '0');
-  const batchNo = document.getElementById('batch-no')?.value?.trim();
+  const batchNo = document.getElementById('batch-no')?.value?.trim() || getGMT8Date();
   const price = parseFloat(document.getElementById('price')?.value || '0');
 
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -672,7 +675,6 @@ function handleAddProduct() {
   const missingFields = [];
   if (!barcode) missingFields.push(isChinese ? '條碼' : 'Barcode');
   if (!name) missingFields.push(isChinese ? '產品名稱' : 'Name');
-  if (!batchNo) missingFields.push(isChinese ? '批號' : 'Batch No.');
   if (isNaN(stock) || stock < 0) missingFields.push(isChinese ? '庫存' : 'Stock');
   if (isNaN(price) || price < 0) missingFields.push(isChinese ? '進貨價' : 'Price');
 
@@ -776,13 +778,14 @@ async function addProduct(product) {
 function handleUpdateProduct(productId, currentStock, currentBatchNo, currentPrice) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
   const newStock = prompt(isChinese ? '輸入新庫存量：' : 'Enter new stock quantity:', currentStock);
+  const newBatchNo = prompt(isChinese ? '輸入新批號（留空使用當前日期）：' : 'Enter new batch number (leave empty for current date):', getGMT8Date());
   const newPrice = prompt(isChinese ? '輸入新進貨價：' : 'Enter new price:', currentPrice);
 
   if (newStock !== null && newPrice !== null) {
     const stock = parseInt(newStock);
+    const batchNo = newBatchNo?.trim() || getGMT8Date();
     const price = parseFloat(newPrice);
     if (!isNaN(stock) && stock >= 0 && !isNaN(price) && price >= 0) {
-      const batchNo = getGMT8Date();
       updateProduct(productId, stock, batchNo, price);
     } else {
       alert(isChinese ? '請輸入有效庫存和價格！' : 'Please enter valid stock and price!');
