@@ -5,70 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vendor Loan Record</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="common.js" defer></script>
 </head>
-<body id="lang-body" class="p-4">
-  <!-- Navigation -->
-  <nav class="bg-gray-800 text-white p-4 mb-4">
+<body id="lang-body" class="lang-en">
+  <nav class="bg-gray-800 text-white p-4">
     <ul class="flex space-x-4">
-      <li><a href="index.html" class="hover:underline" data-lang-key="nav-home">Home</a></li>
-      <li><a href="analytics.html" class="hover:underline" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" class="hover:underline" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" class="hover:underline" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+      <li><a href="index.html" data-lang-key="nav-home" class="hover:underline">Home</a></li>
+      <li><a href="analytics.html" data-lang-key="nav-analytics" class="hover:underline">Analytics</a></li>
+      <li><a href="products.html" data-lang-key="nav-manage-products" class="hover:underline">Manage Products</a></li>
+      <li><a href="vendors.html" data-lang-key="nav-manage-vendors" class="hover:underline">Manage Vendors</a></li>
+      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales" class="hover:underline">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record" class="hover:underline">Vendor Loan Record</a></li>
+      <li><button onclick="toggleLanguage()" data-lang-key="toggle-language" class="hover:underline">Toggle Language</button></li>
     </ul>
   </nav>
-
-  <!-- Header and Language Toggle -->
-  <div class="flex justify-between items-center mb-4">
-    <h1 class="text-2xl font-bold" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</h1>
-    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
-  </div>
-
-  <!-- Add Loan Record Form -->
-  <div class="p-4">
-    <h2 class="text-xl font-bold mb-4" data-lang-key="add-loan-record">Add Loan Record</h2>
-    <form id="add-loan-record-form" onsubmit="event.preventDefault(); handleAddLoanRecord();">
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="vendor-name">Vendor Name</label>
-        <input type="text" id="vendor-name" class="border p-2 w-full" required>
-      </div>
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="loan-amount">Loan Amount</label>
-        <input type="number" id="loan-amount" class="border p-2 w-full" step="0.01" required>
-      </div>
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="loan-date">Loan Date</label>
-        <input type="date" id="loan-date" class="border p-2 w-full" required>
-      </div>
-      <button type="submit" class="bg-green-500 text-white p-2 rounded hover:bg-green-600" data-lang-key="add-loan-record">Add Loan Record</button>
+  <div class="container mx-auto p-4">
+    <h1 data-lang-key="vendor-loan-record-welcome" class="text-2xl mb-4">Welcome to Vendor Loan Record!</h1>
+    <div id="error" class="text-red-500 mb-4"></div>
+    <div id="message" class="text-green-500 mb-4"></div>
+    <div id="loading" class="hidden text-blue-500 mb-4">Loading...</div>
+    <form onsubmit="event.preventDefault(); handleAddLoanRecord();" class="mb-4 flex flex-wrap gap-2">
+      <select id="vendor-name" class="border p-2"></select>
+      <select id="loan-product-select" class="border p-2"></select>
+      <input id="loan-product-barcode" type="text" placeholder="Product Barcode" class="border p-2">
+      <select id="loan-product-batch-no" class="border p-2"></select>
+      <input id="loan-quantity" type="number" min="1" placeholder="Loan Quantity" class="border p-2">
+      <input id="loan-date" type="date" class="border p-2">
+      <button type="submit" data-lang-key="add-loan-record" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">Add Loan Record</button>
     </form>
-  </div>
-
-  <!-- Loan Records Table -->
-  <div class="p-4">
-    <h2 class="text-xl font-bold mb-4" data-lang-key="vendor-loan-records">Vendor Loan Records</h2>
-    <table id="loan-records-table" class="w-full border-collapse border">
+    <table id="loan-records-table" class="w-full border-collapse">
       <thead>
         <tr>
-          <th class="border p-2" data-lang-key="vendor-name">Vendor Name</th>
-          <th class="border p-2" data-lang-key="loan-amount">Loan Amount</th>
-          <th class="border p-2" data-lang-key="loan-date">Loan Date</th>
-          <th class="border p-2" data-lang-key="actions">Actions</th>
+          <th data-lang-key="vendor-name" class="border p-2">Vendor Name</th>
+          <th data-lang-key="product-name" class="border p-2">Product Name</th>
+          <th data-lang-key="product-barcode" class="border p-2">Product Barcode</th>
+          <th data-lang-key="batch-no" class="border p-2">Batch No.</th>
+          <th data-lang-key="buy-in-price" class="border p-2">Buy-In Price</th>
+          <th data-lang-key="loan-quantity" class="border p-2">Loan Quantity</th>
+          <th data-lang-key="loan-date" class="border p-2">Loan Date</th>
+          <th data-lang-key="actions" class="border p-2">Actions</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
   </div>
-
-  <div id="loading" class="hidden text-center p-4">Loading...</div>
-  <div id="message" class="text-green-500 text-center p-2"></div>
-  <div id="error" class="text-red-500 text-center p-2"></div>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="common.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      applyTranslations();
       loadLoanRecords();
     });
   </script>
