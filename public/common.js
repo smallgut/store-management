@@ -1061,12 +1061,11 @@ async function loadLoanRecords() {
               <td class="border p-2">${l.amount.toFixed(2)}</td>
               <td class="border p-2">${new Date(l.date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' })}</td>
               <td class="border p-2">
-                <td class="border p-2">
-                  <button type="button" onclick="handleDeleteLoanRecord(${l.id})" class="bg-red-500 hover:bg-red-600 text-white p-1 rounded">Delete</button>
-                </td>
-              </tr>
-          `).join('')}')join('')
-        : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄' : 'No loan records found.'}</td>`</tr>`;
+                <button type="button" onclick="handleDeleteLoanRecord(${l.id})" class="bg-red-500 hover:bg-red-600 text-white p-1 rounded">Delete</button>
+              </td>
+            </tr>
+          `).join('')
+        : `<tr><td colspan="8" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨產品' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
     }
     await populateLoanProductDropdown();
@@ -1099,16 +1098,16 @@ async function addLoanRecord(loan) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
-      messageEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record successfully added successfully'}`;
+      messageEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄成功' : 'Loan record successfully added'}`;
       clearMessage('message');
     }
     loadLoanRecords();
   } catch (error) {
     console.error('Error adding loan record:', error.message);
-    const isChinese = document.getElementById('lang-body')?.cassList.contains('lang-zh');
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1117,24 +1116,24 @@ async function addLoanRecord(loan) {
 }
 
 function handleDeleteLoanRecord(loanId) {
-  const isChinese = document.getElementById('lang-body').classList.contains('lang-zh');
+  const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
   if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
     deleteLoanRecord(loanId);
   }
 }
 
-async function deleteLoanRecord(loanId) {
+async function deleteLoanRecord(id) {
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
     const { error } = await client
       .from('vendor_loans')
       .delete()
-      .eq('id', loanId);
+      .eq('id', id);
     if (error) throw error;
 
-    console.log('Loan record deleted:', loanId);
-    const isChinese = document.getElementById('lang-body').classList.contains('lang-zh');
+    console.log('Loan record deleted:', id);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const messageEl = document.getElementById('message');
     if (messageEl) {
       messageEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record deleted successfully'}`;
@@ -1143,10 +1142,10 @@ async function deleteLoanRecord(loanId) {
     loadLoanRecords();
   } catch (error) {
     console.error('Error deleting loan record:', error.message);
-    const isChinese = document.getElementById('lang-body').classList.contains('lang-zh');
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸貨記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
