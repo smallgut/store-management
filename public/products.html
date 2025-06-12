@@ -5,39 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Manage Products</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="common.js" defer></script>
 </head>
-<body id="lang-body" class="lang-en">
-  <nav class="bg-gray-800 text-white p-4">
+<body id="lang-body" class="p-4">
+  <!-- Navigation -->
+  <nav class="bg-gray-800 text-white p-4 mb-4">
     <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home" class="hover:underline">Home</a></li>
-      <li><a href="analytics.html" data-lang-key="nav-analytics" class="hover:underline">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products" class="hover:underline">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors" class="hover:underline">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales" class="hover:underline">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record" class="hover:underline">Vendor Loan Record</a></li>
-      <li><button onclick="toggleLanguage()" data-lang-key="toggle-language" class="hover:underline">Toggle Language</button></li>
+      <li><a href="index.html" class="hover:underline" data-lang-key="nav-home">Home</a></li>
+      <li><a href="analytics.html" class="hover:underline" data-lang-key="nav-analytics">Analytics</a></li>
+      <li><a href="products.html" class="hover:underline" data-lang-key="nav-manage-products">Manage Products</a></li>
+      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html" class="hover:underline" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
     </ul>
   </nav>
-  <div class="container mx-auto p-4">
-    <h1 data-lang-key="manage-products" class="text-2xl mb-4">Manage Products</h1>
-    <div id="error" class="text-red-500 mb-4"></div>
-    <div id="message" class="text-green-500 mb-4"></div>
-    <div id="loading" class="hidden text-blue-500 mb-4">Loading...</div>
-    <div class="mb-4">
-      <h2 data-lang-key="add-product" class="text-xl mb-2">Add Product</h2>
-      <form onsubmit="event.preventDefault(); handleAddProduct();" class="flex flex-wrap gap-2">
-        <input id="barcode" type="text" data-lang-key="product-barcode" placeholder="Product Barcode" class="border p-2">
-        <input id="name" type="text" data-lang-key="product-name" placeholder="Product Name" class="border p-2">
-        <input id="stock" type="number" min="0" data-lang-key="stock" placeholder="Stock" class="border p-2">
-        <input id="batch-no" type="text" data-lang-key="batch-no" placeholder="Batch No." class="border p-2">
-        <input id="price" type="number" step="0.01" min="0" data-lang-key="buy-in-price" placeholder="Buy-In Price" class="border p-2">
-        <button type="submit" data-lang-key="add-product" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">Add Product</button>
-      </form>
-    </div>
-    <h2 data-lang-key="manage-products" class="text-xl mb-2">Manage Products</h2>
-    <table id="products-table" class="w-full border-collapse">
+
+  <!-- Header and Language Toggle -->
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold" data-lang-key="nav-manage-products">Manage Products</h1>
+    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
+  </div>
+
+  <!-- Add Product Form -->
+  <div class="p-4">
+    <h2 class="text-xl font-bold mb-4" data-lang-key="add-product">Add Product</h2>
+    <form id="add-product-form" onsubmit="event.preventDefault(); handleAddProduct();">
+      <div class="mb-4">
+        <label class="block mb-1" data-lang-key="product-barcode">Product Barcode</label>
+        <input type="text" id="product-barcode" class="border p-2 w-full" required>
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1" data-lang-key="product-name">Product Name</label>
+        <input type="text" id="product-name" class="border p-2 w-full" required>
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1" data-lang-key="stock">Stock</label>
+        <input type="number" id="stock" class="border p-2 w-full" required>
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1" data-lang-key="batch-no">Batch No.</label>
+        <input type="text" id="batch-no" class="border p-2 w-full" readonly>
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1" data-lang-key="buy-in-price">Buy-In Price</label>
+        <input type="number" id="buy-in-price" class="border p-2 w-full" step="0.01" required>
+      </div>
+      <button type="submit" class="bg-green-500 text-white p-2 rounded hover:bg-green-600" data-lang-key="add-product">Add Product</button>
+    </form>
+  </div>
+
+  <!-- Products Table -->
+  <div class="p-4">
+    <h2 class="text-xl font-bold mb-4" data-lang-key="manage-products">Manage Products</h2>
+    <table id="products-table" class="w-full border-collapse border">
       <thead>
-        <tr class="bg-gray-200">
+        <tr>
           <th class="border p-2" data-lang-key="product-barcode">Product Barcode</th>
           <th class="border p-2" data-lang-key="product-name">Product Name</th>
           <th class="border p-2" data-lang-key="stock">Stock</th>
@@ -50,12 +73,33 @@
       <tbody></tbody>
     </table>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="common.js"></script>
+
+  <div id="loading" class="hidden text-center p-4">Loading...</div>
+  <div id="message" class="text-green-500 text-center p-2"></div>
+  <div id="error" class="text-red-500 text-center p-2"></div>
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      applyTranslations();
       loadProducts();
+      const batchNo = getGMT8Date();
+      document.getElementById('batch-no').value = batchNo;
+      // Observe changes to message and error elements for debugging
+      const messageEl = document.getElementById('message');
+      const errorEl = document.getElementById('error');
+      new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+          if (mutation.target.textContent) {
+            console.log(`${mutation.target.id.toUpperCase()}: ${mutation.target.textContent}`);
+          }
+        });
+      }).observe(messageEl, { childList: true });
+      new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+          if (mutation.target.textContent) {
+            console.log(`${mutation.target.id.toUpperCase()}: ${mutation.target.textContent}`);
+          }
+        });
+      }).observe(errorEl, { childList: true });
     });
   </script>
 </body>

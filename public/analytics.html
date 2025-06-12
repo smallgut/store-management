@@ -5,31 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Analytics</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="common.js" defer></script>
 </head>
-<body id="lang-body" class="lang-en">
-  <nav class="bg-gray-800 text-white p-4">
+<body id="lang-body" class="p-4">
+  <!-- Navigation -->
+  <nav class="bg-gray-800 text-white p-4 mb-4">
     <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home" class="hover:underline">Home</a></li>
-      <li><a href="analytics.html" data-lang-key="nav-analytics" class="hover:underline">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products" class="hover:underline">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors" class="hover:underline">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales" class="hover:underline">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record" class="hover:underline">Vendor Loan Record</a></li>
-      <li><button onclick="toggleLanguage()" data-lang-key="toggle-language" class="hover:underline">Toggle Language</button></li>
+      <li><a href="index.html" class="hover:underline" data-lang-key="nav-home">Home</a></li>
+      <li><a href="analytics.html" class="hover:underline" data-lang-key="nav-analytics">Analytics</a></li>
+      <li><a href="products.html" class="hover:underline" data-lang-key="nav-manage-products">Manage Products</a></li>
+      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html" class="hover:underline" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
     </ul>
   </nav>
-  <div class="container mx-auto p-4">
-    <h1 data-lang-key="nav-analytics" class="text-2xl mb-4">Analytics</h1>
-    <div id="error" class="text-red-500 mb-4"></div>
-    <div id="message" class="text-green-500 mb-4"></div>
-    <div id="loading" class="hidden text-blue-500 mb-4">Loading...</div>
-    <div id="analytics-overview-text" class="mb-4"></div>
+
+  <!-- Header and Language Toggle -->
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold" data-lang-key="nav-analytics">Analytics</h1>
+    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="common.js"></script>
+
+  <!-- Analytics Content -->
+  <div id="analytics-overview-text" class="p-4"></div>
+
+  <div id="loading" class="hidden text-center p-4">Loading...</div>
+  <div id="message" class="text-green-500 text-center p-2"></div>
+  <div id="error" class="text-red-500 text-center p-2"></div>
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      applyTranslations();
       loadAnalytics();
     });
   </script>
