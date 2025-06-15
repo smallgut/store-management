@@ -523,7 +523,8 @@ async function loadLoanRecords() {
         vendor_id,
         product_id,
         batch_no,
-        amount,
+        quantity,
+        selling_price,
         date,
         vendors (
           name
@@ -545,14 +546,15 @@ async function loadLoanRecords() {
               <td class="border p-2">${l.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
               <td class="border p-2">${l.batch_no || (isChinese ? '無' : 'N/A')}</td>
-              <td class="border p-2">${(l.amount && l.amount.toFixed(2)) || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.quantity || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${(l.selling_price && l.selling_price.toFixed(2)) || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.date ? new Date(l.date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' }) : (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
                 <button onclick="handleDeleteLoanRecord('${l.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="6" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄。' : 'No loan records found.'}</td></tr>`;
+        : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄。' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
     }
   } catch (error) {
@@ -601,12 +603,12 @@ async function addLoanRecord() {
       throw new Error('Product or batch not found');
     }
 
-    const amount = quantity * sellingPrice; // Calculate amount from quantity and selling price
     const loan = {
       vendor_id: vendorId,
       product_id: product.id,
       batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
-      amount: amount,
+      quantity: quantity,
+      selling_price: sellingPrice,
       date: new Date(loanDate).toISOString().replace('Z', '+08:00')
     };
     console.log('Loan data to insert:', loan);
