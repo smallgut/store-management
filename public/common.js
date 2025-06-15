@@ -222,73 +222,74 @@ async function populateProductDropdown(barcodeInput = null) {
     const productBarcodeInput = document.getElementById('product-barcode');
     const stockDisplay = document.getElementById('stock-display');
 
-    if (productSelect && batchNoSelect && productBarcodeInput && stockDisplay) {
-      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      const lang = isChinese ? 'zh' : 'en';
-      productSelect.innerHTML = '<option value="">-- Select a Product --</option>';
+    if (!productSelect || !batchNoSelect || !productBarcodeInput || !stockDisplay) {
+      console.error('One or more dropdown elements not found:', { productSelect, batchNoSelect, productBarcodeInput, stockDisplay });
+      return;
+    }
 
-      products.forEach(p => {
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const lang = isChinese ? 'zh' : 'en';
+    productSelect.innerHTML = '<option value="">-- Select a Product --</option>';
+
+    products.forEach(p => {
+      const option = document.createElement('option');
+      option.value = `${p.barcode}|${p.batch_no || 'NO_BATCH'}`;
+      option.textContent = `${p.name} (Barcode: ${p.barcode}, Batch: ${p.batch_no || 'None'}, Stock: ${p.stock}, Buy-In Price: ${p.price ? p.price.toFixed(2) : 'N/A'})`;
+      productSelect.appendChild(option);
+    });
+
+    const updateSelection = (inputBarcode = null) => {
+      console.log('Updating selection with barcode:', inputBarcode);
+      const inputValue = inputBarcode || productSelect.value || productBarcodeInput.value;
+      let selectedBarcode = '';
+      let selectedBatchNo = '';
+
+      if (inputValue.includes('|')) {
+        [selectedBarcode, selectedBatchNo] = inputValue.split('|');
+        if (selectedBatchNo === 'NO_BATCH') selectedBatchNo = null;
+      } else {
+        selectedBarcode = inputValue;
+      }
+
+      const selectedProduct = products.find(p => p.barcode === selectedBarcode && (p.batch_no === selectedBatchNo || (!p.batch_no && selectedBatchNo === null)));
+
+      batchNoSelect.innerHTML = '<option value="">-- Select Batch No. --</option>';
+      stockDisplay.textContent = '';
+
+      if (selectedProduct) {
+        productBarcodeInput.value = selectedBarcode;
         const option = document.createElement('option');
-        option.value = `${p.barcode}|${p.batch_no || 'NO_BATCH'}`;
-        option.textContent = `${p.name} (Barcode: ${p.barcode}, Batch: ${p.batch_no || 'None'}, Stock: ${p.stock}, Buy-In Price: ${p.price ? p.price.toFixed(2) : 'N/A'})`;
-        productSelect.appendChild(option);
-      });
-
-      const updateSelection = (inputBarcode = null) => {
-        console.log('Updating selection with barcode:', inputBarcode);
-        const inputValue = inputBarcode || productSelect.value || productBarcodeInput.value;
-        let selectedBarcode = '';
-        let selectedBatchNo = '';
-
-        if (inputValue.includes('|')) {
-          [selectedBarcode, selectedBatchNo] = inputValue.split('|');
-          if (selectedBatchNo === 'NO_BATCH') selectedBatchNo = null;
-        } else {
-          selectedBarcode = inputValue;
-        }
-
-        const selectedProduct = products.find(p => p.barcode === selectedBarcode && (p.batch_no === selectedBatchNo || (!p.batch_no && selectedBatchNo === null)));
-
-        batchNoSelect.innerHTML = '<option value="">-- Select Batch No. --</option>';
-        stockDisplay.textContent = '';
-
-        if (selectedProduct) {
+        option.value = selectedProduct.batch_no || 'NO_BATCH';
+        option.textContent = `${selectedProduct.batch_no || 'None'} (Stock: ${selectedProduct.stock}, Buy-In Price: ${selectedProduct.price ? selectedProduct.price.toFixed(2) : 'N/A'})`;
+        batchNoSelect.appendChild(option);
+        batchNoSelect.value = selectedProduct.batch_no || 'NO_BATCH';
+        stockDisplay.textContent = `${translations[lang]['on-hand-stock']}: ${selectedProduct.stock}`;
+      } else if (selectedBarcode) {
+        const matchingProducts = products.filter(p => p.barcode === selectedBarcode);
+        if (matchingProducts.length > 0) {
           productBarcodeInput.value = selectedBarcode;
-          const option = document.createElement('option');
-          option.value = selectedProduct.batch_no || 'NO_BATCH';
-          option.textContent = `${selectedProduct.batch_no || 'None'} (Stock: ${selectedProduct.stock}, Buy-In Price: ${selectedProduct.price ? selectedProduct.price.toFixed(2) : 'N/A'})`;
-          batchNoSelect.appendChild(option);
-          batchNoSelect.value = selectedProduct.batch_no || 'NO_BATCH';
-          stockDisplay.textContent = `${translations[lang]['on-hand-stock']}: ${selectedProduct.stock}`;
-        } else if (selectedBarcode) {
-          const matchingProducts = products.filter(p => p.barcode === selectedBarcode);
-          if (matchingProducts.length > 0) {
-            productBarcodeInput.value = selectedBarcode;
-            matchingProducts.forEach(p => {
-              const option = document.createElement('option');
-              option.value = p.batch_no || 'NO_BATCH';
-              option.textContent = `${p.batch_no || 'None'} (Stock: ${p.stock}, Buy-In Price: ${p.price ? p.price.toFixed(2) : 'N/A'})`;
-              batchNoSelect.appendChild(option);
-            });
-            stockDisplay.textContent = `${translations[lang]['on-hand-stock']}: ${matchingProducts[0].stock}`;
-          } else {
-            productBarcodeInput.value = inputBarcode || productBarcodeInput.value;
-            stockDisplay.textContent = isChinese ? '無匹配產品' : 'No matching product';
-            stockDisplay.classList.add('text-red-500');
-            setTimeout(() => stockDisplay.classList.remove('text-red-500'), 1000);
-          }
+          matchingProducts.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.batch_no || 'NO_BATCH';
+            option.textContent = `${p.batch_no || 'None'} (Stock: ${p.stock}, Buy-In Price: ${p.price ? p.price.toFixed(2) : 'N/A'})`;
+            batchNoSelect.appendChild(option);
+          });
+          stockDisplay.textContent = `${translations[lang]['on-hand-stock']}: ${matchingProducts[0].stock}`;
         } else {
           productBarcodeInput.value = inputBarcode || productBarcodeInput.value;
-          stockDisplay.textContent = '';
+          stockDisplay.textContent = isChinese ? '無匹配產品' : 'No matching product';
+          stockDisplay.classList.add('text-red-500');
+          setTimeout(() => stockDisplay.classList.remove('text-red-500'), 1000);
         }
-      };
+      } else {
+        productBarcodeInput.value = inputBarcode || productBarcodeInput.value;
+        stockDisplay.textContent = '';
+      }
+    };
 
-      productSelect.addEventListener('change', () => updateSelection());
-      productBarcodeInput.addEventListener('input', () => updateSelection(productBarcodeInput.value)); // Changed to 'input' for real-time updates
-      updateSelection(barcodeInput);
-    } else {
-      console.error('One or more dropdown elements not found:', { productSelect, batchNoSelect, productBarcodeInput, stockDisplay });
-    }
+    productSelect.addEventListener('change', () => updateSelection());
+    productBarcodeInput.addEventListener('input', () => updateSelection(productBarcodeInput.value));
+    updateSelection(barcodeInput);
   } catch (error) {
     console.error('Error populating product dropdown:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -313,20 +314,21 @@ async function populateVendorDropdown() {
     console.log('Vendors for dropdown:', vendors);
 
     const vendorSelect = document.getElementById('vendor-name');
-    if (vendorSelect) {
-      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      const lang = isChinese ? 'zh' : 'en';
-      vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
-
-      vendors.forEach(v => {
-        const option = document.createElement('option');
-        option.value = v.id;
-        option.textContent = v.name;
-        vendorSelect.appendChild(option);
-      });
-    } else {
+    if (!vendorSelect) {
       console.error('Vendor select element not found');
+      return;
     }
+
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const lang = isChinese ? 'zh' : 'en';
+    vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
+
+    vendors.forEach(v => {
+      const option = document.createElement('option');
+      option.value = v.id;
+      option.textContent = v.name;
+      vendorSelect.appendChild(option);
+    });
   } catch (error) {
     console.error('Error populating vendor dropdown:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
