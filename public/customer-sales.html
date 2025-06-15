@@ -25,7 +25,7 @@
     <div id="loading" class="hidden text-blue-500 mb-4">Loading...</div>
     <div class="mb-4">
       <h2 data-lang-key="add-customer-sale" class="text-xl mb-2">Add Customer Sale</h2>
-      <form onsubmit="event.preventDefault(); handleAddCustomerSale();" class="flex flex-wrap gap-2">
+      <form onsubmit="event.preventDefault(); handleAddCustomerSale(); console.log('Form submitted');" class="flex flex-wrap gap-2">
         <select id="product-select" data-lang-key="select-product" class="border p-2">
           <option value="">-- Select a Product --</option>
         </select>
@@ -63,6 +63,7 @@
   <script src="common.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM fully loaded and parsed');
       applyTranslations();
       populateProductDropdown();
       loadCustomerSales();
