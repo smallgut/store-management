@@ -104,6 +104,7 @@ const translations = {
 };
 
 function applyTranslations() {
+  console.log('Applying translations...');
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
   const lang = isChinese ? 'zh' : 'en';
   document.querySelectorAll('[data-lang-key]').forEach(element => {
@@ -136,6 +137,7 @@ function getGMT8Date() {
 
 async function ensureSupabaseClient() {
   try {
+    console.log('Ensuring Supabase client...');
     if (!('supabase' in window)) {
       throw new Error('Supabase library not loaded');
     }
@@ -168,6 +170,7 @@ function clearMessage(type) {
 }
 
 function handleAddCustomerSale() {
+  console.log('Handling add customer sale...');
   const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
   const batchNo = String(document.getElementById('batch-no')?.value || '');
   const customerName = document.getElementById('customer-name')?.value || '';
@@ -203,6 +206,7 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
 }
 
 async function populateProductDropdown(barcodeInput = null) {
+  console.log('Populating product dropdown...');
   try {
     const client = await ensureSupabaseClient();
     const { data: products, error: productError } = await client
@@ -231,6 +235,7 @@ async function populateProductDropdown(barcodeInput = null) {
       });
 
       const updateSelection = (inputBarcode = null) => {
+        console.log('Updating selection with barcode:', inputBarcode);
         const inputValue = inputBarcode || productSelect.value || productBarcodeInput.value;
         let selectedBarcode = '';
         let selectedBatchNo = '';
@@ -281,6 +286,8 @@ async function populateProductDropdown(barcodeInput = null) {
       productSelect.addEventListener('change', () => updateSelection());
       productBarcodeInput.addEventListener('input', () => updateSelection(productBarcodeInput.value)); // Changed to 'input' for real-time updates
       updateSelection(barcodeInput);
+    } else {
+      console.error('One or more dropdown elements not found:', { productSelect, batchNoSelect, productBarcodeInput, stockDisplay });
     }
   } catch (error) {
     console.error('Error populating product dropdown:', error.message);
@@ -294,6 +301,7 @@ async function populateProductDropdown(barcodeInput = null) {
 }
 
 async function populateVendorDropdown() {
+  console.log('Populating vendor dropdown...');
   try {
     const client = await ensureSupabaseClient();
     const { data: vendors, error: vendorError } = await client
@@ -316,6 +324,8 @@ async function populateVendorDropdown() {
         option.textContent = v.name;
         vendorSelect.appendChild(option);
       });
+    } else {
+      console.error('Vendor select element not found');
     }
   } catch (error) {
     console.error('Error populating vendor dropdown:', error.message);
@@ -329,6 +339,7 @@ async function populateVendorDropdown() {
 }
 
 async function loadCustomerSales() {
+  console.log('Loading customer sales...');
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -395,6 +406,7 @@ async function loadCustomerSales() {
 }
 
 async function addCustomerSale(sale) {
+  console.log('Adding customer sale...', sale);
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -453,8 +465,8 @@ async function addCustomerSale(sale) {
 }
 
 async function deleteCustomerSale(saleId, productBarcode, quantity) {
+  console.log('Deleting customer sale...', { saleId, productBarcode, quantity });
   try {
-    console.log('Deleting sale:', { saleId, productBarcode, quantity });
     const client = await ensureSupabaseClient();
     setLoading(true);
 
@@ -513,6 +525,7 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
 }
 
 async function loadLoanRecords() {
+  console.log('Loading loan records...');
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -571,6 +584,7 @@ async function loadLoanRecords() {
 }
 
 async function addLoanRecord() {
+  console.log('Adding loan record...');
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -645,6 +659,7 @@ function handleDeleteLoanRecord(loanId) {
 }
 
 async function deleteLoanRecord(loanId) {
+  console.log('Deleting loan record...', loanId);
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -673,6 +688,7 @@ async function deleteLoanRecord(loanId) {
 }
 
 async function loadAnalytics() {
+  console.log('Loading analytics...');
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -735,6 +751,7 @@ function handleAddProduct() {
 }
 
 async function loadProducts() {
+  console.log('Loading products...');
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -782,6 +799,7 @@ async function loadProducts() {
 }
 
 async function addProduct(product) {
+  console.log('Adding product...', product);
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -826,6 +844,7 @@ function handleUpdateProduct(productId, currentStock, currentPrice, currentBatch
 }
 
 async function updateProduct(productId, stock, price, batchNo) {
+  console.log('Updating product...', { productId, stock, price, batchNo });
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -861,6 +880,7 @@ function handleDeleteProduct(productId) {
 }
 
 async function deleteProduct(productId) {
+  console.log('Deleting product...', productId);
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -906,6 +926,7 @@ function handleAddVendor() {
 }
 
 async function loadVendors() {
+  console.log('Loading vendors...');
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -945,6 +966,7 @@ async function loadVendors() {
 }
 
 async function addVendor(vendor) {
+  console.log('Adding vendor...', vendor);
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -980,6 +1002,7 @@ function handleDeleteVendor(vendorId) {
 }
 
 async function deleteVendor(vendorId) {
+  console.log('Deleting vendor...', vendorId);
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
