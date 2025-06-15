@@ -527,12 +527,15 @@ async function loadLoanRecords() {
       .from('vendor_loans')
       .select(`
         id,
-        vendor_name,
+        vendor_id,
         product_id,
         batch_no,
         quantity,
         selling_price,
         date,
+        vendors (
+          name
+        ),
         products (
           name
         )
@@ -547,7 +550,7 @@ async function loadLoanRecords() {
       loansBody.innerHTML = loans.length
         ? loans.map(l => `
             <tr>
-              <td class="border p-2">${l.vendor_name || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
               <td class="border p-2">${l.batch_no || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.quantity || (isChinese ? '無' : 'N/A')}</td>
