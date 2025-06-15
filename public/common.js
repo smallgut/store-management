@@ -221,7 +221,7 @@ async function populateProductDropdown(barcodeInput = null) {
     if (productSelect && batchNoSelect && productBarcodeInput && stockDisplay) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       const lang = isChinese ? 'zh' : 'en';
-      productSelect.innerHTML = `<option value="">${translations[lang]['select-product']}</option>`;
+      productSelect.innerHTML = '<option value="">-- Select a Product --</option>';
 
       products.forEach(p => {
         const option = document.createElement('option');
@@ -244,7 +244,7 @@ async function populateProductDropdown(barcodeInput = null) {
 
         const selectedProduct = products.find(p => p.barcode === selectedBarcode && (p.batch_no === selectedBatchNo || (!p.batch_no && selectedBatchNo === null)));
 
-        batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
+        batchNoSelect.innerHTML = '<option value="">-- Select Batch No. --</option>';
         stockDisplay.textContent = '';
 
         if (selectedProduct) {
@@ -279,14 +279,7 @@ async function populateProductDropdown(barcodeInput = null) {
       };
 
       productSelect.addEventListener('change', () => updateSelection());
-      productBarcodeInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          stockDisplay.classList.remove('text-red-500');
-          stockDisplay.classList.add('text-blue-500');
-          stockDisplay.textContent = isChinese ? '正在搜索...' : 'Searching...';
-          updateSelection(productBarcodeInput.value);
-        }
-      });
+      productBarcodeInput.addEventListener('input', () => updateSelection(productBarcodeInput.value)); // Changed to 'input' for real-time updates
       updateSelection(barcodeInput);
     }
   } catch (error) {
@@ -315,11 +308,11 @@ async function populateVendorDropdown() {
     if (vendorSelect) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       const lang = isChinese ? 'zh' : 'en';
-      vendorSelect.innerHTML = `<option value="">${translations[lang]['vendor-name']}</option>`;
+      vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
 
       vendors.forEach(v => {
         const option = document.createElement('option');
-        option.value = v.id; // Using vendor ID for the value
+        option.value = v.id;
         option.textContent = v.name;
         vendorSelect.appendChild(option);
       });
@@ -530,8 +523,7 @@ async function loadLoanRecords() {
         vendor_id,
         product_id,
         batch_no,
-        quantity,
-        selling_price,
+        amount,
         date,
         vendors (
           name
@@ -553,15 +545,14 @@ async function loadLoanRecords() {
               <td class="border p-2">${l.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
               <td class="border p-2">${l.batch_no || (isChinese ? '無' : 'N/A')}</td>
-              <td class="border p-2">${l.quantity || (isChinese ? '無' : 'N/A')}</td>
-              <td class="border p-2">${l.selling_price ? l.selling_price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${(l.amount && l.amount.toFixed(2)) || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.date ? new Date(l.date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' }) : (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
                 <button onclick="handleDeleteLoanRecord('${l.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄。' : 'No loan records found.'}</td></tr>`;
+        : `<tr><td colspan="6" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄。' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
     }
   } catch (error) {
@@ -610,12 +601,12 @@ async function addLoanRecord() {
       throw new Error('Product or batch not found');
     }
 
+    const amount = quantity * sellingPrice; // Calculate amount from quantity and selling price
     const loan = {
       vendor_id: vendorId,
       product_id: product.id,
       batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
-      quantity,
-      selling_price: sellingPrice,
+      amount: amount,
       date: new Date(loanDate).toISOString().replace('Z', '+08:00')
     };
     console.log('Loan data to insert:', loan);
