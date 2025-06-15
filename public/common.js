@@ -39,7 +39,7 @@ const translations = {
     'add-loan-record': 'Add Loan Record',
     'loan-amount': 'Loan Amount',
     'loan-date': 'Loan Date',
-    'vendor-loan-records': 'Vendor Loan Records',
+    'vendor-loan': 'Vendor Loan',
     'no-products-found': 'No products found.',
     'no-vendors-found': 'No vendors found.',
     'no-loan-records-found': 'No loan records found.',
@@ -48,6 +48,7 @@ const translations = {
     'delete-confirm': 'Delete this record?',
     'update': 'Update',
     'sub-total': 'Sub-Total',
+    'add-loan': 'Add Loan',
     'on-hand-stock': 'On-Hand Stock'
   },
   zh: {
@@ -88,7 +89,7 @@ const translations = {
     'add-loan-record': '添加貸款記錄',
     'loan-amount': '貸款金額',
     'loan-date': '貸款日期',
-    'vendor-loan-records': '供應商貸款記錄',
+    'vendor-loan': '供應商貸款',
     'no-products-found': '未找到產品。',
     'no-vendors-found': '未找到供應商。',
     'no-loan-records-found': '未找到貸款記錄。',
@@ -97,6 +98,7 @@ const translations = {
     'delete-confirm': '刪除此記錄？',
     'update': '更新',
     'sub-total': '小計',
+    'add-loan': '添加貸款',
     'on-hand-stock': '現有庫存'
   }
 };
@@ -298,6 +300,41 @@ async function populateProductDropdown(barcodeInput = null) {
   }
 }
 
+async function populateVendorDropdown() {
+  try {
+    const client = await ensureSupabaseClient();
+    const { data: vendors, error: vendorError } = await client
+      .from('vendors')
+      .select('id, name')
+      .order('name');
+    if (vendorError) throw vendorError;
+
+    console.log('Vendors for dropdown:', vendors);
+
+    const vendorSelect = document.getElementById('vendor-name');
+    if (vendorSelect) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      const lang = isChinese ? 'zh' : 'en';
+      vendorSelect.innerHTML = `<option value="">${translations[lang]['vendor-name']}</option>`;
+
+      vendors.forEach(v => {
+        const option = document.createElement('option');
+        option.value = v.id; // Using vendor ID for the value
+        option.textContent = v.name;
+        vendorSelect.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error('Error populating vendor dropdown:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商下拉選單：${error.message}` : `Failed to populate vendor dropdown: ${error.message}`}`;
+      clearMessage('error');
+    }
+  }
+}
+
 async function loadCustomerSales() {
   try {
     const client = await ensureSupabaseClient();
@@ -320,8 +357,8 @@ async function loadCustomerSales() {
       `)
       .order('sale_date', { ascending: false });
     if (error) throw error;
+
     console.log('Customer Sales:', sales);
-    console.log('Sample sale data:', sales[0]);
     const salesBody = document.querySelector('#customer-sales tbody');
     if (salesBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -351,7 +388,6 @@ async function loadCustomerSales() {
         : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
       applyTranslations();
     }
-    await populateProductDropdown();
   } catch (error) {
     console.error('Error loading customer sales:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -476,6 +512,163 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除客戶銷售失敗：${error.message}` : `Failed to delete customer sale: ${error.message}`}`;
+      clearMessage('error');
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function loadLoanRecords() {
+  try {
+    const client = await ensureSupabaseClient();
+    setLoading(true);
+    const { data: loans, error } = await client
+      .from('vendor_loans')
+      .select(`
+        id,
+        vendor_name,
+        product_id,
+        batch_no,
+        quantity,
+        selling_price,
+        date,
+        products (
+          name
+        )
+      `)
+      .order('date', { ascending: false });
+    if (error) throw error;
+
+    console.log('Vendor Loans:', loans);
+    const loansBody = document.querySelector('#loan-records-table tbody');
+    if (loansBody) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      loansBody.innerHTML = loans.length
+        ? loans.map(l => `
+            <tr>
+              <td class="border p-2">${l.vendor_name || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
+              <td class="border p-2">${l.batch_no || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.quantity || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.selling_price ? l.selling_price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.date ? new Date(l.date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' }) : (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">
+                <button onclick="handleDeleteLoanRecord('${l.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+              </td>
+            </tr>
+          `).join('')
+        : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄。' : 'No loan records found.'}</td></tr>`;
+      applyTranslations();
+    }
+  } catch (error) {
+    console.error('Error loading loan records:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入貸款記錄：${error.message}` : `Failed to load loan records: ${error.message}`}`;
+      clearMessage('error');
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function addLoanRecord() {
+  try {
+    const client = await ensureSupabaseClient();
+    setLoading(true);
+
+    const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
+    const batchNo = String(document.getElementById('batch-no')?.value || '');
+    const vendorId = document.getElementById('vendor-name')?.value || null;
+    const quantity = parseInt(document.getElementById('quantity')?.value || '0');
+    const sellingPrice = parseFloat(document.getElementById('selling-price')?.value || '0');
+    const loanDate = document.getElementById('loan-date')?.value;
+
+    if (!vendorId || !productBarcode || !batchNo || !quantity || !sellingPrice || !loanDate) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      const errorEl = document.getElementById('error');
+      if (errorEl) {
+        errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
+        clearMessage('error');
+      }
+      return;
+    }
+
+    const { data: product, error: productError } = await client
+      .from('products')
+      .select('id, barcode, batch_no')
+      .eq('barcode', productBarcode)
+      .eq('batch_no', batchNo === 'NO_BATCH' ? null : batchNo)
+      .single();
+    if (productError && productError.code !== 'PGRST116') throw productError;
+    if (!product) {
+      throw new Error('Product or batch not found');
+    }
+
+    const loan = {
+      vendor_id: vendorId,
+      product_id: product.id,
+      batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
+      quantity,
+      selling_price: sellingPrice,
+      date: new Date(loanDate).toISOString().replace('Z', '+08:00')
+    };
+    console.log('Loan data to insert:', loan);
+
+    const { data: newLoan, error } = await client
+      .from('vendor_loans')
+      .insert(loan)
+      .select();
+    if (error) throw error;
+
+    console.log('Loan record added:', newLoan);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸款記錄添加成功' : 'Loan record added successfully'}`;
+    clearMessage('message');
+    loadLoanRecords();
+  } catch (error) {
+    console.error('Error adding loan record:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸款記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
+      clearMessage('error');
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+function handleDeleteLoanRecord(loanId) {
+  const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+  if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
+    deleteLoanRecord(loanId);
+  }
+}
+
+async function deleteLoanRecord(loanId) {
+  try {
+    const client = await ensureSupabaseClient();
+    setLoading(true);
+    const { error } = await client
+      .from('vendor_loans')
+      .delete()
+      .eq('id', loanId);
+    if (error) throw error;
+
+    console.log('Loan record deleted:', loanId);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸款記錄刪除成功' : 'Loan record deleted successfully'}`;
+    clearMessage('message');
+    loadLoanRecords();
+  } catch (error) {
+    console.error('Error deleting loan record:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸款記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -769,6 +962,7 @@ async function addVendor(vendor) {
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
     clearMessage('message');
     loadVendors();
+    populateVendorDropdown(); // Refresh vendor dropdown after adding
   } catch (error) {
     console.error('Error adding vendor:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -803,136 +997,13 @@ async function deleteVendor(vendorId) {
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商刪除成功' : 'Vendor deleted successfully'}`;
     clearMessage('message');
     loadVendors();
+    populateVendorDropdown(); // Refresh vendor dropdown after deletion
   } catch (error) {
     console.error('Error deleting vendor:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除供應商失敗：${error.message}` : `Failed to delete vendor: ${error.message}`}`;
-      clearMessage('error');
-    }
-  } finally {
-    setLoading(false);
-  }
-}
-
-function handleAddLoanRecord() {
-  const vendorName = document.getElementById('vendor-name')?.value;
-  const amount = parseFloat(document.getElementById('loan-amount')?.value || '0');
-  const date = document.getElementById('loan-date')?.value;
-
-  if (!vendorName || !amount || !date) {
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
-      clearMessage('error');
-    }
-    return;
-  }
-
-  const loan = {
-    vendor_name: vendorName,
-    amount,
-    date
-  };
-  addLoanRecord(loan);
-}
-
-async function loadLoanRecords() {
-  try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
-    const { data: loans, error } = await client
-      .from('vendor_loans')
-      .select('id, vendor_name, amount, date')
-      .order('date');
-    if (error) throw error;
-    console.log('Loan Records:', loans);
-    const loansBody = document.querySelector('#loan-records-table tbody');
-    if (loansBody) {
-      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      loansBody.innerHTML = loans.length
-        ? loans.map(l => `
-            <tr>
-              <td class="border p-2">${l.vendor_name || 'N/A'}</td>
-              <td class="border p-2">${l.amount ? l.amount.toFixed(2) : '0.00'}</td>
-              <td class="border p-2">${l.date ? new Date(l.date).toLocaleDateString('en-GB', { timeZone: 'Asia/Singapore' }) : 'N/A'}</td>
-              <td class="border p-2">
-                <button onclick="handleDeleteLoanRecord('${l.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
-              </td>
-            </tr>
-          `).join('')
-        : `<tr><td colspan="4" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄' : 'No loan records found.'}</td></tr>`;
-      applyTranslations();
-    }
-  } catch (error) {
-    console.error('Error loading loan records:', error.message);
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入貸款記錄：${error.message}` : `Failed to load loan records: ${error.message}`}`;
-      clearMessage('error');
-    }
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function addLoanRecord(loan) {
-  try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
-    const { data, error } = await client
-      .from('vendor_loans')
-      .insert({ ...loan, date: new Date(loan.date).toISOString().replace('Z', '+08:00') })
-      .select();
-    if (error) throw error;
-    console.log('Loan record added:', data);
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸款記錄添加成功' : 'Loan record added successfully'}`;
-    clearMessage('message');
-    loadLoanRecords();
-  } catch (error) {
-    console.error('Error adding loan record:', error.message);
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸款記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
-      clearMessage('error');
-    }
-  } finally {
-    setLoading(false);
-  }
-}
-
-function handleDeleteLoanRecord(loanId) {
-  const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-  if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
-    deleteLoanRecord(loanId);
-  }
-}
-
-async function deleteLoanRecord(loanId) {
-  try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
-    const { error } = await client
-      .from('vendor_loans')
-      .delete()
-      .eq('id', loanId);
-    if (error) throw error;
-    console.log('Loan record deleted:', loanId);
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸款記錄刪除成功' : 'Loan record deleted successfully'}`;
-    clearMessage('message');
-    loadLoanRecords();
-  } catch (error) {
-    console.error('Error deleting loan record:', error.message);
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸款記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
