@@ -227,6 +227,15 @@ async function populateProductDropdown(barcodeInput = null) {
       return;
     }
 
+    // Remove existing event listeners to prevent duplicates
+    const proto = Object.getPrototypeOf(productSelect);
+    if (proto.hasOwnProperty('change')) {
+      productSelect.removeEventListener('change', proto.change);
+    }
+    if (proto.hasOwnProperty('input')) {
+      productBarcodeInput.removeEventListener('input', proto.input);
+    }
+
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const lang = isChinese ? 'zh' : 'en';
     productSelect.innerHTML = '<option value="">-- Select a Product --</option>';
@@ -240,6 +249,10 @@ async function populateProductDropdown(barcodeInput = null) {
 
     const updateSelection = (inputBarcode = null) => {
       console.log('Updating selection with barcode:', inputBarcode);
+      if (!productSelect || !batchNoSelect || !productBarcodeInput || !stockDisplay) {
+        console.error('DOM elements missing during update:', { productSelect, batchNoSelect, productBarcodeInput, stockDisplay });
+        return;
+      }
       const inputValue = inputBarcode || productSelect.value || productBarcodeInput.value;
       let selectedBarcode = '';
       let selectedBatchNo = '';
@@ -287,9 +300,11 @@ async function populateProductDropdown(barcodeInput = null) {
       }
     };
 
+    // Add event listeners
     productSelect.addEventListener('change', () => updateSelection());
     productBarcodeInput.addEventListener('input', () => updateSelection(productBarcodeInput.value));
-    updateSelection(barcodeInput);
+    // Delay updateSelection to ensure DOM is ready
+    setTimeout(() => updateSelection(barcodeInput), 100);
   } catch (error) {
     console.error('Error populating product dropdown:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -319,6 +334,12 @@ async function populateVendorDropdown() {
       return;
     }
 
+    // Remove existing event listeners to prevent duplicates
+    const proto = Object.getPrototypeOf(vendorSelect);
+    if (proto.hasOwnProperty('change')) {
+      vendorSelect.removeEventListener('change', proto.change);
+    }
+
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const lang = isChinese ? 'zh' : 'en';
     vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
@@ -329,6 +350,11 @@ async function populateVendorDropdown() {
       option.textContent = v.name;
       vendorSelect.appendChild(option);
     });
+
+    // Delay to ensure DOM is ready
+    setTimeout(() => {
+      vendorSelect.dispatchEvent(new Event('change')); // Trigger initial update
+    }, 100);
   } catch (error) {
     console.error('Error populating vendor dropdown:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -393,6 +419,8 @@ async function loadCustomerSales() {
           }).join('')
         : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
       applyTranslations();
+      // Re-populate dropdown after updating sales
+      populateProductDropdown();
     }
   } catch (error) {
     console.error('Error loading customer sales:', error.message);
@@ -571,6 +599,9 @@ async function loadLoanRecords() {
           `).join('')
         : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄。' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
+      // Re-populate dropdowns after updating loans
+      populateProductDropdown();
+      populateVendorDropdown();
     }
   } catch (error) {
     console.error('Error loading loan records:', error.message);
