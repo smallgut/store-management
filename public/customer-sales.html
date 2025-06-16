@@ -15,9 +15,14 @@
       <li><a href="vendors.html" data-lang-key="nav-manage-vendors" class="hover:underline">Manage Vendors</a></li>
       <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales" class="hover:underline">Record Customer Sales</a></li>
       <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record" class="hover:underline">Vendor Loan Record</a></li>
-      <li><button onclick="toggleLanguage()" data-lang-key="toggle-language" class="hover:underline">Toggle Language</button></li>
+      
     </ul>
   </nav>
+  <!-- Header and Language Toggle -->
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold" data-lang-key="nav-manage-products">Manage Products</h1>
+    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
+  </div>
   <div class="container mx-auto p-4">
     <h1 data-lang-key="record-customer-sales" class="text-2xl mb-4">Record Customer Sales</h1>
     <div id="error" class="text-red-500 mb-4"></div>
