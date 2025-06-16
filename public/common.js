@@ -982,11 +982,15 @@ async function deleteProduct(productId) {
   }
 }
 
-function handleAddVendor() {
+function handleAddVendor(event) {
+  event.preventDefault(); // Prevent default form submission
+  console.log('Handling add vendor...');
   const name = document.getElementById('vendor-name')?.value;
-  const contact = document.getElementById('vendor-contact')?.value;
+  const phoneNumber = document.getElementById('phone-number')?.value;
+  const contactEmail = document.getElementById('contact-email')?.value || null;
+  const address = document.getElementById('address')?.value || null;
 
-  if (!name || !contact) {
+  if (!name || !phoneNumber) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -996,48 +1000,8 @@ function handleAddVendor() {
     return;
   }
 
-  const vendor = { name, contact };
+  const vendor = { name, phone_number: phoneNumber, contact_email: contactEmail, address: address };
   addVendor(vendor);
-}
-
-async function loadVendors() {
-  console.log('Loading vendors...');
-  try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
-    const { data: vendors, error } = await client
-      .from('vendors')
-      .select('*')
-      .order('name');
-    if (error) throw error;
-    console.log('Vendors:', vendors);
-    const vendorsBody = document.querySelector('#vendors-table tbody');
-    if (vendorsBody) {
-      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      vendorsBody.innerHTML = vendors.length
-        ? vendors.map(v => `
-            <tr>
-              <td class="border p-2">${v.name}</td>
-              <td class="border p-2">${v.contact}</td>
-              <td class="border p-2">
-                <button onclick="handleDeleteVendor('${v.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
-              </td>
-            </tr>
-          `).join('')
-        : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
-      applyTranslations();
-    }
-  } catch (error) {
-    console.error('Error loading vendors:', error.message);
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商：${error.message}` : `Failed to load vendors: ${error.message}`}`;
-      clearMessage('error');
-    }
-  } finally {
-    setLoading(false);
-  }
 }
 
 async function addVendor(vendor) {
@@ -1068,6 +1032,7 @@ async function addVendor(vendor) {
     setLoading(false);
   }
 }
+
 
 function handleDeleteVendor(vendorId) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
