@@ -86,7 +86,7 @@ const translations = {
     'vendor-contact': '供應商聯繫方式',
     'manage-products': '管理產品',
     'manage-vendors': '管理供應商',
-    'add-loan-record': '添加貸款記錄',
+    'add-loan-record': '添加貸貨記錄',
     'loan-amount': '貸款金額',
     'loan-date': '貸款日期',
     'vendor-loan': '供應商貸貨',
@@ -98,7 +98,7 @@ const translations = {
     'delete-confirm': '刪除此記錄？',
     'update': '更新',
     'sub-total': '小計',
-    'add-loan': '添加貸款',
+    'add-loan': '添加貸貨',
     'on-hand-stock': '現有庫存'
   }
 };
@@ -679,7 +679,7 @@ async function addLoanRecord() {
 
     console.log('Loan record added:', newLoan);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸款記錄添加成功' : 'Loan record added successfully'}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record added successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
@@ -687,7 +687,7 @@ async function addLoanRecord() {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸款記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
