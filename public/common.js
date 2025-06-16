@@ -641,13 +641,17 @@ async function addLoanRecord() {
 
     const { data: product, error: productError } = await client
       .from('products')
-      .select('id, barcode, batch_no')
+      .select('id, barcode, batch_no, stock')
       .eq('barcode', productBarcode)
       .eq('batch_no', batchNo === 'NO_BATCH' ? null : batchNo)
       .single();
     if (productError && productError.code !== 'PGRST116') throw productError;
     if (!product) {
       throw new Error('Product or batch not found');
+    }
+
+    if (product.stock < quantity) {
+      throw new Error('Insufficient stock available');
     }
 
     const loan = {
@@ -665,6 +669,13 @@ async function addLoanRecord() {
       .insert(loan)
       .select();
     if (error) throw error;
+
+    // Decrease stock for the loaned quantity
+    const { error: updateError } = await client
+      .from('products')
+      .update({ stock: product.stock - quantity })
+      .eq('id', product.id);
+    if (updateError) throw updateError;
 
     console.log('Loan record added:', newLoan);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -696,11 +707,42 @@ async function deleteLoanRecord(loanId) {
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
-    const { error } = await client
+
+    // Fetch the loan details to get product_id and quantity
+    const { data: loan, error: loanError } = await client
+      .from('vendor_loans')
+      .select('product_id, quantity')
+      .eq('id', loanId)
+      .single();
+    if (loanError && loanError.code !== 'PGRST116') throw loanError;
+    if (!loan) {
+      throw new Error('Loan record not found');
+    }
+
+    // Fetch the current product stock
+    const { data: product, error: productError } = await client
+      .from('products')
+      .select('id, stock')
+      .eq('id', loan.product_id)
+      .single();
+    if (productError && productError.code !== 'PGRST116') throw productError;
+    if (!product) {
+      throw new Error('Product not found');
+    }
+
+    // Delete the loan record
+    const { error: deleteError } = await client
       .from('vendor_loans')
       .delete()
       .eq('id', loanId);
-    if (error) throw error;
+    if (deleteError) throw deleteError;
+
+    // Increase stock for the returned quantity
+    const { error: updateError } = await client
+      .from('products')
+      .update({ stock: product.stock + loan.quantity })
+      .eq('id', product.id);
+    if (updateError) throw updateError;
 
     console.log('Loan record deleted:', loanId);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
