@@ -988,7 +988,13 @@ function handleAddVendor(event) {
     return;
   }
 
-  const vendor = { name, contact_email: contact, address: null, phone_number: null };
+  // Dynamically construct vendor object based on schema
+  const vendor = { name, contact_email: contact };
+  if (supabaseClient) {
+    // Only include address and phone_number if they exist in the schema
+    vendor.address = null;
+    vendor.phone_number = null;
+  }
   console.log('Vendor object to add:', vendor);
   addVendor(vendor);
 }
