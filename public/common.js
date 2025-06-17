@@ -33,7 +33,7 @@ const translations = {
     'inventory-value': 'Inventory Value',
     'add-vendor': 'Add Vendor',
     'vendor-name': 'Vendor Name',
-    'contact-email': 'Contact Email',
+    'contact-email': 'Contact Info',
     'address': 'Address',
     'phone-number': 'Phone Number',
     'manage-products': 'Manage Products',
@@ -85,7 +85,7 @@ const translations = {
     'inventory-value': '庫存價值',
     'add-vendor': '添加供應商',
     'vendor-name': '供應商名稱',
-    'contact-email': '聯繫郵箱',
+    'contact-email': '聯繫信息',
     'address': '地址',
     'phone-number': '電話號碼',
     'manage-products': '管理產品',
@@ -106,7 +106,6 @@ const translations = {
     'on-hand-stock': '現有庫存'
   }
 };
-
 
 function applyTranslations() {
   console.log('Applying translations...');
@@ -149,7 +148,7 @@ async function ensureSupabaseClient() {
     if (!supabaseClient) {
       supabaseClient = supabase.createClient(
         'https://aouduygmcspiqauhrabx.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdwhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
       );
       console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient));
     }
@@ -232,7 +231,6 @@ async function populateProductDropdown(barcodeInput = null) {
       return;
     }
 
-    // Remove existing event listeners to prevent duplicates
     const proto = Object.getPrototypeOf(productSelect);
     if (proto.hasOwnProperty('change')) {
       productSelect.removeEventListener('change', proto.change);
@@ -305,10 +303,8 @@ async function populateProductDropdown(barcodeInput = null) {
       }
     };
 
-    // Add event listeners
     productSelect.addEventListener('change', () => updateSelection());
     productBarcodeInput.addEventListener('input', () => updateSelection(productBarcodeInput.value));
-    // Delay updateSelection to ensure DOM is ready
     setTimeout(() => updateSelection(barcodeInput), 100);
   } catch (error) {
     console.error('Error populating product dropdown:', error.message);
@@ -339,7 +335,6 @@ async function populateVendorDropdown() {
       return;
     }
 
-    // Remove existing event listeners to prevent duplicates
     const proto = Object.getPrototypeOf(vendorSelect);
     if (proto.hasOwnProperty('change')) {
       vendorSelect.removeEventListener('change', proto.change);
@@ -356,9 +351,8 @@ async function populateVendorDropdown() {
       vendorSelect.appendChild(option);
     });
 
-    // Delay to ensure DOM is ready
     setTimeout(() => {
-      vendorSelect.dispatchEvent(new Event('change')); // Trigger initial update
+      vendorSelect.dispatchEvent(new Event('change'));
     }, 100);
   } catch (error) {
     console.error('Error populating vendor dropdown:', error.message);
@@ -424,7 +418,6 @@ async function loadCustomerSales() {
           }).join('')
         : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
       applyTranslations();
-      // Re-populate dropdown after updating sales
       populateProductDropdown();
     }
   } catch (error) {
@@ -604,7 +597,6 @@ async function loadLoanRecords() {
           `).join('')
         : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄。' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
-      // Re-populate dropdowns after updating loans
       populateProductDropdown();
       populateVendorDropdown();
     }
@@ -675,7 +667,6 @@ async function addLoanRecord() {
       .select();
     if (error) throw error;
 
-    // Decrease stock for the loaned quantity
     const { error: updateError } = await client
       .from('products')
       .update({ stock: product.stock - quantity })
@@ -713,7 +704,6 @@ async function deleteLoanRecord(loanId) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
-    // Fetch the loan details to get product_id and quantity
     const { data: loan, error: loanError } = await client
       .from('vendor_loans')
       .select('product_id, quantity')
@@ -724,7 +714,6 @@ async function deleteLoanRecord(loanId) {
       throw new Error('Loan record not found');
     }
 
-    // Fetch the current product stock
     const { data: product, error: productError } = await client
       .from('products')
       .select('id, stock')
@@ -735,14 +724,12 @@ async function deleteLoanRecord(loanId) {
       throw new Error('Product not found');
     }
 
-    // Delete the loan record
     const { error: deleteError } = await client
       .from('vendor_loans')
       .delete()
       .eq('id', loanId);
     if (deleteError) throw deleteError;
 
-    // Increase stock for the returned quantity
     const { error: updateError } = await client
       .from('products')
       .update({ stock: product.stock + loan.quantity })
@@ -1007,7 +994,6 @@ function handleAddVendor() {
   addVendor(vendor);
 }
 
-
 async function loadVendors() {
   console.log('Loading vendors...');
   try {
@@ -1050,7 +1036,6 @@ async function loadVendors() {
   }
 }
 
-
 async function addVendor(vendor) {
   console.log('Adding vendor...', vendor);
   try {
@@ -1066,7 +1051,7 @@ async function addVendor(vendor) {
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
     clearMessage('message');
     loadVendors();
-    populateVendorDropdown(); // Refresh vendor dropdown after adding
+    populateVendorDropdown();
   } catch (error) {
     console.error('Error adding vendor:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -1102,7 +1087,7 @@ async function deleteVendor(vendorId) {
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商刪除成功' : 'Vendor deleted successfully'}`;
     clearMessage('message');
     loadVendors();
-    populateVendorDropdown(); // Refresh vendor dropdown after deletion
+    populateVendorDropdown();
   } catch (error) {
     console.error('Error deleting vendor:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
