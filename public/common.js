@@ -33,9 +33,7 @@ const translations = {
     'inventory-value': 'Inventory Value',
     'add-vendor': 'Add Vendor',
     'vendor-name': 'Vendor Name',
-    'contact-email': 'Contact Info',
-    'address': 'Address',
-    'phone-number': 'Phone Number',
+    'vendor-contact': 'Vendor Contact',
     'manage-products': 'Manage Products',
     'manage-vendors': 'Manage Vendors',
     'add-loan-record': 'Add Loan Record',
@@ -85,9 +83,7 @@ const translations = {
     'inventory-value': '庫存價值',
     'add-vendor': '添加供應商',
     'vendor-name': '供應商名稱',
-    'contact-email': '聯繫信息',
-    'address': '地址',
-    'phone-number': '電話號碼',
+    'vendor-contact': '供應商聯繫方式',
     'manage-products': '管理產品',
     'manage-vendors': '管理供應商',
     'add-loan-record': '添加貸款記錄',
@@ -173,8 +169,7 @@ function clearMessage(type) {
   }, 1000);
 }
 
-function handleAddCustomerSale(event) {
-  event.preventDefault();
+function handleAddCustomerSale() {
   console.log('Handling add customer sale...');
   const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
   const batchNo = String(document.getElementById('batch-no')?.value || '');
@@ -232,6 +227,7 @@ async function populateProductDropdown(barcodeInput = null) {
       return;
     }
 
+    // Remove existing event listeners to prevent duplicates
     const proto = Object.getPrototypeOf(productSelect);
     if (proto.hasOwnProperty('change')) {
       productSelect.removeEventListener('change', proto.change);
@@ -304,8 +300,10 @@ async function populateProductDropdown(barcodeInput = null) {
       }
     };
 
+    // Add event listeners
     productSelect.addEventListener('change', () => updateSelection());
     productBarcodeInput.addEventListener('input', () => updateSelection(productBarcodeInput.value));
+    // Delay updateSelection to ensure DOM is ready
     setTimeout(() => updateSelection(barcodeInput), 100);
   } catch (error) {
     console.error('Error populating product dropdown:', error.message);
@@ -336,6 +334,7 @@ async function populateVendorDropdown() {
       return;
     }
 
+    // Remove existing event listeners to prevent duplicates
     const proto = Object.getPrototypeOf(vendorSelect);
     if (proto.hasOwnProperty('change')) {
       vendorSelect.removeEventListener('change', proto.change);
@@ -352,8 +351,9 @@ async function populateVendorDropdown() {
       vendorSelect.appendChild(option);
     });
 
+    // Delay to ensure DOM is ready
     setTimeout(() => {
-      vendorSelect.dispatchEvent(new Event('change'));
+      vendorSelect.dispatchEvent(new Event('change')); // Trigger initial update
     }, 100);
   } catch (error) {
     console.error('Error populating vendor dropdown:', error.message);
@@ -419,6 +419,7 @@ async function loadCustomerSales() {
           }).join('')
         : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
       applyTranslations();
+      // Re-populate dropdown after updating sales
       populateProductDropdown();
     }
   } catch (error) {
@@ -598,6 +599,7 @@ async function loadLoanRecords() {
           `).join('')
         : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄。' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
+      // Re-populate dropdowns after updating loans
       populateProductDropdown();
       populateVendorDropdown();
     }
@@ -668,6 +670,7 @@ async function addLoanRecord() {
       .select();
     if (error) throw error;
 
+    // Decrease stock for the loaned quantity
     const { error: updateError } = await client
       .from('products')
       .update({ stock: product.stock - quantity })
@@ -705,6 +708,7 @@ async function deleteLoanRecord(loanId) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
+    // Fetch the loan details to get product_id and quantity
     const { data: loan, error: loanError } = await client
       .from('vendor_loans')
       .select('product_id, quantity')
@@ -715,6 +719,7 @@ async function deleteLoanRecord(loanId) {
       throw new Error('Loan record not found');
     }
 
+    // Fetch the current product stock
     const { data: product, error: productError } = await client
       .from('products')
       .select('id, stock')
@@ -725,12 +730,14 @@ async function deleteLoanRecord(loanId) {
       throw new Error('Product not found');
     }
 
+    // Delete the loan record
     const { error: deleteError } = await client
       .from('vendor_loans')
       .delete()
       .eq('id', loanId);
     if (deleteError) throw deleteError;
 
+    // Increase stock for the returned quantity
     const { error: updateError } = await client
       .from('products')
       .update({ stock: product.stock + loan.quantity })
@@ -975,17 +982,11 @@ async function deleteProduct(productId) {
   }
 }
 
-function handleAddVendor(event) {
-  event.preventDefault();
-  console.log('Handling add vendor...');
+function handleAddVendor() {
   const name = document.getElementById('vendor-name')?.value;
   const contact = document.getElementById('vendor-contact')?.value;
-  const address = document.getElementById('address')?.value;
-  const phoneNumber = document.getElementById('phone-number')?.value;
 
-  console.log('Form data:', { name, contact, address, phoneNumber });
-
-  if (!name || !contact || !address || !phoneNumber) {
+  if (!name || !contact) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -995,8 +996,7 @@ function handleAddVendor(event) {
     return;
   }
 
-  const vendor = { name, contact_email: contact, address, phone_number: phoneNumber };
-  console.log('Vendor object to add:', vendor);
+  const vendor = { name, contact };
   addVendor(vendor);
 }
 
@@ -1017,16 +1017,14 @@ async function loadVendors() {
       vendorsBody.innerHTML = vendors.length
         ? vendors.map(v => `
             <tr>
-              <td class="border p-2">${v.name || (isChinese ? '無' : 'N/A')}</td>
-              <td class="border p-2">${v.contact_email || (isChinese ? '無' : 'N/A')}</td>
-              <td class="border p-2">${v.address || (isChinese ? '無' : 'N/A')}</td>
-              <td class="border p-2">${v.phone_number || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${v.name}</td>
+              <td class="border p-2">${v.contact}</td>
               <td class="border p-2">
                 <button onclick="handleDeleteVendor('${v.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="5" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
+        : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
       applyTranslations();
     }
   } catch (error) {
@@ -1047,27 +1045,23 @@ async function addVendor(vendor) {
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
-    console.log('Inserting vendor data into Supabase:', vendor);
     const { data, error } = await client
       .from('vendors')
       .insert(vendor)
       .select();
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
+    if (error) throw error;
     console.log('Vendor added:', data);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
     clearMessage('message');
     loadVendors();
-    populateVendorDropdown();
+    populateVendorDropdown(); // Refresh vendor dropdown after adding
   } catch (error) {
-    console.error('Error adding vendor:', error.message, error.details);
+    console.error('Error adding vendor:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加供應商失敗：${error.message}` : `Failed to add vendor: ${error.message}`}${error.details ? ` - ${error.details}` : ''}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加供應商失敗：${error.message}` : `Failed to add vendor: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1097,7 +1091,7 @@ async function deleteVendor(vendorId) {
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商刪除成功' : 'Vendor deleted successfully'}`;
     clearMessage('message');
     loadVendors();
-    populateVendorDropdown();
+    populateVendorDropdown(); // Refresh vendor dropdown after deletion
   } catch (error) {
     console.error('Error deleting vendor:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
