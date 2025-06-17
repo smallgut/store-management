@@ -33,7 +33,9 @@ const translations = {
     'inventory-value': 'Inventory Value',
     'add-vendor': 'Add Vendor',
     'vendor-name': 'Vendor Name',
-    'vendor-contact': 'Vendor Contact',
+    'contact-email': 'Contact Email',
+    'address': 'Address',
+    'phone-number': 'Phone Number',
     'manage-products': 'Manage Products',
     'manage-vendors': 'Manage Vendors',
     'add-loan-record': 'Add Loan Record',
@@ -83,7 +85,9 @@ const translations = {
     'inventory-value': '庫存價值',
     'add-vendor': '添加供應商',
     'vendor-name': '供應商名稱',
-    'vendor-contact': '供應商聯繫方式',
+    'contact-email': '聯繫郵箱',
+    'address': '地址',
+    'phone-number': '電話號碼',
     'manage-products': '管理產品',
     'manage-vendors': '管理供應商',
     'add-loan-record': '添加貸款記錄',
@@ -102,6 +106,7 @@ const translations = {
     'on-hand-stock': '現有庫存'
   }
 };
+
 
 function applyTranslations() {
   console.log('Applying translations...');
@@ -985,8 +990,10 @@ async function deleteProduct(productId) {
 function handleAddVendor() {
   const name = document.getElementById('vendor-name')?.value;
   const contact = document.getElementById('vendor-contact')?.value;
+  const address = document.getElementById('address')?.value;
+  const phoneNumber = document.getElementById('phone-number')?.value;
 
-  if (!name || !contact) {
+  if (!name || !contact || !address || !phoneNumber) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -996,9 +1003,10 @@ function handleAddVendor() {
     return;
   }
 
-  const vendor = { name, contact };
+  const vendor = { name, contact_email: contact, address, phone_number: phoneNumber };
   addVendor(vendor);
 }
+
 
 async function loadVendors() {
   console.log('Loading vendors...');
@@ -1017,14 +1025,16 @@ async function loadVendors() {
       vendorsBody.innerHTML = vendors.length
         ? vendors.map(v => `
             <tr>
-              <td class="border p-2">${v.name}</td>
-              <td class="border p-2">${v.contact}</td>
+              <td class="border p-2">${v.name || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${v.contact_email || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${v.address || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${v.phone_number || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
                 <button onclick="handleDeleteVendor('${v.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
+        : `<tr><td colspan="5" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
       applyTranslations();
     }
   } catch (error) {
@@ -1039,6 +1049,7 @@ async function loadVendors() {
     setLoading(false);
   }
 }
+
 
 async function addVendor(vendor) {
   console.log('Adding vendor...', vendor);
