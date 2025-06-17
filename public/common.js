@@ -57,12 +57,12 @@ const translations = {
     'nav-manage-products': '管理產品',
     'nav-manage-vendors': '管理供應商',
     'nav-record-customer-sales': '記錄客戶銷售',
-    'nav-vendor-loan-record': '供應商貸款記錄',
+    'nav-vendor-loan-record': '供應商貸貨記錄',
     'toggle-language': '切換語言',
     'home-welcome': '歡迎來到首頁！',
     'manage-products-welcome': '歡迎來到管理產品！',
     'manage-vendors-welcome': '歡迎來到管理供應商！',
-    'vendor-loan-record-welcome': '歡迎來到供應商貸款記錄！',
+    'vendor-loan-record-welcome': '歡迎來到供應商貸貨記錄！',
     'record-customer-sales': '記錄客戶銷售',
     'add-customer-sale': '添加客戶銷售',
     'select-product': '選擇產品（或輸入條碼）',
@@ -86,19 +86,19 @@ const translations = {
     'vendor-contact': '供應商聯繫方式',
     'manage-products': '管理產品',
     'manage-vendors': '管理供應商',
-    'add-loan-record': '添加貸款記錄',
-    'loan-amount': '貸款金額',
-    'loan-date': '貸款日期',
-    'vendor-loan': '供應商貸款',
+    'add-loan-record': '添加貸貨記錄',
+    'loan-amount': '貸貨金額',
+    'loan-date': '貸貨日期',
+    'vendor-loan': '供應商貸貨',
     'no-products-found': '未找到產品。',
     'no-vendors-found': '未找到供應商。',
-    'no-loan-records-found': '未找到貸款記錄。',
+    'no-loan-records-found': '未找到貸貨記錄。',
     'unknown-product': '未知產品',
     'no-customer-sales-found': '未找到客戶銷售記錄。',
     'delete-confirm': '刪除此記錄？',
     'update': '更新',
     'sub-total': '小計',
-    'add-loan': '添加貸款',
+    'add-loan': '添加貸貨',
     'on-hand-stock': '現有庫存'
   }
 };
@@ -597,7 +597,7 @@ async function loadLoanRecords() {
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸款記錄。' : 'No loan records found.'}</td></tr>`;
+        : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄。' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
       // Re-populate dropdowns after updating loans
       populateProductDropdown();
@@ -608,7 +608,7 @@ async function loadLoanRecords() {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入貸款記錄：${error.message}` : `Failed to load loan records: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入貸貨記錄：${error.message}` : `Failed to load loan records: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -679,7 +679,7 @@ async function addLoanRecord() {
 
     console.log('Loan record added:', newLoan);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸款記錄添加成功' : 'Loan record added successfully'}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record added successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
@@ -687,7 +687,7 @@ async function addLoanRecord() {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸款記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -746,7 +746,7 @@ async function deleteLoanRecord(loanId) {
 
     console.log('Loan record deleted:', loanId);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸款記錄刪除成功' : 'Loan record deleted successfully'}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record deleted successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
@@ -754,7 +754,7 @@ async function deleteLoanRecord(loanId) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸款記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸貨記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
