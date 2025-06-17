@@ -5,67 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Manage Vendors</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="common.js" defer></script>
+  <script type="module" src="common.js"></script>
 </head>
 <body id="lang-body" class="p-4">
-  <!-- Navigation -->
-  <nav class="bg-gray-800 text-white p-4 mb-4">
-    <ul class="flex space-x-4">
-      <li><a href="index.html" class="hover:underline" data-lang-key="nav-home">Home</a></li>
-      <li><a href="analytics.html" class="hover:underline" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" class="hover:underline" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" class="hover:underline" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-    </ul>
+  <nav class="mb-4">
+    <a href="#" data-lang-key="nav-home" class="mr-4">Home</a>
+    <a href="#" data-lang-key="nav-analytics" class="mr-4">Analytics</a>
+    <a href="#" data-lang-key="nav-manage-products" class="mr-4">Manage Products</a>
+    <a href="#" data-lang-key="nav-manage-vendors" class="mr-4">Manage Vendors</a>
+    <a href="#" data-lang-key="nav-record-customer-sales" class="mr-4">Record Customer Sales</a>
+    <a href="#" data-lang-key="nav-vendor-loan-record" class="mr-4">Vendor Loan Record</a>
   </nav>
 
-  <!-- Header and Language Toggle -->
-  <div class="flex justify-between items-center mb-4">
-    <h1 class="text-2xl font-bold" data-lang-key="nav-manage-vendors">Manage Vendors</h1>
-    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
-  </div>
+  <h1 data-lang-key="manage-vendors-welcome" class="text-2xl mb-4">Welcome to Manage Vendors!</h1>
+  <button onclick="toggleLanguage()" data-lang-key="toggle-language" class="mb-4 bg-blue-500 text-white p-2 rounded">Toggle Language</button>
 
-  <!-- Add Vendor Form -->
-  <div class="p-4">
-    <h2 class="text-xl font-bold mb-4" data-lang-key="add-vendor">Add Vendor</h2>
-    <form id="add-vendor-form" onsubmit="event.preventDefault(); handleAddVendor();">
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="vendor-name">Vendor Name</label>
-        <input type="text" id="vendor-name" class="border p-2 w-full" required>
-      </div>
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="vendor-contact">Vendor Contact</label>
-        <input type="text" id="vendor-contact" class="border p-2 w-full" required>
-      </div>
-      <button type="submit" class="bg-green-500 text-white p-2 rounded hover:bg-green-600" data-lang-key="add-vendor">Add Vendor</button>
-    </form>
-  </div>
+  <h2 data-lang-key="add-vendor" class="text-xl mt-6 mb-2">Add Vendor</h2>
+  <form id="add-vendor-form" onsubmit="handleAddVendor(); return false;" class="mb-4">
+    <div class="mb-2">
+      <label data-lang-key="vendor-name" class="block">Vendor Name</label>
+      <input type="text" id="vendor-name" class="border p-1 w-full" required>
+    </div>
+    <div class="mb-2">
+      <label data-lang-key="vendor-contact" class="block">Vendor Contact</label>
+      <input type="email" id="vendor-contact" class="border p-1 w-full" placeholder="Contact Email" required>
+    </div>
+    <div class="mb-2">
+      <label data-lang-key="address" class="block">Address</label>
+      <input type="text" id="address" class="border p-1 w-full" required>
+    </div>
+    <div class="mb-2">
+      <label data-lang-key="phone-number" class="block">Phone Number</label>
+      <input type="tel" id="phone-number" class="border p-1 w-full" required>
+    </div>
+    <button type="submit" data-lang-key="add-vendor" class="bg-green-500 text-white p-2 rounded">Add Vendor</button>
+  </form>
 
-  <!-- Vendors Table -->
-  <div class="p-4">
-    <h2 class="text-xl font-bold mb-4" data-lang-key="manage-vendors">Manage Vendors</h2>
-    <table id="vendors-table" class="w-full border-collapse border">
-      <thead>
-        <tr>
-          <th class="border p-2" data-lang-key="vendor-name">Vendor Name</th>
-          <th class="border p-2" data-lang-key="vendor-contact">Vendor Contact</th>
-          <th class="border p-2" data-lang-key="actions">Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <h2 data-lang-key="manage-vendors" class="text-xl mt-6 mb-2">Manage Vendors</h2>
+  <table id="vendors-table" class="w-full border-collapse border">
+    <thead>
+      <tr>
+        <th data-lang-key="vendor-name" class="border p-2">Vendor Name</th>
+        <th data-lang-key="contact-email" class="border p-2">Contact Email</th>
+        <th data-lang-key="address" class="border p-2">Address</th>
+        <th data-lang-key="phone-number" class="border p-2">Phone Number</th>
+        <th data-lang-key="actions" class="border p-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-  <div id="loading" class="hidden text-center p-4">Loading...</div>
-  <div id="message" class="text-green-500 text-center p-2"></div>
-  <div id="error" class="text-red-500 text-center p-2"></div>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      loadVendors();
-    });
-  </script>
+  <div id="loading" style="display:none;" class="mt-4">Loading...</div>
+  <div id="error" class="text-red-500 mt-2"></div>
+  <div id="message" class="text-green-500 mt-2"></div>
 </body>
 </html>
