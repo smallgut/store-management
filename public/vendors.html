@@ -10,18 +10,23 @@
   <script type="module" src="common.js"></script>
 </head>
 <body id="lang-body" class="p-4">
-  <nav class="mb-4">
-    <a href="#" data-lang-key="nav-home" class="mr-4">Home</a>
-    <a href="#" data-lang-key="nav-analytics" class="mr-4">Analytics</a>
-    <a href="#" data-lang-key="nav-manage-products" class="mr-4">Manage Products</a>
-    <a href="#" data-lang-key="nav-manage-vendors" class="mr-4">Manage Vendors</a>
-    <a href="#" data-lang-key="nav-record-customer-sales" class="mr-4">Record Customer Sales</a>
-    <a href="#" data-lang-key="nav-vendor-loan-record" class="mr-4">Vendor Loan Record</a>
+  <!-- Navigation -->
+  <nav class="bg-gray-800 text-white p-4 mb-4">
+    <ul class="flex space-x-4">
+      <li><a href="index.html" class="hover:underline" data-lang-key="nav-home">Home</a></li>
+      <li><a href="analytics.html" class="hover:underline" data-lang-key="nav-analytics">Analytics</a></li>
+      <li><a href="products.html" class="hover:underline" data-lang-key="nav-manage-products">Manage Products</a></li>
+      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html" class="hover:underline" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+    </ul>
   </nav>
 
-  <h1 data-lang-key="manage-vendors-welcome" class="text-2xl mb-4">Welcome to Manage Vendors!</h1>
-  <button onclick="toggleLanguage()" data-lang-key="toggle-language" class="mb-4 bg-blue-500 text-white p-2 rounded">Toggle Language</button>
-
+  <!-- Header and Language Toggle -->
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold" data-lang-key="nav-manage-products">Manage Products</h1>
+    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
+  </div>
   <h2 data-lang-key="add-vendor" class="text-xl mt-6 mb-2">Add Vendor</h2>
   <form id="add-vendor-form" class="mb-4">
     <div class="mb-2">
