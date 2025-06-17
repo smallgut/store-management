@@ -407,7 +407,7 @@ async function loadCustomerSales() {
                 <td class="border p-2">${typeof profit === 'number' ? profit.toFixed(2) : profit}</td>
                 <td class="border p-2">${new Date(s.sale_date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' })}</td>
                 <td class="border p-2">
-                  <button onclick="handleDeleteSale('${s.id}', '${s.products?.barcode || ''}', ${s.quantity})" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                  <button data-sale-id="${s.id}" data-product-barcode="${s.products?.barcode || ''}" data-quantity="${s.quantity}" class="delete-sale bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
                 </td>
               </tr>
             `;
@@ -415,6 +415,15 @@ async function loadCustomerSales() {
         : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
       applyTranslations();
       populateProductDropdown();
+      // Add event delegation for delete buttons
+      document.querySelectorAll('.delete-sale').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const saleId = e.target.getAttribute('data-sale-id');
+          const productBarcode = e.target.getAttribute('data-product-barcode');
+          const quantity = parseInt(e.target.getAttribute('data-quantity'));
+          handleDeleteSale(saleId, productBarcode, quantity);
+        });
+      });
     }
   } catch (error) {
     console.error('Error loading customer sales:', error.message);
@@ -587,7 +596,7 @@ async function loadLoanRecords() {
               <td class="border p-2">${(l.selling_price && l.selling_price.toFixed(2)) || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.date ? new Date(l.date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' }) : (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
-                <button onclick="handleDeleteLoanRecord('${l.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                <button data-loan-id="${l.id}" class="delete-loan bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
               </td>
             </tr>
           `).join('')
@@ -595,6 +604,13 @@ async function loadLoanRecords() {
       applyTranslations();
       populateProductDropdown();
       populateVendorDropdown();
+      // Add event delegation for delete buttons
+      document.querySelectorAll('.delete-loan').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const loanId = e.target.getAttribute('data-loan-id');
+          handleDeleteLoanRecord(loanId);
+        });
+      });
     }
   } catch (error) {
     console.error('Error loading loan records:', error.message);
@@ -839,14 +855,30 @@ async function loadProducts() {
                 <td class="border p-2">${p.price ? p.price.toFixed(2) : 'N/A'}</td>
                 <td class="border p-2">${inventoryValue.toFixed(2)}</td>
                 <td class="border p-2">
-                  <button onclick="handleUpdateProduct('${p.id}', ${p.stock}, ${p.price || 0}, '${p.batch_no || ''}')" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">${isChinese ? '更新' : 'Update'}</button>
-                  <button onclick="handleDeleteProduct('${p.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                  <button data-product-id="${p.id}" data-stock="${p.stock}" data-price="${p.price || 0}" data-batch-no="${p.batch_no || ''}" class="update-product bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">Update</button>
+                  <button data-product-id="${p.id}" class="delete-product bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
                 </td>
               </tr>
             `;
           }).join('')
         : `<tr><td colspan="7" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
       applyTranslations();
+      // Add event delegation for update and delete buttons
+      document.querySelectorAll('.update-product').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const productId = e.target.getAttribute('data-product-id');
+          const currentStock = parseInt(e.target.getAttribute('data-stock'));
+          const currentPrice = parseFloat(e.target.getAttribute('data-price'));
+          const currentBatchNo = e.target.getAttribute('data-batch-no');
+          handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo);
+        });
+      });
+      document.querySelectorAll('.delete-product').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const productId = e.target.getAttribute('data-product-id');
+          handleDeleteProduct(productId);
+        });
+      });
     }
   } catch (error) {
     console.error('Error loading products:', error.message);
@@ -1019,12 +1051,19 @@ async function loadVendors() {
               <td class="border p-2">${v.name || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${v.contact_email || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
-                <button onclick="handleDeleteVendor('${v.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                <button data-vendor-id="${v.id}" class="delete-vendor bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
               </td>
             </tr>
           `).join('')
         : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
       applyTranslations();
+      // Add event delegation for delete buttons
+      document.querySelectorAll('.delete-vendor').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const vendorId = e.target.getAttribute('data-vendor-id');
+          handleDeleteVendor(vendorId);
+        });
+      });
     }
   } catch (error) {
     console.error('Error loading vendors:', error.message);
