@@ -148,7 +148,7 @@ async function ensureSupabaseClient() {
     if (!supabaseClient) {
       supabaseClient = supabase.createClient(
         'https://aouduygmcspiqauhrabx.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdwhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
       );
       console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient));
     }
@@ -173,7 +173,8 @@ function clearMessage(type) {
   }, 1000);
 }
 
-function handleAddCustomerSale() {
+function handleAddCustomerSale(event) {
+  event.preventDefault();
   console.log('Handling add customer sale...');
   const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
   const batchNo = String(document.getElementById('batch-no')?.value || '');
@@ -974,11 +975,15 @@ async function deleteProduct(productId) {
   }
 }
 
-function handleAddVendor() {
+function handleAddVendor(event) {
+  event.preventDefault();
+  console.log('Handling add vendor...');
   const name = document.getElementById('vendor-name')?.value;
   const contact = document.getElementById('vendor-contact')?.value;
   const address = document.getElementById('address')?.value;
   const phoneNumber = document.getElementById('phone-number')?.value;
+
+  console.log('Form data:', { name, contact, address, phoneNumber });
 
   if (!name || !contact || !address || !phoneNumber) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -991,6 +996,7 @@ function handleAddVendor() {
   }
 
   const vendor = { name, contact_email: contact, address, phone_number: phoneNumber };
+  console.log('Vendor object to add:', vendor);
   addVendor(vendor);
 }
 
@@ -1041,11 +1047,15 @@ async function addVendor(vendor) {
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
+    console.log('Inserting vendor data into Supabase:', vendor);
     const { data, error } = await client
       .from('vendors')
       .insert(vendor)
       .select();
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
     console.log('Vendor added:', data);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
@@ -1053,11 +1063,11 @@ async function addVendor(vendor) {
     loadVendors();
     populateVendorDropdown();
   } catch (error) {
-    console.error('Error adding vendor:', error.message);
+    console.error('Error adding vendor:', error.message, error.details);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加供應商失敗：${error.message}` : `Failed to add vendor: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加供應商失敗：${error.message}` : `Failed to add vendor: ${error.message}`}${error.details ? ` - ${error.details}` : ''}`;
       clearMessage('error');
     }
   } finally {
