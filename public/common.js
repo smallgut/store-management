@@ -57,12 +57,12 @@ const translations = {
     'nav-manage-products': '管理產品',
     'nav-manage-vendors': '管理供應商',
     'nav-record-customer-sales': '記錄客戶銷售',
-    'nav-vendor-loan-record': '供應商貸貨記錄',
+    'nav-vendor-loan-record': '供應商貸款記錄',
     'toggle-language': '切換語言',
     'home-welcome': '歡迎來到首頁！',
     'manage-products-welcome': '歡迎來到管理產品！',
     'manage-vendors-welcome': '歡迎來到管理供應商！',
-    'vendor-loan-record-welcome': '歡迎來到供應商貸貨記錄！',
+    'vendor-loan-record-welcome': '歡迎來到供應商貸款記錄！',
     'record-customer-sales': '記錄客戶銷售',
     'add-customer-sale': '添加客戶銷售',
     'select-product': '選擇產品（或輸入條碼）',
@@ -86,10 +86,10 @@ const translations = {
     'vendor-contact': '供應商聯繫方式',
     'manage-products': '管理產品',
     'manage-vendors': '管理供應商',
-    'add-loan-record': '添加貸貨記錄',
+    'add-loan-record': '添加貸款記錄',
     'loan-amount': '貸款金額',
     'loan-date': '貸款日期',
-    'vendor-loan': '供應商貸貨',
+    'vendor-loan': '供應商貸款',
     'no-products-found': '未找到產品。',
     'no-vendors-found': '未找到供應商。',
     'no-loan-records-found': '未找到貸款記錄。',
@@ -98,7 +98,7 @@ const translations = {
     'delete-confirm': '刪除此記錄？',
     'update': '更新',
     'sub-total': '小計',
-    'add-loan': '添加貸貨',
+    'add-loan': '添加貸款',
     'on-hand-stock': '現有庫存'
   }
 };
@@ -679,7 +679,7 @@ async function addLoanRecord() {
 
     console.log('Loan record added:', newLoan);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record added successfully'}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸款記錄添加成功' : 'Loan record added successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
@@ -687,7 +687,7 @@ async function addLoanRecord() {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸款記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -982,15 +982,11 @@ async function deleteProduct(productId) {
   }
 }
 
-function handleAddVendor(event) {
-  event.preventDefault(); // Prevent default form submission
-  console.log('Handling add vendor...');
+function handleAddVendor() {
   const name = document.getElementById('vendor-name')?.value;
-  const phoneNumber = document.getElementById('phone-number')?.value;
-  const contactEmail = document.getElementById('contact-email')?.value || null;
-  const address = document.getElementById('address')?.value || null;
+  const contact = document.getElementById('vendor-contact')?.value;
 
-  if (!name || !phoneNumber) {
+  if (!name || !contact) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -1000,8 +996,48 @@ function handleAddVendor(event) {
     return;
   }
 
-  const vendor = { name, phone_number: phoneNumber, contact_email: contactEmail, address: address };
+  const vendor = { name, contact };
   addVendor(vendor);
+}
+
+async function loadVendors() {
+  console.log('Loading vendors...');
+  try {
+    const client = await ensureSupabaseClient();
+    setLoading(true);
+    const { data: vendors, error } = await client
+      .from('vendors')
+      .select('*')
+      .order('name');
+    if (error) throw error;
+    console.log('Vendors:', vendors);
+    const vendorsBody = document.querySelector('#vendors-table tbody');
+    if (vendorsBody) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      vendorsBody.innerHTML = vendors.length
+        ? vendors.map(v => `
+            <tr>
+              <td class="border p-2">${v.name}</td>
+              <td class="border p-2">${v.contact}</td>
+              <td class="border p-2">
+                <button onclick="handleDeleteVendor('${v.id}')" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+              </td>
+            </tr>
+          `).join('')
+        : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
+      applyTranslations();
+    }
+  } catch (error) {
+    console.error('Error loading vendors:', error.message);
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商：${error.message}` : `Failed to load vendors: ${error.message}`}`;
+      clearMessage('error');
+    }
+  } finally {
+    setLoading(false);
+  }
 }
 
 async function addVendor(vendor) {
@@ -1032,7 +1068,6 @@ async function addVendor(vendor) {
     setLoading(false);
   }
 }
-
 
 function handleDeleteVendor(vendorId) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
