@@ -1101,3 +1101,12 @@ async function deleteVendor(vendorId) {
     setLoading(false);
   }
 }
+
+// Add event listener when the DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('add-vendor-form');
+  if (form) {
+    form.addEventListener('submit', handleAddVendor);
+  }
+  loadVendors(); // Load vendors on page load
+});
