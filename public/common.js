@@ -1020,10 +1020,11 @@ function handleAddVendor(event) {
     return;
   }
 
-  // Dynamically construct vendor object based on schema
-  const vendor = { name, contact_email: contact };
+  // Dynamically construct vendor object with flexible contact
+  const vendor = { name, contact }; // Store contact as is, adjust if Supabase schema requires specific field
   if (supabaseClient) {
-    // Only include address and phone_number if they exist in the schema
+    // Adjust based on Supabase schema; if 'contact_email' is required, map 'contact' to it
+    vendor.contact_email = contact; // Assuming 'contact_email' is the field name in Supabase
     vendor.address = null;
     vendor.phone_number = null;
   }
