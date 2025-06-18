@@ -1154,4 +1154,8 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', handleAddVendor);
   }
   loadVendors(); // Load vendors on page load
+  const toggleButton = document.getElementById('toggle-language');
+  if (toggleButton) {
+    toggleButton.addEventListener('click', toggleLanguage);
+  }
 });

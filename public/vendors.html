@@ -1,54 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manage Vendors</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Add Supabase Client Library -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script type="module" src="common.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Vendors</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="common.js"></script>
+    <script src="https://supabase.com/dashboard/project/aouduygmcspiqauhrabx/settings/api" defer></script>
 </head>
-<body id="lang-body" class="p-4">
-  <nav class="mb-4">
-    <a href="#" data-lang-key="nav-home" class="mr-4">Home</a>
-    <a href="#" data-lang-key="nav-analytics" class="mr-4">Analytics</a>
-    <a href="#" data-lang-key="nav-manage-products" class="mr-4">Manage Products</a>
-    <a href="#" data-lang-key="nav-manage-vendors" class="mr-4">Manage Vendors</a>
-    <a href="#" data-lang-key="nav-record-customer-sales" class="mr-4">Record Customer Sales</a>
-    <a href="#" data-lang-key="nav-vendor-loan-record" class="mr-4">Vendor Loan Record</a>
-  </nav>
+<body id="lang-body" class="lang-en">
+    <nav class="bg-gray-800 text-white p-4">
+        <ul class="flex space-x-4">
+            <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
+            <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
+            <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
+            <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+            <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+            <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+        </ul>
+    </nav>
 
-  <h1 data-lang-key="manage-vendors-welcome" class="text-2xl mb-4">Welcome to Manage Vendors!</h1>
-  <button onclick="toggleLanguage()" data-lang-key="toggle-language" class="mb-4 bg-blue-500 text-white p-2 rounded">Toggle Language</button>
+    <h1 data-lang-key="manage-vendors-welcome" class="text-2xl font-bold mt-4 ml-4">Welcome to Manage Vendors!</h1>
 
-  <h2 data-lang-key="add-vendor" class="text-xl mt-6 mb-2">Add Vendor</h2>
-  <form id="add-vendor-form" class="mb-4">
-    <div class="mb-2">
-      <label data-lang-key="vendor-name" class="block">Vendor Name</label>
-      <input type="text" id="vendor-name" class="border p-1 w-full" required>
-    </div>
-    <div class="mb-2">
-      <label data-lang-key="vendor-contact" class="block">Vendor Contact</label>
-      <input type="text" id="vendor-contact" class="border p-1 w-full" required>
-    </div>
-    <button type="submit" data-lang-key="add-vendor" class="bg-green-500 text-white p-2 rounded">Add Vendor</button>
-  </form>
+    <button id="toggle-language" class="mt-4 ml-4 bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Toggle Language</button>
 
-  <h2 data-lang-key="manage-vendors" class="text-xl mt-6 mb-2">Manage Vendors</h2>
-  <table id="vendors-table" class="w-full border-collapse border">
-    <thead>
-      <tr>
-        <th data-lang-key="vendor-name" class="border p-2">Vendor Name</th>
-        <th data-lang-key="vendor-contact" class="border p-2">Vendor Contact</th>
-        <th data-lang-key="actions" class="border p-2">Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <h2 data-lang-key="add-vendor" class="text-xl font-semibold mt-4 ml-4">Add Vendor</h2>
+    <form id="add-vendor-form" class="mt-2 ml-4">
+        <div>
+            <label for="vendor-name" data-lang-key="vendor-name" class="block">Vendor Name</label>
+            <input type="text" id="vendor-name" name="vendor-name" class="border p-2 mt-1 w-64" required>
+        </div>
+        <div class="mt-2">
+            <label for="vendor-contact" data-lang-key="vendor-contact" class="block">Vendor Contact</label>
+            <input type="email" id="vendor-contact" name="vendor-contact" class="border p-2 mt-1 w-64" required>
+        </div>
+        <button type="submit" data-lang-key="add-vendor" class="mt-4 bg-green-500 text-white p-2 rounded hover:bg-green-600">Add Vendor</button>
+    </form>
 
-  <div id="loading" style="display:none;" class="mt-4">Loading...</div>
-  <div id="error" class="text-red-500 mt-2"></div>
-  <div id="message" class="text-green-500 mt-2"></div>
+    <h2 data-lang-key="manage-vendors" class="text-xl font-semibold mt-4 ml-4">Manage Vendors</h2>
+    <table id="vendors-table" class="mt-2 ml-4 border-collapse border border-gray-300">
+        <thead>
+            <tr>
+                <th data-lang-key="vendor-name" class="border p-2">Vendor Name</th>
+                <th data-lang-key="vendor-contact" class="border p-2">Vendor Contact</th>
+                <th data-lang-key="actions" class="border p-2">Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div id="loading" class="mt-4 ml-4" style="display:none;">Loading...</div>
+    <div id="message" class="mt-2 ml-4 text-green-500"></div>
+    <div id="error" class="mt-2 ml-4 text-red-500"></div>
 </body>
 </html>
