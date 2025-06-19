@@ -1,106 +1,121 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manage Products</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="common.js" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Products</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="common.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
-<body id="lang-body" class="p-4">
-  <!-- Navigation -->
-  <nav class="bg-gray-800 text-white p-4 mb-4">
-    <ul class="flex space-x-4">
-      <li><a href="index.html" class="hover:underline" data-lang-key="nav-home">Home</a></li>
-      <li><a href="analytics.html" class="hover:underline" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" class="hover:underline" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" class="hover:underline" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-    </ul>
-  </nav>
+<body id="lang-body" class="lang-en">
+    <nav class="bg-gray-800 text-white p-4">
+        <ul class="flex space-x-4">
+            <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
+            <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
+            <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
+            <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+            <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+            <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+        </ul>
+    </nav>
 
-  <!-- Header and Language Toggle -->
-  <div class="flex justify-between items-center mb-4">
-    <h1 class="text-2xl font-bold" data-lang-key="nav-manage-products">Manage Products</h1>
-    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
-  </div>
+    <div class="flex justify-between items-center mt-4 ml-4 mr-4">
+        <h1 data-lang-key="manage-products-welcome" class="text-2xl font-bold">Welcome to Manage Products!</h1>
+        <button id="toggle-language" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
+    </div>
 
-  <!-- Add Product Form -->
-  <div class="p-4">
-    <h2 class="text-xl font-bold mb-4" data-lang-key="add-product">Add Product</h2>
-    <form id="add-product-form" onsubmit="event.preventDefault(); handleAddProduct();">
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="product-barcode">Product Barcode</label>
-        <input type="text" id="product-barcode" class="border p-2 w-full" required>
-      </div>
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="product-name">Product Name</label>
-        <input type="text" id="product-name" class="border p-2 w-full" required>
-      </div>
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="stock">Stock</label>
-        <input type="number" id="stock" class="border p-2 w-full" required>
-      </div>
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="batch-no">Batch No.</label>
-        <input type="text" id="batch-no" class="border p-2 w-full" readonly>
-      </div>
-      <div class="mb-4">
-        <label class="block mb-1" data-lang-key="buy-in-price">Buy-In Price</label>
-        <input type="number" id="buy-in-price" class="border p-2 w-full" step="0.01" required>
-      </div>
-      <button type="submit" class="bg-green-500 text-white p-2 rounded hover:bg-green-600" data-lang-key="add-product">Add Product</button>
+    <h2 data-lang-key="add-product" class="text-xl font-semibold mt-4 ml-4">Add Product</h2>
+    <form id="add-product-form" class="mt-2 ml-4">
+        <div>
+            <label for="product-barcode" data-lang-key="product-barcode" class="block">Product Barcode</label>
+            <input type="text" id="product-barcode" name="product-barcode" class="border p-2 mt-1 w-64" required>
+        </div>
+        <div class="mt-2">
+            <label for="product-name" data-lang-key="product-name" class="block">Product Name</label>
+            <input type="text" id="product-name" name="product-name" class="border p-2 mt-1 w-64" required>
+        </div>
+        <div class="mt-2">
+            <label for="stock" data-lang-key="stock" class="block">Stock</label>
+            <input type="number" id="stock" name="stock" class="border p-2 mt-1 w-64" required>
+        </div>
+        <div class="mt-2">
+            <label for="buy-in-price" data-lang-key="buy-in-price" class="block">Buy-In Price</label>
+            <input type="number" step="0.01" id="buy-in-price" name="buy-in-price" class="border p-2 mt-1 w-64" required>
+        </div>
+        <button type="submit" data-lang-key="add-product" class="mt-4 bg-green-500 text-white p-2 rounded hover:bg-green-600">Add Product</button>
     </form>
-  </div>
 
-  <!-- Products Table -->
-  <div class="p-4">
-    <h2 class="text-xl font-bold mb-4" data-lang-key="manage-products">Manage Products</h2>
-    <table id="products-table" class="w-full border-collapse border">
-      <thead>
-        <tr>
-          <th class="border p-2" data-lang-key="product-barcode">Product Barcode</th>
-          <th class="border p-2" data-lang-key="product-name">Product Name</th>
-          <th class="border p-2" data-lang-key="stock">Stock</th>
-          <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
-          <th class="border p-2" data-lang-key="buy-in-price">Buy-In Price</th>
-          <th class="border p-2" data-lang-key="inventory-value">Inventory Value</th>
-          <th class="border p-2" data-lang-key="actions">Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
+    <h2 data-lang-key="manage-products" class="text-xl font-semibold mt-4 ml-4">Manage Products</h2>
+    <table id="products-table" class="mt-2 ml-4 border-collapse border border-gray-300">
+        <thead>
+            <tr>
+                <th data-lang-key="product-barcode" class="border p-2">Product Barcode</th>
+                <th data-lang-key="product-name" class="border p-2">Product Name</th>
+                <th data-lang-key="stock" class="border p-2">Stock</th>
+                <th data-lang-key="batch-no" class="border p-2">Batch No.</th>
+                <th data-lang-key="buy-in-price" class="border p-2">Buy-In Price</th>
+                <th data-lang-key="inventory-value" class="border p-2">Inventory Value</th>
+                <th data-lang-key="actions" class="border p-2">Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
     </table>
-  </div>
 
-  <div id="loading" class="hidden text-center p-4">Loading...</div>
-  <div id="message" class="text-green-500 text-center p-2"></div>
-  <div id="error" class="text-red-500 text-center p-2"></div>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      loadProducts();
-      const batchNo = getGMT8Date();
-      document.getElementById('batch-no').value = batchNo;
-      // Observe changes to message and error elements for debugging
-      const messageEl = document.getElementById('message');
-      const errorEl = document.getElementById('error');
-      new MutationObserver((mutations) => {
-        mutations.forEach(mutation => {
-          if (mutation.target.textContent) {
-            console.log(`${mutation.target.id.toUpperCase()}: ${mutation.target.textContent}`);
-          }
-        });
-      }).observe(messageEl, { childList: true });
-      new MutationObserver((mutations) => {
-        mutations.forEach(mutation => {
-          if (mutation.target.textContent) {
-            console.log(`${mutation.target.id.toUpperCase()}: ${mutation.target.textContent}`);
-          }
-        });
-      }).observe(errorEl, { childList: true });
-    });
-  </script>
+    <div id="loading" class="mt-4 ml-4" style="display:none;">Loading...</div>
+    <div id="message" class="mt-2 ml-4 text-green-500"></div>
+    <div id="error" class="mt-2 ml-4 text-red-500"></div>
 </body>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('add-product-form');
+    if (form) {
+        form.addEventListener('submit', handleAddProduct);
+    }
+    loadProducts(); // Ensure this is called
+    const toggleButton = document.getElementById('toggle-language');
+    if (toggleButton) {
+        toggleButton.addEventListener('click', toggleLanguage);
+    }
+});
+</script>
 </html>

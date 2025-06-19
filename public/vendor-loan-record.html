@@ -1,80 +1,139 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vendor Loan Record</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Loan Record</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="common.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
-<body id="lang-body" class="p-4">
-  <!-- Navigation -->
-  <nav class="bg-gray-800 text-white p-4 mb-4">
-    <ul class="flex space-x-4">
-      <li><a href="index.html" class="hover:underline" data-lang-key="nav-home">Home</a></li>
-      <li><a href="analytics.html" class="hover:underline" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" class="hover:underline" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" class="hover:underline" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" class="hover:underline" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" class="hover:underline" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-    </ul>
-  </nav>
+<body id="lang-body" class="lang-en">
+    <nav class="bg-gray-800 text-white p-4">
+        <ul class="flex space-x-4">
+            <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
+            <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
+            <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
+            <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+            <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+            <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+        </ul>
+    </nav>
 
-  <!-- Header and Language Toggle -->
-  <div class="flex justify-between items-center mb-4">
-    <h1 class="text-2xl font-bold" data-lang-key="nav-analytics">Analytics</h1>
-    <button onclick="toggleLanguage()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
-  </div>
-  <div class="container mx-auto p-4">
-    <h1 data-lang-key="vendor-loan-record-welcome" class="text-2xl mb-4">Vendor Loan Record</h1>
-    <div id="error" class="text-red-500 mb-4"></div>
-    <div id="message" class="text-green-500 mb-4"></div>
-    <div id="loading" class="hidden text-blue-500 mb-4">Loading...</div>
-    <div class="mb-4">
-      <h2 data-lang-key="add-loan-record" class="text-xl mb-2">Add Loan Record</h2>
-      <form onsubmit="event.preventDefault(); addLoanRecord(); console.log('Form submitted');" class="flex flex-wrap gap-2">
-        <select id="vendor-name" data-lang-key="vendor-name" class="border p-2">
-          <option value="">-- Select Vendor --</option>
-        </select>
-        <select id="product-select" data-lang-key="select-product" class="border p-2">
-          <option value="">-- Select a Product --</option>
-        </select>
-        <input id="product-barcode" type="text" data-lang-key="product-barcode" placeholder="Product Barcode" class="border p-2">
-        <select id="batch-no" data-lang-key="batch-no" class="border p-2">
-          <option value="">-- Select Batch No. --</option>
-        </select>
-        <input id="quantity" type="number" min="1" data-lang-key="quantity" placeholder="Quantity" class="border p-2">
-        <input id="selling-price" type="number" step="0.01" min="0" data-lang-key="selling-price" placeholder="Selling Price" class="border p-2">
-        <input id="loan-date" type="date" data-lang-key="loan-date" class="border p-2">
-        <button type="submit" data-lang-key="add-loan" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">Add Loan</button>
-      </form>
-      <div id="stock-display" class="mt-2"></div>
+    <div class="flex justify-between items-center mt-4 ml-4 mr-4">
+        <h1 data-lang-key="vendor-loan-record-welcome" class="text-2xl font-bold">Welcome to Vendor Loan Record!</h1>
+        <button id="toggle-language" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
     </div>
-    <h2 data-lang-key="vendor-loan" class="text-xl mb-2">Vendor Loan</h2>
-    <table id="loan-records-table" class="w-full border-collapse">
-      <thead>
-        <tr class="bg-gray-200">
-          <th class="border p-2" data-lang-key="vendor-name">Vendor Name</th>
-          <th class="border p-2" data-lang-key="product-name">Product Name</th>
-          <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
-          <th class="border p-2" data-lang-key="quantity">Quantity</th>
-          <th class="border p-2" data-lang-key="selling-price">Selling Price</th>
-          <th class="border p-2" data-lang-key="loan-date">Loan Date</th>
-          <th class="border p-2" data-lang-key="actions">Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
+
+    <h2 data-lang-key="add-loan-record" class="text-xl font-semibold mt-4 ml-4">Add Loan Record</h2>
+    <form id="add-loan-record-form" class="mt-2 ml-4">
+        <div>
+            <label for="vendor-name" data-lang-key="vendor-name" class="block">Vendor Name</label>
+            <select id="vendor-name" name="vendor-name" class="border p-2 mt-1 w-64" required>
+                <option value="">-- Select Vendor --</option>
+            </select>
+        </div>
+        <div>
+            <label for="product-select" data-lang-key="select-product" class="block">Select Product (or input barcode)</label>
+            <select id="product-select" name="product-select" class="border p-2 mt-1 w-64" required>
+                <option value="">-- Select a Product --</option>
+            </select>
+            <input type="text" id="product-barcode" name="product-barcode" class="border p-2 mt-1 w-64" placeholder="Or enter barcode">
+        </div>
+        <div class="mt-2">
+            <label for="batch-no" data-lang-key="batch-no" class="block">Batch No.</label>
+            <select id="batch-no" name="batch-no" class="border p-2 mt-1 w-64" required>
+                <option value="">-- Select Batch No. --</option>
+            </select>
+        </div>
+        <div class="mt-2">
+            <label for="quantity" data-lang-key="quantity" class="block">Quantity</label>
+            <input type="number" id="quantity" name="quantity" class="border p-2 mt-1 w-64" required>
+        </div>
+        <div class="mt-2">
+            <label for="selling-price" data-lang-key="selling-price" class="block">Selling Price</label>
+            <input type="number" step="0.01" id="selling-price" name="selling-price" class="border p-2 mt-1 w-64" required>
+        </div>
+        <div class="mt-2">
+            <label for="loan-date" data-lang-key="loan-date" class="block">Loan Date</label>
+            <input type="date" id="loan-date" name="loan-date" class="border p-2 mt-1 w-64" required>
+        </div>
+        <button type="submit" data-lang-key="add-loan" class="mt-4 bg-green-500 text-white p-2 rounded hover:bg-green-600">Add Loan</button>
+    </form>
+
+    <h2 data-lang-key="vendor-loan" class="text-xl font-semibold mt-4 ml-4">Vendor Loan</h2>
+    <table id="loan-records-table" class="mt-2 ml-4 border-collapse border border-gray-300">
+        <thead>
+            <tr>
+                <th data-lang-key="vendor-name" class="border p-2">Vendor Name</th>
+                <th data-lang-key="product-name" class="border p-2">Product Name</th>
+                <th data-lang-key="batch-no" class="border p-2">Batch No.</th>
+                <th data-lang-key="quantity" class="border p-2">Quantity</th>
+                <th data-lang-key="selling-price" class="border p-2">Selling Price</th>
+                <th data-lang-key="loan-date" class="border p-2">Loan Date</th>
+                <th data-lang-key="actions" class="border p-2">Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
     </table>
-  </div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="common.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log('DOM fully loaded and parsed');
-      applyTranslations();
-      populateProductDropdown();
-      populateVendorDropdown();
-      loadLoanRecords();
-    });
-  </script>
+
+    <div id="stock-display" class="mt-2 ml-4"></div>
+    <div id="loading" class="mt-4 ml-4" style="display:none;">Loading...</div>
+    <div id="message" class="mt-2 ml-4 text-green-500"></div>
+    <div id="error" class="mt-2 ml-4 text-red-500"></div>
 </body>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('add-loan-record-form');
+    if (form) {
+        form.addEventListener('submit', addLoanRecord);
+    }
+    loadLoanRecords(); // Ensure this is called
+    populateProductDropdown(); // Initialize dropdown
+    populateVendorDropdown(); // Initialize dropdown
+    const toggleButton = document.getElementById('toggle-language');
+    if (toggleButton) {
+        toggleButton.addEventListener('click', toggleLanguage);
+    }
+});
+</script>
 </html>
