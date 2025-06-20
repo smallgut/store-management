@@ -116,18 +116,18 @@ const translations = {
 };
 
 function applyTranslations() {
-  console.log('Applying translations...');
+  console.log('Applying translations...', new Date().toISOString());
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
   const lang = isChinese ? 'zh' : 'en';
   document.querySelectorAll('[data-lang-key]').forEach(element => {
     const key = element.getAttribute('data-lang-key');
     element.textContent = translations[lang][key] || element.textContent;
   });
-  console.log('Applied translations for:', lang);
+  console.log('Applied translations for:', lang, new Date().toISOString());
 }
 
 function toggleLanguage() {
-  console.log('Toggling language...');
+  console.log('Toggling language...', new Date().toISOString());
   const body = document.getElementById('lang-body');
   if (body) {
     body.classList.toggle('lang-zh');
@@ -142,14 +142,14 @@ function toggleLanguage() {
 
 function getGMT8Date() {
   const date = new Date();
-  date.setHours(date.getHours() + 8);
+  date.setHours(date.getHours() + 8); // Adjust to GMT+8 (e.g., 7:06 AM SGT, June 21, 2025)
   const today = date.toISOString().slice(0, 10).split('-');
   return `${today[2]}${today[1]}${today[0].slice(-2)}`;
 }
 
 async function ensureSupabaseClient() {
   try {
-    console.log('Ensuring Supabase client...');
+    console.log('Ensuring Supabase client...', new Date().toISOString());
     if (!('supabase' in window)) {
       throw new Error('Supabase library not loaded');
     }
@@ -158,11 +158,11 @@ async function ensureSupabaseClient() {
         'https://aouduygmcspiqauhrabx.supabase.co',
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
       );
-      console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient));
+      console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient), new Date().toISOString());
     }
     return supabaseClient;
   } catch (error) {
-    console.error('Error initializing Supabase client:', error.message);
+    console.error('Error initializing Supabase client:', error.message, new Date().toISOString());
     throw error;
   }
 }
@@ -183,7 +183,7 @@ function clearMessage(type) {
 
 function handleAddCustomerSale(event) {
   event.preventDefault();
-  console.log('Handling add customer sale...');
+  console.log('Handling add customer sale...', new Date().toISOString());
   const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
   const batchNo = String(document.getElementById('batch-no')?.value || '');
   const customerName = document.getElementById('customer-name')?.value || '';
@@ -212,14 +212,14 @@ function handleAddCustomerSale(event) {
 
 function handleDeleteSale(saleId, productBarcode, quantity) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-  console.log('Sale ID:', saleId, 'Product Barcode:', productBarcode, 'Quantity:', quantity);
+  console.log('Sale ID:', saleId, 'Product Barcode:', productBarcode, 'Quantity:', quantity, new Date().toISOString());
   if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
     deleteCustomerSale(saleId, productBarcode, quantity);
   }
 }
 
 async function populateProductDropdown(barcodeInput = null) {
-  console.log('Populating product dropdown...');
+  console.log('Populating product dropdown...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     const { data: products, error: productError } = await client
@@ -228,7 +228,7 @@ async function populateProductDropdown(barcodeInput = null) {
       .order('name');
     if (productError) throw productError;
 
-    console.log('Products for dropdown:', products);
+    console.log('Products for dropdown:', products, new Date().toISOString());
 
     const productSelect = document.getElementById('product-select');
     const batchNoSelect = document.getElementById('batch-no');
@@ -236,7 +236,7 @@ async function populateProductDropdown(barcodeInput = null) {
     const stockDisplay = document.getElementById('stock-display');
 
     if (!productSelect || !batchNoSelect || !productBarcodeInput || !stockDisplay) {
-      console.error('One or more dropdown elements not found:', { productSelect, batchNoSelect, productBarcodeInput, stockDisplay });
+      console.error('One or more dropdown elements not found:', { productSelect, batchNoSelect, productBarcodeInput, stockDisplay }, new Date().toISOString());
       return;
     }
 
@@ -260,9 +260,9 @@ async function populateProductDropdown(barcodeInput = null) {
     });
 
     const updateSelection = (inputBarcode = null) => {
-      console.log('Updating selection with barcode:', inputBarcode);
+      console.log('Updating selection with barcode:', inputBarcode, new Date().toISOString());
       if (!productSelect || !batchNoSelect || !productBarcodeInput || !stockDisplay) {
-        console.error('DOM elements missing during update:', { productSelect, batchNoSelect, productBarcodeInput, stockDisplay });
+        console.error('DOM elements missing during update:', { productSelect, batchNoSelect, productBarcodeInput, stockDisplay }, new Date().toISOString());
         return;
       }
       const inputValue = inputBarcode || productSelect.value || productBarcodeInput.value;
@@ -316,7 +316,7 @@ async function populateProductDropdown(barcodeInput = null) {
     productBarcodeInput.addEventListener('input', () => updateSelection(productBarcodeInput.value));
     setTimeout(() => updateSelection(barcodeInput), 100);
   } catch (error) {
-    console.error('Error populating product dropdown:', error.message);
+    console.error('Error populating product dropdown:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -327,7 +327,7 @@ async function populateProductDropdown(barcodeInput = null) {
 }
 
 async function populateVendorDropdown() {
-  console.log('Populating vendor dropdown...');
+  console.log('Populating vendor dropdown...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     const { data: vendors, error: vendorError } = await client
@@ -336,11 +336,11 @@ async function populateVendorDropdown() {
       .order('name');
     if (vendorError) throw vendorError;
 
-    console.log('Vendors for dropdown:', vendors);
+    console.log('Vendors for dropdown:', vendors, new Date().toISOString());
 
     const vendorSelect = document.getElementById('vendor-name');
     if (!vendorSelect) {
-      console.error('Vendor select element not found');
+      console.error('Vendor select element not found', new Date().toISOString());
       return;
     }
 
@@ -364,7 +364,7 @@ async function populateVendorDropdown() {
       vendorSelect.dispatchEvent(new Event('change'));
     }, 100);
   } catch (error) {
-    console.error('Error populating vendor dropdown:', error.message);
+    console.error('Error populating vendor dropdown:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -375,7 +375,7 @@ async function populateVendorDropdown() {
 }
 
 async function loadCustomerSales() {
-  console.log('Loading customer sales...');
+  console.log('Loading customer sales...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -398,7 +398,7 @@ async function loadCustomerSales() {
       .order('sale_date', { ascending: false });
     if (error) throw error;
 
-    console.log('Customer Sales:', sales);
+    console.log('Customer Sales:', sales, new Date().toISOString());
     const salesBody = document.querySelector('#customer-sales tbody');
     if (salesBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -437,7 +437,7 @@ async function loadCustomerSales() {
       });
     }
   } catch (error) {
-    console.error('Error loading customer sales:', error.message);
+    console.error('Error loading customer sales:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -450,11 +450,11 @@ async function loadCustomerSales() {
 }
 
 async function addCustomerSale(sale) {
-  console.log('Adding customer sale...', sale);
+  console.log('Adding customer sale...', sale, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
-    console.log('Sale data to insert:', sale);
+    console.log('Sale data to insert:', sale, new Date().toISOString());
 
     const batchNo = sale.batch_no === 'NO_BATCH' ? null : sale.batch_no;
     const { data: product, error: productError } = await client
@@ -490,13 +490,13 @@ async function addCustomerSale(sale) {
       .eq('id', product.id);
     if (updateError) throw updateError;
 
-    console.log('Customer sale added:', newSale);
+    console.log('Customer sale added:', newSale, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '客戶銷售添加成功' : 'Customer sale added successfully'}`;
     clearMessage('message');
     loadCustomerSales();
   } catch (error) {
-    console.error('Error adding customer sale:', error.message);
+    console.error('Error adding customer sale:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -509,7 +509,7 @@ async function addCustomerSale(sale) {
 }
 
 async function deleteCustomerSale(saleId, productBarcode, quantity) {
-  console.log('Deleting customer sale...', { saleId, productBarcode, quantity });
+  console.log('Deleting customer sale...', { saleId, productBarcode, quantity }, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -550,13 +550,13 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
       .eq('id', product.id);
     if (updateError) throw updateError;
 
-    console.log('Customer sale deleted:', saleId);
+    console.log('Customer sale deleted:', saleId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '客戶銷售刪除成功' : 'Customer sale deleted successfully'}`;
     clearMessage('message');
     loadCustomerSales();
   } catch (error) {
-    console.error('Error deleting customer sale:', error.message);
+    console.error('Error deleting customer sale:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -569,7 +569,7 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
 }
 
 async function loadLoanRecords() {
-  console.log('Loading loan records...');
+  console.log('Loading loan records...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -593,7 +593,7 @@ async function loadLoanRecords() {
       .order('date', { ascending: false });
     if (error) throw error;
 
-    console.log('Vendor Loans:', loans);
+    console.log('Vendor Loans:', loans, new Date().toISOString());
     const loansBody = document.querySelector('#loan-records-table tbody');
     if (loansBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -621,7 +621,7 @@ async function loadLoanRecords() {
       });
     }
   } catch (error) {
-    console.error('Error loading loan records:', error.message);
+    console.error('Error loading loan records:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -635,7 +635,7 @@ async function loadLoanRecords() {
 
 async function addLoanRecord(event) {
   event.preventDefault();
-  console.log('Adding loan record...');
+  console.log('Adding loan record...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -680,7 +680,7 @@ async function addLoanRecord(event) {
       selling_price: sellingPrice,
       date: new Date(loanDate).toISOString().replace('Z', '+08:00')
     };
-    console.log('Loan data to insert:', loan);
+    console.log('Loan data to insert:', loan, new Date().toISOString());
 
     const { data: newLoan, error } = await client
       .from('vendor_loans')
@@ -694,13 +694,13 @@ async function addLoanRecord(event) {
       .eq('id', product.id);
     if (updateError) throw updateError;
 
-    console.log('Loan record added:', newLoan);
+    console.log('Loan record added:', newLoan, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record added successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
-    console.error('Error adding loan record:', error.message);
+    console.error('Error adding loan record:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -720,7 +720,7 @@ function handleDeleteLoanRecord(loanId) {
 }
 
 async function deleteLoanRecord(loanId) {
-  console.log('Deleting loan record...', loanId);
+  console.log('Deleting loan record...', loanId, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -757,13 +757,13 @@ async function deleteLoanRecord(loanId) {
       .eq('id', product.id);
     if (updateError) throw updateError;
 
-    console.log('Loan record deleted:', loanId);
+    console.log('Loan record deleted:', loanId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record deleted successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
-    console.error('Error deleting loan record:', error.message);
+    console.error('Error deleting loan record:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -776,7 +776,7 @@ async function deleteLoanRecord(loanId) {
 }
 
 async function loadAnalytics() {
-  console.log('Loading analytics...');
+  console.log('Loading analytics...', new Date().toISOString());
   try {
     const form = document.getElementById('report-form');
     if (form) {
@@ -803,7 +803,7 @@ async function loadAnalytics() {
       });
     }
   } catch (error) {
-    console.error('Error setting up analytics:', error.message);
+    console.error('Error setting up analytics:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -815,7 +815,7 @@ async function loadAnalytics() {
 }
 
 async function generateProductReport(startDate, endDate) {
-  console.log('Generating product report...', { startDate, endDate });
+  console.log('Generating product report...', { startDate, endDate }, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -827,14 +827,14 @@ async function generateProductReport(startDate, endDate) {
 
     const { data: sales, error: salesError } = await client
       .from('customer_sales')
-      .select('product_id, quantity, sale_date, products (batch_no)')
+      .select('product_id, quantity, sale_date, products(batch_no)')
       .gte('sale_date', startDate)
       .lte('sale_date', endDate);
     if (salesError) throw salesError;
 
     const { data: loans, error: loansError } = await client
       .from('vendor_loans')
-      .select('product_id, quantity, date, products (batch_no)')
+      .select('product_id, quantity, date, products(batch_no)')
       .gte('date', startDate)
       .lte('date', endDate);
     if (loansError) throw loansError;
@@ -870,7 +870,7 @@ async function generateProductReport(startDate, endDate) {
       applyTranslations();
     }
   } catch (error) {
-    console.error('Error generating product report:', error.message);
+    console.error('Error generating product report:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -883,7 +883,7 @@ async function generateProductReport(startDate, endDate) {
 }
 
 async function generateVendorLoanReport(startDate, endDate) {
-  console.log('Generating vendor loan report...', { startDate, endDate });
+  console.log('Generating vendor loan report...', { startDate, endDate }, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -927,7 +927,7 @@ async function generateVendorLoanReport(startDate, endDate) {
       applyTranslations();
     }
   } catch (error) {
-    console.error('Error generating vendor loan report:', error.message);
+    console.error('Error generating vendor loan report:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -940,7 +940,7 @@ async function generateVendorLoanReport(startDate, endDate) {
 }
 
 async function loadProducts() {
-  console.log('Loading products...');
+  console.log('Loading products...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -949,7 +949,7 @@ async function loadProducts() {
       .select('id, barcode, name, stock, batch_no, price')
       .order('name');
     if (error) throw error;
-    console.log('Products:', products);
+    console.log('Products:', products, new Date().toISOString());
     const productsBody = document.querySelector('#products-table tbody');
     if (productsBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -990,7 +990,7 @@ async function loadProducts() {
       });
     }
   } catch (error) {
-    console.error('Error loading products:', error.message);
+    console.error('Error loading products:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -1002,8 +1002,30 @@ async function loadProducts() {
   }
 }
 
+function handleAddProduct(event) {
+  event.preventDefault();
+  console.log('Handling add product...', new Date().toISOString());
+  const barcode = document.getElementById('product-barcode')?.value;
+  const name = document.getElementById('product-name')?.value;
+  const stock = parseInt(document.getElementById('stock')?.value || '0');
+  const price = parseFloat(document.getElementById('buy-in-price')?.value || '0');
+
+  if (!barcode || !name || !stock || !price) {
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
+      clearMessage('error');
+    }
+    return;
+  }
+
+  const product = { barcode, name, stock, price, batch_no: getGMT8Date() };
+  addProduct(product);
+}
+
 async function addProduct(product) {
-  console.log('Adding product...', product);
+  console.log('Adding product...', product, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -1012,13 +1034,13 @@ async function addProduct(product) {
       .insert(product)
       .select();
     if (error) throw error;
-    console.log('Product added:', data);
+    console.log('Product added:', data, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品添加成功' : 'Product added successfully'}`;
     clearMessage('message');
     loadProducts();
   } catch (error) {
-    console.error('Error adding product:', error.message);
+    console.error('Error adding product:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -1048,7 +1070,7 @@ function handleUpdateProduct(productId, currentStock, currentPrice, currentBatch
 }
 
 async function updateProduct(productId, stock, price, batchNo) {
-  console.log('Updating product...', { productId, stock, price, batchNo });
+  console.log('Updating product...', { productId, stock, price, batchNo }, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -1058,13 +1080,13 @@ async function updateProduct(productId, stock, price, batchNo) {
       .eq('id', productId)
       .select();
     if (error) throw error;
-    console.log('Product updated:', data);
+    console.log('Product updated:', data, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品更新成功' : 'Product updated successfully'}`;
     clearMessage('message');
     loadProducts();
   } catch (error) {
-    console.error('Error updating product:', error.message);
+    console.error('Error updating product:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -1084,7 +1106,7 @@ function handleDeleteProduct(productId) {
 }
 
 async function deleteProduct(productId) {
-  console.log('Deleting product...', productId);
+  console.log('Deleting product...', productId, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -1093,13 +1115,13 @@ async function deleteProduct(productId) {
       .delete()
       .eq('id', productId);
     if (error) throw error;
-    console.log('Product deleted:', productId);
+    console.log('Product deleted:', productId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品刪除成功' : 'Product deleted successfully'}`;
     clearMessage('message');
     loadProducts();
   } catch (error) {
-    console.error('Error deleting product:', error.message);
+    console.error('Error deleting product:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -1113,11 +1135,11 @@ async function deleteProduct(productId) {
 
 function handleAddVendor(event) {
   event.preventDefault();
-  console.log('Handling add vendor...');
+  console.log('Handling add vendor...', new Date().toISOString());
   const name = document.getElementById('vendor-name')?.value;
   const contact = document.getElementById('vendor-contact')?.value;
 
-  console.log('Form data:', { name, contact });
+  console.log('Form data:', { name, contact }, new Date().toISOString());
 
   if (!name || !contact) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -1134,7 +1156,7 @@ function handleAddVendor(event) {
 }
 
 async function loadVendors() {
-  console.log('Loading vendors...');
+  console.log('Loading vendors...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -1143,7 +1165,7 @@ async function loadVendors() {
       .select('*')
       .order('name');
     if (error) throw error;
-    console.log('Vendors:', vendors);
+    console.log('Vendors:', vendors, new Date().toISOString());
     const vendorsBody = document.querySelector('#vendors-table tbody');
     if (vendorsBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -1167,7 +1189,7 @@ async function loadVendors() {
       });
     }
   } catch (error) {
-    console.error('Error loading vendors:', error.message);
+    console.error('Error loading vendors:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -1180,27 +1202,27 @@ async function loadVendors() {
 }
 
 async function addVendor(vendor) {
-  console.log('Adding vendor...', vendor);
+  console.log('Adding vendor...', vendor, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
-    console.log('Inserting vendor data into Supabase:', vendor);
+    console.log('Inserting vendor data into Supabase:', vendor, new Date().toISOString());
     const { data, error } = await client
       .from('vendors')
       .insert(vendor)
       .select();
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Supabase error:', error, new Date().toISOString());
       throw error;
     }
-    console.log('Vendor added:', data);
+    console.log('Vendor added:', data, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
     clearMessage('message');
     loadVendors();
     populateVendorDropdown();
   } catch (error) {
-    console.error('Error adding vendor:', error.message, error.details);
+    console.error('Error adding vendor:', error.message, error.details, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -1220,7 +1242,7 @@ function handleDeleteVendor(vendorId) {
 }
 
 async function deleteVendor(vendorId) {
-  console.log('Deleting vendor...', vendorId);
+  console.log('Deleting vendor...', vendorId, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -1229,14 +1251,14 @@ async function deleteVendor(vendorId) {
       .delete()
       .eq('id', vendorId);
     if (error) throw error;
-    console.log('Vendor deleted:', vendorId);
+    console.log('Vendor deleted:', vendorId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商刪除成功' : 'Vendor deleted successfully'}`;
     clearMessage('message');
     loadVendors();
     populateVendorDropdown();
   } catch (error) {
-    console.error('Error deleting vendor:', error.message);
+    console.error('Error deleting vendor:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -1249,6 +1271,7 @@ async function deleteVendor(vendorId) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM fully loaded and parsed', new Date().toISOString());
   const toggleButton = document.getElementById('toggle-language');
   if (toggleButton) {
     toggleButton.addEventListener('click', toggleLanguage);
