@@ -142,7 +142,7 @@ function toggleLanguage() {
 
 function getGMT8Date() {
   const date = new Date();
-  date.setHours(date.getHours() + 8); // Adjust to GMT+8 (e.g., 7:16 AM SGT, June 21, 2025)
+  date.setHours(date.getHours() + 8); // Adjust to GMT+8 (e.g., 7:55 AM SGT, June 21, 2025)
   const today = date.toISOString().slice(0, 10).split('-');
   return `${today[2]}${today[1]}${today[0].slice(-2)}`;
 }
@@ -822,7 +822,7 @@ async function generateProductReport(startDate, endDate) {
 
     const { data: products, error: productsError } = await client
       .from('products')
-      .select('id, name, priceasbuy_in_price, batch_no, stock');
+      .select('id, name, price as buy_in_price, batch_no, stock');
     if (productsError) throw productsError;
 
     const { data: sales, error: salesError } = await client
