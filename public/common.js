@@ -822,7 +822,7 @@ async function generateProductReport(startDate, endDate) {
 
     const { data: products, error: productsError } = await client
       .from('products')
-      .select('id, name, price as buy_in_price, batch_no, stock');
+      .select('id, name, priceasbuy_in_price, batch_no, stock');
     if (productsError) throw productsError;
 
     const { data: sales, error: salesError } = await client
