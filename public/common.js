@@ -156,7 +156,7 @@ async function ensureSupabaseClient() {
     if (!supabaseClient) {
       supabaseClient = supabase.createClient(
         'https://aouduygmcspiqauhrabx.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdwhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
       );
       console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient), new Date().toISOString());
     }
@@ -783,10 +783,10 @@ async function loadAnalytics() {
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         setLoading(true);
-        const startDate = document.getElementById('start-date').value;
-        const endDate = document.getElementById('end-date').value;
+        const startDateInput = document.getElementById('start-date').value;
+        const endDateInput = document.getElementById('end-date').value;
 
-        if (!startDate || !endDate) {
+        if (!startDateInput || !endDateInput) {
           const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
           const errorEl = document.getElementById('error');
           if (errorEl) {
@@ -796,6 +796,22 @@ async function loadAnalytics() {
           setLoading(false);
           return;
         }
+
+        // Validate DD/MM/YY format
+        const dateRegex = /^(\d{2})\/(\d{2})\/(\d{2})$/;
+        if (!dateRegex.test(startDateInput) || !dateRegex.test(endDateInput)) {
+          const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+          const errorEl = document.getElementById('error');
+          if (errorEl) {
+            errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '日期格式應為 DD/MM/YY (例如 13/06/25)' : 'Date format should be DD/MM/YY (e.g., 13/06/25)'}`;
+            clearMessage('error');
+          }
+          setLoading(false);
+          return;
+        }
+
+        const startDate = parseDate(startDateInput);
+        const endDate = parseDate(endDateInput);
 
         await generateProductReport(startDate, endDate);
         await generateVendorLoanReport(startDate, endDate);
@@ -812,6 +828,13 @@ async function loadAnalytics() {
     }
     setLoading(false);
   }
+}
+
+function parseDate(dateStr) {
+  const [day, month, year] = dateStr.split('/');
+  // Assume YY is 20YY for 2020-2029
+  const fullYear = `20${year}`;
+  return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
 async function generateProductReport(startDate, endDate) {
