@@ -5,68 +5,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module" src="common.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://supabase.co/supabase-js"></script>
+    <script src="common.js" defer></script>
 </head>
 <body id="lang-body" class="lang-en">
     <nav class="bg-gray-800 text-white p-4">
         <ul class="flex space-x-4">
-            <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
-            <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-            <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
-            <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-            <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-            <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+            <li><a href="#" data-lang-key="nav-home">Home</a></li>
+            <li><a href="#" data-lang-key="nav-analytics" class="font-bold">Analytics</a></li>
+            <li><a href="#" data-lang-key="nav-manage-products">Manage Products</a></li>
+            <li><a href="#" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+            <li><a href="#" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+            <li><a href="#" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
         </ul>
     </nav>
 
-    <div class="flex justify-between items-center mt-4 ml-4 mr-4">
+    <div class="p-4">
         <h1 data-lang-key="nav-analytics" class="text-2xl font-bold">Analytics</h1>
-        <button id="toggle-language" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600" data-lang-key="toggle-language">Toggle Language</button>
+        <button id="toggle-language" class="mt-2 bg-blue-500 text-white p-2 rounded" data-lang-key="toggle-language">Toggle Language</button>
+
+        <form id="report-form" class="mt-4">
+            <div class="flex space-x-4">
+                <div>
+                    <label data-lang-key="start-date" class="block">Start Date</label>
+                    <input type="text" id="start-date" pattern="\d{2}/\d{2}/\d{2}" placeholder="DD/MM/YY" title="Please enter date in DD/MM/YY format (e.g., 13/06/25)" class="border p-2 rounded" required>
+                </div>
+                <div>
+                    <label data-lang-key="end-date" class="block">End Date</label>
+                    <input type="text" id="end-date" pattern="\d{2}/\d{2}/\d{2}" placeholder="DD/MM/YY" title="Please enter date in DD/MM/YY format (e.g., 22/06/25)" class="border p-2 rounded" required>
+                </div>
+                <button type="submit" data-lang-key="generate-report" class="bg-green-500 text-white p-2 rounded">Generate Report</button>
+            </div>
+        </form>
+
+        <h2 data-lang-key="product-report" class="text-xl mt-4">Product Report</h2>
+        <table id="product-report-table" class="w-full mt-2 border-collapse border">
+            <thead>
+                <tr>
+                    <th data-lang-key="product-name" class="border p-2">Product Name</th>
+                    <th data-lang-key="batch-no" class="border p-2">Batch No.</th>
+                    <th data-lang-key="buy-in-price" class="border p-2">Buy-In Price</th>
+                    <th data-lang-key="original-stock-in" class="border p-2">Original Stock-In</th>
+                    <th data-lang-key="stock" class="border p-2">Stock</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h2 data-lang-key="vendor-loan-report" class="text-xl mt-4">Vendor Loan Report</h2>
+        <table id="vendor-loan-report-table" class="w-full mt-2 border-collapse border">
+            <thead>
+                <tr>
+                    <th data-lang-key="vendor-name" class="border p-2">Vendor Name</th>
+                    <th data-lang-key="product-name" class="border p-2">Product Name</th>
+                    <th data-lang-key="batch-no" class="border p-2">Batch No.</th>
+                    <th data-lang-key="quantity" class="border p-2">Quantity</th>
+                    <th data-lang-key="loan-date" class="border p-2">Loan Date</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <div id="loading" style="display:none;" class="mt-4 text-center">Loading...</div>
+        <div id="error" class="mt-2 text-red-500"></div>
+        <div id="message" class="mt-2 text-green-500"></div>
     </div>
-
-    <form id="report-form" class="mt-4 ml-4">
-        <div>
-            <label for="start-date" data-lang-key="start-date" class="block">Start Date</label>
-            <input type="date" id="start-date" name="start-date" class="border p-2 mt-1 w-64" required>
-        </div>
-        <div class="mt-2">
-            <label for="end-date" data-lang-key="end-date" class="block">End Date</label>
-            <input type="date" id="end-date" name="end-date" class="border p-2 mt-1 w-64" required>
-        </div>
-        <button type="submit" data-lang-key="generate-report" class="mt-4 bg-green-500 text-white p-2 rounded hover:bg-green-600">Generate Report</button>
-    </form>
-
-    <h2 data-lang-key="product-report" class="text-xl font-semibold mt-4 ml-4">Product Report</h2>
-    <table id="product-report-table" class="mt-2 ml-4 border-collapse border border-gray-300">
-        <thead>
-            <tr>
-                <th data-lang-key="product-name" class="border p-2">Product Name</th>
-                <th data-lang-key="batch-no" class="border p-2">Batch No.</th>
-                <th data-lang-key="price" class="border p-2">Buy-In Price</th>
-                <th data-lang-key="original-stock-in" class="border p-2">Original Stock-In</th>
-                <th data-lang-key="stock" class="border p-2">Stock</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <h2 data-lang-key="vendor-loan-report" class="text-xl font-semibold mt-4 ml-4">Vendor Loan Report</h2>
-    <table id="vendor-loan-report-table" class="mt-2 ml-4 border-collapse border border-gray-300">
-        <thead>
-            <tr>
-                <th data-lang-key="vendor-name" class="border p-2">Vendor Name</th>
-                <th data-lang-key="product-name" class="border p-2">Product Name</th>
-                <th data-lang-key="batch-no" class="border p-2">Batch No.</th>
-                <th data-lang-key="quantity" class="border p-2">Quantity</th>
-                <th data-lang-key="loan-date" class="border p-2">Loan Date</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <div id="loading" class="mt-4 ml-4" style="display:none;">Loading...</div>
-    <div id="message" class="mt-2 ml-4 text-green-500"></div>
-    <div id="error" class="mt-2 ml-4 text-red-500"></div>
 </body>
 </html>
