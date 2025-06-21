@@ -856,7 +856,7 @@ async function generateProductReport(startDate, endDate) {
           <tr>
             <td class="border p-2">${product.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
             <td class="border p-2">${product.batch_no || (isChinese ? '無' : 'N/A')}</td>
-            <td class="border p-2">${product.buy_in_price ? product.buy_in_price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
+            <td class="border p-2">${product.price ? product.price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
             <td class="border p-2">${originalStockIn}</td>
             <td class="border p-2">${product.stock}</td>
           </tr>
