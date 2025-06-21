@@ -820,11 +820,11 @@ async function generateProductReport(startDate, endDate) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
-    // Convert dates to YYMMDD format for batch_no filtering
+    // Convert dates to DDMMYY format for batch_no filtering
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const startBatch = `${start.getFullYear().toString().slice(-2)}${(start.getMonth() + 1).toString().padStart(2, '0')}${start.getDate().toString().padStart(2, '0')}`;
-    const endBatch = `${end.getFullYear().toString().slice(-2)}${(end.getMonth() + 1).toString().padStart(2, '0')}${end.getDate().toString().padStart(2, '0')}`;
+    const startBatch = `${start.getDate().toString().padStart(2, '0')}${String(start.getMonth() + 1).padStart(2, '0')}${start.getFullYear().toString().slice(-2)}`;
+    const endBatch = `${end.getDate().toString().padStart(2, '0')}${String(end.getMonth() + 1).padStart(2, '0')}${end.getFullYear().toString().slice(-2)}`;
 
     const { data: products, error: productsError } = await client
       .from('products')
