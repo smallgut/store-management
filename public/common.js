@@ -57,7 +57,9 @@ const translations = {
     'vendor-loan-report': 'Vendor Loan Report',
     'customer-sales-report': 'Customer Sales Report',
     'original-stock-in': 'Original Stock-In',
-    'all-customers': '-- All Customers --'
+    'all-customers': '-- All Customers --',
+    'all-vendors': '-- All Vendors --',
+    'unknown-vendor': 'Unknown Vendor'
   },
   zh: {
     'nav-home': '首頁',
@@ -115,7 +117,9 @@ const translations = {
     'vendor-loan-report': '供應商貸貨報告',
     'customer-sales-report': '客戶銷售報告',
     'original-stock-in': '原始入庫數量',
-    'all-customers': '-- 所有客戶 --'
+    'all-customers': '-- 所有客戶 --',
+    'all-vendors': '-- 所有供應商 --',
+    'unknown-vendor': '未知供應商'
   }
 };
 
@@ -355,11 +359,11 @@ async function populateVendorDropdown() {
 
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const lang = isChinese ? 'zh' : 'en';
-    vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
+    vendorSelect.innerHTML = `<option value="" data-lang-key="all-vendors">${translations[lang]['all-vendors']}</option>`;
 
     vendors.forEach(v => {
       const option = document.createElement('option');
-      option.value = v.id;
+      option.value = v.name;
       option.textContent = v.name;
       vendorSelect.appendChild(option);
     });
@@ -653,7 +657,7 @@ async function loadLoanRecords() {
       loansBody.innerHTML = loans.length
         ? loans.map(l => `
             <tr>
-              <td class="border p-2">${l.vendors?.name || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${l.vendors?.name || (isChinese ? '未知供應商' : 'Unknown Vendor')}</td>
               <td class="border p-2">${l.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
               <td class="border p-2">${l.batch_no || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.quantity || (isChinese ? '無' : 'N/A')}</td>
@@ -832,6 +836,7 @@ async function loadAnalytics() {
   console.log('Loading analytics...', new Date().toISOString());
   try {
     await populateCustomerDropdown();
+    await populateVendorDropdown();
     const form = document.getElementById('report-form');
     if (form) {
       form.addEventListener('submit', async (event) => {
@@ -840,6 +845,7 @@ async function loadAnalytics() {
         const startDate = document.getElementById('start-date').value;
         const endDate = document.getElementById('end-date').value;
         const customerName = document.getElementById('customer-name').value;
+        const vendorName = document.getElementById('vendor-name').value;
 
         if (!startDate || !endDate) {
           const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -853,7 +859,7 @@ async function loadAnalytics() {
         }
 
         await generateProductReport(startDate, endDate);
-        await generateVendorLoanReport(startDate, endDate, customerName);
+        await generateVendorLoanReport(startDate, endDate, vendorName);
         await generateCustomerSalesReport(startDate, endDate, customerName);
         setLoading(false);
       });
@@ -946,8 +952,8 @@ async function generateProductReport(startDate, endDate) {
   }
 }
 
-async function generateVendorLoanReport(startDate, endDate, customerName) {
-  console.log('Generating vendor loan report...', { startDate, endDate, customerName }, new Date().toISOString());
+async function generateVendorLoanReport(startDate, endDate, vendorName) {
+  console.log('Generating vendor loan report...', { startDate, endDate, vendorName }, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -966,8 +972,8 @@ async function generateVendorLoanReport(startDate, endDate, customerName) {
       .gte('date', startDate)
       .lte('date', endDate);
 
-    if (customerName) {
-      query = query.eq('vendors.name', customerName);
+    if (vendorName) {
+      query = query.eq('vendors.name', vendorName);
     }
 
     const { data: loans, error: loansError } = await query;
@@ -980,11 +986,12 @@ async function generateVendorLoanReport(startDate, endDate, customerName) {
 
       if (loans.length > 0) {
         loans.forEach(loan => {
+          const vendorNameDisplay = loan.vendors?.name || (isChinese ? translations.zh['unknown-vendor'] : translations.en['unknown-vendor']);
           const row = `
             <tr>
-              <td class="border p-2">${loan.vendors.name || (isChinese ? '未知供應商' : 'Unknown Vendor')}</td>
-              <td class="border p-2">${loan.products.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
-              <td class="border p-2">${loan.products.batch_no || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${vendorNameDisplay}</td>
+              <td class="border p-2">${loan.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
+              <td class="border p-2">${loan.products?.batch_no || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${loan.quantity}</td>
               <td class="border p-2">${new Date(loan.date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' })}</td>
             </tr>
