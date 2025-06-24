@@ -1396,17 +1396,18 @@ async function deleteVendor(vendorId) {
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
-    const { error } = await client
+
+    const { error: deleteError } = await client
       .from('vendors')
       .delete()
       .eq('id', vendorId);
-    if (error) throw error;
+    if (deleteError) throw deleteError;
+
     console.log('Vendor deleted:', vendorId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商刪除成功' : 'Vendor deleted successfully'}`;
     clearMessage('message');
     loadVendors();
-    populateVendorDropdown();
   } catch (error) {
     console.error('Error deleting vendor:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
