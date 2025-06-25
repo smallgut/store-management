@@ -233,6 +233,7 @@ async function populateProductDropdown(barcodeInput = null) {
     const { data: products, error: productError } = await client
       .from('products')
       .select('id, barcode, name, stock, batch_no, price')
+      .gt('stock', 0) // Only include products with stock > 0
       .order('name');
     if (productError) throw productError;
 
