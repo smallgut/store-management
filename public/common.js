@@ -510,21 +510,29 @@ async function addCustomerSale(sale) {
     console.log('Sale data to insert:', sale, new Date().toISOString());
 
     const batchNo = sale.batch_no === 'NO_BATCH' ? null : sale.batch_no;
+    console.log('Querying product with barcode:', sale.product_barcode, 'batch_no:', batchNo, new Date().toISOString());
     const { data: product, error: productError } = await client
       .from('products')
       .select('id, barcode, name, stock, price, batch_no')
       .eq('barcode', sale.product_barcode)
       .eq('batch_no', batchNo)
       .single();
-    if (productError && productError.code !== 'PGRST116') throw productError;
+    if (productError) {
+      console.error('Product query error:', productError, new Date().toISOString());
+      throw productError;
+    }
     if (!product) {
+      console.error('Product not found for barcode:', sale.product_barcode, 'batch_no:', batchNo, new Date().toISOString());
       throw new Error('Product or batch not found');
     }
+    console.log('Found product:', product, new Date().toISOString());
 
     if (product.stock < sale.quantity) {
+      console.error('Insufficient stock:', product.stock, '<', sale.quantity, new Date().toISOString());
       throw new Error('Insufficient stock available');
     }
 
+    console.log('Inserting sale for product_id:', product.id, new Date().toISOString());
     const { data: newSale, error: saleError } = await client
       .from('customer_sales')
       .insert({
@@ -535,13 +543,22 @@ async function addCustomerSale(sale) {
         sale_date: new Date().toISOString().replace('Z', '+08:00')
       })
       .select();
-    if (saleError) throw saleError;
+    if (saleError) {
+      console.error('Sale insert error:', saleError, new Date().toISOString());
+      throw saleError;
+    }
 
-    const { error: updateError } = await client
+    console.log('Updating stock for product_id:', product.id, 'new stock:', product.stock - sale.quantity, new Date().toISOString());
+    const { data: updatedProduct, error: updateError } = await client
       .from('products')
       .update({ stock: product.stock - sale.quantity })
-      .eq('id', product.id);
-    if (updateError) throw updateError;
+      .eq('id', product.id)
+      .select();
+    if (updateError) {
+      console.error('Stock update error:', updateError, new Date().toISOString());
+      throw updateError;
+    }
+    console.log('Stock update result:', updatedProduct, new Date().toISOString());
 
     console.log('Customer sale added:', newSale, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -567,41 +584,64 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
+    console.log('Retrieving sale with ID:', saleId, new Date().toISOString());
     const { data: sale, error: saleError } = await client
       .from('customer_sales')
       .select('product_id')
       .eq('id', saleId)
       .single();
-    if (saleError && saleError.code !== 'PGRST116') throw saleError;
+    if (saleError) {
+      console.error('Sale query error:', saleError, new Date().toISOString());
+      throw saleError;
+    }
     if (!sale) {
+      console.error('Sale not found for ID:', saleId, new Date().toISOString());
       throw new Error('Sale not found');
     }
+    console.log('Found sale:', sale, new Date().toISOString());
 
+    console.log('Retrieving product with product_id:', sale.product_id, new Date().toISOString());
     const { data: product, error: productError } = await client
       .from('products')
       .select('id, stock, barcode')
       .eq('id', sale.product_id)
       .single();
-    if (productError && productError.code !== 'PGRST116') throw productError;
+    if (productError) {
+      console.error('Product query error:', productError, new Date().toISOString());
+      throw productError;
+    }
     if (!product) {
+      console.error('Product not found for product_id:', sale.product_id, new Date().toISOString());
       throw new Error('Product not found');
     }
+    console.log('Found product:', product, new Date().toISOString());
 
-    if (productBarcode && product.barcode !== productBarcode) {
+    if (productBarcode !== '' && product.barcode !== productBarcode) {
+      console.error('Barcode mismatch:', { dbBarcode: product.barcode, providedBarcode: productBarcode }, new Date().toISOString());
       throw new Error('Barcode mismatch');
     }
 
+    console.log('Deleting sale with ID:', saleId, new Date().toISOString());
     const { error: deleteError } = await client
       .from('customer_sales')
       .delete()
       .eq('id', saleId);
-    if (deleteError) throw deleteError;
+    if (deleteError) {
+      console.error('Sale deletion error:', deleteError, new Date().toISOString());
+      throw deleteError;
+    }
 
-    const { error: updateError } = await client
+    console.log('Updating stock for product_id:', product.id, 'new stock:', product.stock + quantity, new Date().toISOString());
+    const { data: updatedProduct, error: updateError } = await client
       .from('products')
       .update({ stock: product.stock + quantity })
-      .eq('id', product.id);
-    if (updateError) throw updateError;
+      .eq('id', product.id)
+      .select();
+    if (updateError) {
+      console.error('Stock update error:', updateError, new Date().toISOString());
+      throw updateError;
+    }
+    console.log('Stock update result:', updatedProduct, new Date().toISOString());
 
     console.log('Customer sale deleted:', saleId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
