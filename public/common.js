@@ -966,11 +966,12 @@ async function generateVendorLoanReport(startDate, endDate, vendorName) {
         product_id,
         quantity,
         date,
-        vendors (name),
+        vendors!inner (name),
         products (name, batch_no)
       `)
       .gte('date', startDate)
-      .lte('date', endDate);
+      .lte('date', endDate)
+      .not('vendor_id', 'is', null); // Exclude records with null vendor_id
 
     if (vendorName) {
       query = query.eq('vendors.name', vendorName);
@@ -978,6 +979,8 @@ async function generateVendorLoanReport(startDate, endDate, vendorName) {
 
     const { data: loans, error: loansError } = await query;
     if (loansError) throw loansError;
+
+    console.log('Vendor Loans Report Data:', loans, new Date().toISOString());
 
     const vendorLoanReportBody = document.querySelector('#vendor-loan-report-table tbody');
     if (vendorLoanReportBody) {
@@ -987,6 +990,9 @@ async function generateVendorLoanReport(startDate, endDate, vendorName) {
       if (loans.length > 0) {
         loans.forEach(loan => {
           const vendorNameDisplay = loan.vendors?.name || (isChinese ? translations.zh['unknown-vendor'] : translations.en['unknown-vendor']);
+          if (!loan.vendors?.name) {
+            console.warn('Vendor loan record with missing vendor name:', loan, new Date().toISOString());
+          }
           const row = `
             <tr>
               <td class="border p-2">${vendorNameDisplay}</td>
