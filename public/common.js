@@ -233,6 +233,7 @@ async function populateProductDropdown(barcodeInput = null) {
     const { data: products, error: productError } = await client
       .from('products')
       .select('id, barcode, name, stock, batch_no, price')
+      .gt('stock', 0) // Only include products with stock > 0
       .order('name');
     if (productError) throw productError;
 
@@ -492,18 +493,13 @@ async function loadCustomerSales() {
           handleDeleteSale(saleId, productBarcode, quantity);
         });
       });
+
     }
-  } catch (error) {
-    console.error('Error loading customer sales:', error.message, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入客戶銷售：${error.message}` : `Failed to load customer sales: ${error.message}`}`;
-      clearMessage('error');
+    } catch (err) {
+      throw new Error('Failed to load customer sales');
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
 }
 
 async function addCustomerSale(sale) {
@@ -1145,39 +1141,33 @@ async function loadProducts() {
         });
       });
     }
-  } catch (error) {
-    console.error('Error loading products:', error.message, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入產品：${error.message}` : `Failed to load products: ${error.message}`}`;
-      clearMessage('error');
+  } catch (err) {
+      throw new Error('Failed to load products');
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
 }
 
 function handleAddProduct(event) {
-  event.preventDefault();
-  console.log('Handling add product...', new Date().toISOString());
-  const barcode = document.getElementById('product-barcode')?.value;
-  const name = document.getElementById('product-name')?.value;
-  const stock = parseInt(document.getElementById('stock')?.value || '0');
-  const price = parseFloat(document.getElementById('buy-in-price')?.value || '0');
+    event.preventDefault();
+    console.log('Handling add product...', new Date().toISOString());
+    const barcode = document.getElementById('product-barcode-id')?.value;
+    const productName = document.querySelector('#product-name');
+    const stock = parseInt(document.getElementById('stock')?.value || '0');
+    const price = parseFloat(document.getElementById('buy-in-price')?.value || '0');
 
-  if (!barcode || !name || !stock || !price) {
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
-      clearMessage('error');
+    if (!barcode || !name || !stock || !price) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      const errorEl = document.getElementById('error');
+      if (errorEl) {
+        errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
+        clearMessage('error');
+      }
+      return;
     }
-    return;
-  }
 
-  const product = { barcode, name, stock, price, batch_no: getGMT8Date() };
-  addProduct(product);
+    const product = { barcode, name, stock, price, batch_no: getGMT8Date() };
+    addProduct(product);
 }
 
 async function addProduct(product) {
