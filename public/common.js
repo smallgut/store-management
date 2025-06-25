@@ -1,3 +1,4 @@
+```javascript
 let supabaseClient = null;
 
 const translations = {
@@ -552,6 +553,8 @@ async function addCustomerSale(sale) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '客戶銷售添加成功' : 'Customer sale added successfully'}`;
     clearMessage('message');
+    // Refresh dropdown to reflect updated stock
+    await populateProductDropdown(sale.product_barcode); // Pass barcode to pre-select the product
     loadCustomerSales();
   } catch (error) {
     console.error('Error adding customer sale:', error.message, new Date().toISOString());
@@ -612,6 +615,8 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '客戶銷售刪除成功' : 'Customer sale deleted successfully'}`;
     clearMessage('message');
+    // Refresh dropdown to reflect updated stock
+    await populateProductDropdown(productBarcode); // Pass barcode to pre-select the product
     loadCustomerSales();
   } catch (error) {
     console.error('Error deleting customer sale:', error.message, new Date().toISOString());
@@ -1462,3 +1467,4 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAnalytics();
   }
 });
+```
