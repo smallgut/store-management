@@ -227,7 +227,7 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
 }
 
 async function populateProductDropdown(barcodeInput = null) {
-  console.log('Populating product dropdown...', new Date().toISOString());
+  console.log('Populating product dropdown with barcode:', barcodeInput, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     const { data: products, error: productError } = await client
