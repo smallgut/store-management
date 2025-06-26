@@ -1461,4 +1461,29 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('report-form')) {
     loadAnalytics();
   }
+  document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded, checking for auto-refresh initialization...', new Date().toISOString());
+  // Check if on the Record Customer Sales page
+  if (document.getElementById('product-select')) {
+    startProductDropdownAutoRefresh(30000); // Refresh every 30 seconds
+  }
 });
+});
+function startProductDropdownAutoRefresh(intervalMs = 30000) {
+  console.log('Starting product dropdown auto-refresh...', new Date().toISOString());
+  if (document.getElementById('product-select')) {
+    populateProductDropdown();
+    const refreshInterval = setInterval(() => {
+      if (!document.getElementById('product-select')) {
+        console.log('Stopping product dropdown auto-refresh: page not active', new Date().toISOString());
+        clearInterval(refreshInterval);
+        return;
+      }
+      console.log('Auto-refreshing product dropdown...', new Date().toISOString());
+      const currentBarcode = document.getElementById('product-barcode')?.value || '';
+      populateProductDropdown(currentBarcode);
+    }, intervalMs);
+  } else {
+    console.log('Auto-refresh not started: not on Record Customer Sales page', new Date().toISOString());
+  }
+}
