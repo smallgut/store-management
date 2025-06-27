@@ -703,7 +703,7 @@ async function addLoanRecord(event) {
 
     const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
     const batchNo = String(document.getElementById('batch-no')?.value || '');
-    const vendorId = document.getElementById('vendor-name')?.value || null;
+    const vendorId = parseInt(document.getElementById('vendor-name')?.value || '0');
     const quantity = parseInt(document.getElementById('quantity')?.value || '0');
     const sellingPrice = parseFloat(document.getElementById('selling-price')?.value || '0');
     const loanDate = document.getElementById('loan-date')?.value;
