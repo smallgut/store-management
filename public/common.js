@@ -703,7 +703,7 @@ async function addLoanRecord(event) {
 
     const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
     const batchNo = String(document.getElementById('batch-no')?.value || '');
-    const vendorId = parseInt(document.getElementById('vendor-name')?.value || '0'); // Changed to parseInt
+    const vendorId = document.getElementById('vendor-name')?.value || null;
     const quantity = parseInt(document.getElementById('quantity')?.value || '0');
     const sellingPrice = parseFloat(document.getElementById('selling-price')?.value || '0');
     const loanDate = document.getElementById('loan-date')?.value;
@@ -734,7 +734,7 @@ async function addLoanRecord(event) {
     }
 
     const loan = {
-      vendor_id: vendorId, // Uses integer vendor_id
+      vendor_id: vendorId,
       product_id: product.id,
       batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
       quantity: quantity,
