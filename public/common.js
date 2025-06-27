@@ -703,7 +703,7 @@ async function addLoanRecord(event) {
 
     const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
     const batchNo = String(document.getElementById('batch-no')?.value || '');
-    const vendorId = parseInt(document.getElementById('vendor-name')?.value || '0');
+    const vendorId = parseInt(document.getElementById('vendor-name')?.value || '0'); // Changed to parseInt
     const quantity = parseInt(document.getElementById('quantity')?.value || '0');
     const sellingPrice = parseFloat(document.getElementById('selling-price')?.value || '0');
     const loanDate = document.getElementById('loan-date')?.value;
@@ -734,14 +734,14 @@ async function addLoanRecord(event) {
     }
 
     const loan = {
-      vendor_id: vendorId,
+      vendor_id: vendorId, // Uses integer vendor_id
       product_id: product.id,
       batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
       quantity: quantity,
       selling_price: sellingPrice,
       date: new Date(loanDate).toISOString().replace('Z', '+08:00')
     };
-    console.log('Loan data to insert:', loan);
+    console.log('Loan data to insert:', loan, new Date().toISOString());
 
     const { data: newLoan, error } = await client
       .from('vendor_loans')
@@ -755,13 +755,13 @@ async function addLoanRecord(event) {
       .eq('id', product.id);
     if (updateError) throw updateError;
 
-    console.log('Loan record added:', newLoan);
+    console.log('Loan record added:', newLoan, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record added successfully'}`;
     clearMessage('message');
     loadLoanRecords();
   } catch (error) {
-    console.error('Error adding loan record:', error.message);
+    console.error('Error adding loan record:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
