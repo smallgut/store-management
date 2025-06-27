@@ -703,17 +703,21 @@ async function addLoanRecord(event) {
 
     const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
     const batchNo = String(document.getElementById('batch-no')?.value || '');
-    const vendorId = parseInt(document.getElementById('vendor-name')?.value || '0'); // Changed to parseInt
-    const quantity = parseInt(document.getElementById('quantity')?.value || '0');
-    const sellingPrice = parseFloat(document.getElementById('selling-price')?.value || '0');
+    const vendorId = parseInt(document.getElementById('vendor-name')?.value || '0');
+    const quantityInput = document.getElementById('quantity')?.value || '0';
+    const sellingPriceInput = document.getElementById('selling-price')?.value || '0';
     const loanDate = document.getElementById('loan-date')?.value;
+
+    // Sanitize inputs by removing commas
+    const quantity = parseInt(quantityInput.replace(/,/g, '')) || 0;
+    const sellingPrice = parseFloat(sellingPriceInput.replace(/,/g, '')) || 0;
 
     if (!vendorId || !productBarcode || !batchNo || !quantity || !sellingPrice || !loanDate) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       const errorEl = document.getElementById('error');
       if (errorEl) {
         errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
-        clearMessage('error');
+        clearMessage('error', 3000); // Increase timeout to 3 seconds
       }
       return;
     }
@@ -734,7 +738,7 @@ async function addLoanRecord(event) {
     }
 
     const loan = {
-      vendor_id: vendorId, // Uses integer vendor_id
+      vendor_id: vendorId,
       product_id: product.id,
       batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
       quantity: quantity,
@@ -758,7 +762,7 @@ async function addLoanRecord(event) {
     console.log('Loan record added:', newLoan, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record added successfully'}`;
-    clearMessage('message');
+    clearMessage('message', 3000); // Increase timeout to 3 seconds
     loadLoanRecords();
   } catch (error) {
     console.error('Error adding loan record:', error.message, new Date().toISOString());
@@ -766,7 +770,7 @@ async function addLoanRecord(event) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
-      clearMessage('error');
+      clearMessage('error', 3000); // Increase timeout to 3 seconds
     }
   } finally {
     setLoading(false);
