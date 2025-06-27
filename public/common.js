@@ -485,6 +485,7 @@ async function loadCustomerSales() {
           }).join('')
         : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
       applyTranslations();
+      populateProductDropdown();
       document.querySelectorAll('.delete-sale').forEach(button => {
         button.addEventListener('click', (e) => {
           const saleId = e.target.getAttribute('data-sale-id');
@@ -671,6 +672,8 @@ async function loadLoanRecords() {
           `).join('')
         : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄。' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
+      populateProductDropdown();
+      populateVendorDropdown();
       document.querySelectorAll('.delete-loan').forEach(button => {
         button.addEventListener('click', (e) => {
           const loanId = e.target.getAttribute('data-loan-id');
