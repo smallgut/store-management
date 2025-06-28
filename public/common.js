@@ -835,7 +835,7 @@ async function handleAddProduct(event) {
       const errorEl = document.getElementById('error');
       if (errorEl) {
         errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
-        clearMessage('error', 3000);
+        clearMessage('error', 10000);
       }
       return;
     }
@@ -853,13 +853,15 @@ async function handleAddProduct(event) {
       .from('products')
       .insert(product)
       .select();
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error details:', error, new Date().toISOString());
+      throw error;
+    }
 
     console.log('Product added:', newProduct, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品添加成功' : 'Product added successfully'}`;
-    clearMessage('message', 3000);
-    // Assuming you have a loadProducts function to refresh the product table
+    clearMessage('message', 10000);
     if (typeof loadProducts === 'function') loadProducts();
   } catch (error) {
     console.error('Error adding product:', error.message, new Date().toISOString());
@@ -867,7 +869,87 @@ async function handleAddProduct(event) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加產品失敗：${error.message}` : `Failed to add product: ${error.message}`}`;
-      clearMessage('error', 3000);
+      clearMessage('error', 10000);
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function handleAddCustomerSale(event) {
+  event.preventDefault();
+  console.log('Adding customer sale...', new Date().toISOString());
+  try {
+    const client = await ensureSupabaseClient();
+    setLoading(true);
+
+    const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
+    const batchNo = String(document.getElementById('batch-no')?.value || '');
+    const quantity = parseInt(document.getElementById('quantity')?.value?.replace(/,/g, '') || '0');
+    const sellingPrice = parseFloat(document.getElementById('selling-price')?.value?.replace(/,/g, '') || '0');
+    const saleDate = document.getElementById('sale-date')?.value;
+
+    if (!productBarcode || !batchNo || !quantity || !sellingPrice || !saleDate) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      const errorEl = document.getElementById('error');
+      if (errorEl) {
+        errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
+        clearMessage('error', 10000);
+      }
+      return;
+    }
+
+    const { data: product, error: productError } = await client
+      .from('products')
+      .select('id, barcode, batch_no, stock')
+      .eq('barcode', productBarcode)
+      .eq('batch_no', batchNo === 'NO_BATCH' ? null : batchNo)
+      .single();
+    if (productError && productError.code !== 'PGRST116') throw productError;
+    if (!product) {
+      throw new Error('Product or batch not found');
+    }
+
+    if (product.stock < quantity) {
+      throw new Error('Insufficient stock available');
+    }
+
+    const sale = {
+      product_id: product.id,
+      batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
+      quantity,
+      selling_price: sellingPrice,
+      date: new Date(saleDate).toISOString().replace('Z', '+08:00')
+    };
+    console.log('Sale data to insert:', sale, new Date().toISOString());
+
+    const { data: newSale, error } = await client
+      .from('customer_sales')
+      .insert(sale)
+      .select();
+    if (error) {
+      console.error('Supabase error details:', error, new Date().toISOString());
+      throw error;
+    }
+
+    const { error: updateError } = await client
+      .from('products')
+      .update({ stock: product.stock - quantity })
+      .eq('id', product.id);
+    if (updateError) throw updateError;
+
+    console.log('Customer sale added:', newSale, new Date().toISOString());
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '客戶銷售記錄添加成功' : 'Customer sale added successfully'}`;
+    clearMessage('message', 10000);
+    if (typeof loadCustomerSales === 'function') loadCustomerSales();
+  } catch (error) {
+    console.error('Error adding customer sale:', error.message, new Date().toISOString());
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加客戶銷售記錄失敗：${error.message}` : `Failed to add customer sale: ${error.message}`}`;
+      clearMessage('error', 10000);
     }
   } finally {
     setLoading(false);
