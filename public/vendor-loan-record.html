@@ -49,11 +49,11 @@
       </div>
       <div>
         <label for="quantity" data-lang-key="quantity" class="block">Quantity</label>
-        <input type="number" id="quantity" min="1" class="border p-2 w-full" />
+        <input type="number" id="quantity" min="1" pattern="[0-9]*" class="border p-2 w-full" />
       </div>
       <div>
         <label for="selling-price" data-lang-key="selling-price" class="block">Selling Price</label>
-        <input type="number" id="selling-price" step="0.01" class="border p-2 w-full" />
+        <input type="number" id="selling-price" step="0.01" pattern="[0-9]*\\.?[0-9]*" class="border p-2 w-full" />
       </div>
       <div>
         <label for="loan-date" data-lang-key="loan-date" class="block">Loan Date</label>
@@ -83,6 +83,16 @@
       console.log('DOM fully loaded and parsed', new Date().toISOString());
       applyTranslations();
       loadLoanRecords();
+
+      // Add input validation to strip commas
+      const quantityInput = document.getElementById('quantity');
+      const sellingPriceInput = document.getElementById('selling-price');
+      [quantityInput, sellingPriceInput].forEach(input => {
+        input.addEventListener('input', () => {
+          input.value = input.value.replace(/[^0-9.]/g, '');
+        });
+      });
+
       document.getElementById('add-loan-record-form').addEventListener('submit', addLoanRecord);
       document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
     });
