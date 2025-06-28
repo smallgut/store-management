@@ -701,24 +701,57 @@ async function addLoanRecord(event) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
-    const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
-    const batchNo = String(document.getElementById('batch-no')?.value || '');
-    const vendorId = parseInt(document.getElementById('vendor-name')?.value || '0');
-    const quantityInput = document.getElementById('quantity')?.value || '0';
-    const sellingPriceInput = document.getElementById('selling-price')?.value || '0';
-    const loanDate = document.getElementById('loan-date')?.value;
+    const productBarcodeRaw = document.getElementById('product-barcode')?.value;
+    const productSelectRaw = document.getElementById('product-select')?.value;
+    const batchNoRaw = document.getElementById('batch-no')?.value;
+    const vendorIdRaw = document.getElementById('vendor-name')?.value;
+    const quantityRaw = document.getElementById('quantity')?.value;
+    const sellingPriceRaw = document.getElementById('selling-price')?.value;
+    const loanDateRaw = document.getElementById('loan-date')?.value;
 
-    // Sanitize inputs by removing commas
-    const quantity = parseInt(quantityInput.replace(/,/g, '')) || 0;
-    const sellingPrice = parseFloat(sellingPriceInput.replace(/,/g, '')) || 0;
+    const productBarcode = String(productBarcodeRaw || (productSelectRaw ? productSelectRaw.split('|')[0] : '') || '');
+    const batchNo = String(batchNoRaw || '');
+    const vendorId = parseInt(vendorIdRaw || '0');
+    const quantity = parseInt(quantityRaw?.replace(/,/g, '') || '0');
+    const sellingPrice = parseFloat(sellingPriceRaw?.replace(/,/g, '') || '0');
+    const loanDate = loanDateRaw;
 
-    if (!vendorId || !productBarcode || !batchNo || !quantity || !sellingPrice || !loanDate) {
+    // Detailed debug logging
+    console.log('Raw form inputs:', {
+      productBarcodeRaw,
+      productSelectRaw,
+      batchNoRaw,
+      vendorIdRaw,
+      quantityRaw,
+      sellingPriceRaw,
+      loanDateRaw
+    }, new Date().toISOString());
+    console.log('Processed form inputs:', {
+      productBarcode,
+      batchNo,
+      vendorId,
+      quantity,
+      sellingPrice,
+      loanDate
+    }, new Date().toISOString());
+
+    // Specific validation error messages
+    const errors = [];
+    if (!vendorId) errors.push('Vendor ID is missing or invalid');
+    if (!productBarcode) errors.push('Product barcode or selection is missing');
+    if (!batchNo) errors.push('Batch number is missing');
+    if (!quantity) errors.push('Quantity is missing or invalid');
+    if (!sellingPrice) errors.push('Selling price is missing or invalid');
+    if (!loanDate) errors.push('Loan date is missing');
+
+    if (errors.length > 0) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       const errorEl = document.getElementById('error');
       if (errorEl) {
-        errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
-        clearMessage('error', 3000); // Increase timeout to 3 seconds
+        errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '錯誤：' + errors.join('；') : 'Errors: ' + errors.join('; ')}`;
+        clearMessage('error', 10000); // 10 seconds for visibility
       }
+      console.warn('Validation failed:', errors, new Date().toISOString());
       return;
     }
 
@@ -741,7 +774,7 @@ async function addLoanRecord(event) {
       vendor_id: vendorId,
       product_id: product.id,
       batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
-      quantity: quantity,
+      quantity,
       selling_price: sellingPrice,
       date: new Date(loanDate).toISOString().replace('Z', '+08:00')
     };
@@ -751,7 +784,10 @@ async function addLoanRecord(event) {
       .from('vendor_loans')
       .insert(loan)
       .select();
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error details:', error, new Date().toISOString());
+      throw error;
+    }
 
     const { error: updateError } = await client
       .from('products')
@@ -762,7 +798,7 @@ async function addLoanRecord(event) {
     console.log('Loan record added:', newLoan, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄添加成功' : 'Loan record added successfully'}`;
-    clearMessage('message', 3000); // Increase timeout to 3 seconds
+    clearMessage('message', 10000);
     loadLoanRecords();
   } catch (error) {
     console.error('Error adding loan record:', error.message, new Date().toISOString());
@@ -770,7 +806,7 @@ async function addLoanRecord(event) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加貸貨記錄失敗：${error.message}` : `Failed to add loan record: ${error.message}`}`;
-      clearMessage('error', 3000); // Increase timeout to 3 seconds
+      clearMessage('error', 10000);
     }
   } finally {
     setLoading(false);
