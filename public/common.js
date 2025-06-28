@@ -355,35 +355,11 @@ async function populateVendorDropdown() {
     });
   } catch (error) {
     console.error('Error populating vendor dropdown:', error.message, new Date().toISOString());
-  }
-}
-
-    const proto = Object.getPrototypeOf(vendorSelect);
-    if (proto.hasOwnProperty('change')) {
-      vendorSelect.removeEventListener('change', proto.change);
-    }
-
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const lang = isChinese ? 'zh' : 'en';
-    vendorSelect.innerHTML = `<option value="" data-lang-key="all-vendors">${translations[lang]['all-vendors']}</option>`;
-
-    vendors.forEach(v => {
-      const option = document.createElement('option');
-      option.value = v.name;
-      option.textContent = v.name;
-      vendorSelect.appendChild(option);
-    });
-
-    setTimeout(() => {
-      vendorSelect.dispatchEvent(new Event('change'));
-    }, 100);
-  } catch (error) {
-    console.error('Error populating vendor dropdown:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商下拉選單：${error.message}` : `Failed to populate vendor dropdown: ${error.message}`}`;
-      clearMessage('error');
+      clearMessage('error', 10000);
     }
   }
 }
