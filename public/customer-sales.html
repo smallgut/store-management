@@ -81,16 +81,20 @@
 </body>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('add-customer-sale-form');
-    if (form) {
-        form.addEventListener('submit', handleAddCustomerSale);
-    }
-    loadCustomerSales();
-    populateProductDropdown();
-    const toggleButton = document.getElementById('toggle-language');
-    if (toggleButton) {
-        toggleButton.addEventListener('click', toggleLanguage);
-    }
+  console.log('DOM fully loaded and parsed', new Date().toISOString());
+  applyTranslations();
+  if (typeof loadCustomerSales === 'function') loadCustomerSales();
+  document.getElementById('add-customer-sale-form').addEventListener('submit', handleAddCustomerSale);
+  document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
+
+  // Add input validation to strip commas
+  const quantityInput = document.getElementById('quantity');
+  const sellingPriceInput = document.getElementById('selling-price');
+  [quantityInput, sellingPriceInput].forEach(input => {
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/[^0-9.]/g, '');
+    });
+  });
 });
 </script>
 </html>
