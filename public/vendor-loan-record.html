@@ -23,8 +23,8 @@
 
   <h1 data-lang-key="vendor-loan-record" class="text-2xl font-bold mb-4">Vendor Loan Record</h1>
 
-  <div id="error" class="text-red-500 mb-4"></div>
-  <div id="message" class="text-green-500 mb-4"></div>
+  <div id="error" class="text-red-500 mb-4 font-bold text-lg"></div>
+  <div id="message" class="text-green-500 mb-4 font-bold text-lg"></div>
   <div id="loading" class="text-blue-500 mb-4" style="display: none;">Loading...</div>
 
   <form id="add-loan-record-form" class="mb-4 bg-white p-4 rounded shadow">
@@ -32,11 +32,11 @@
     <div class="grid grid-cols-2 gap-4">
       <div>
         <label for="vendor-name" data-lang-key="vendor-name" class="block">Vendor Name</label>
-        <select id="vendor-name" class="border p-2 w-full"></select>
+        <select id="vendor-name" class="border p-2 w-full" required></select>
       </div>
       <div>
         <label for="product-select" data-lang-key="select-product" class="block">Select Product (or input barcode)</label>
-        <select id="product-select" class="border p-2 w-full"></select>
+        <select id="product-select" class="border p-2 w-full" required></select>
       </div>
       <div>
         <label for="product-barcode" data-lang-key="product-barcode" class="block">Product Barcode</label>
@@ -45,19 +45,19 @@
       </div>
       <div>
         <label for="batch-no" data-lang-key="batch-no" class="block">Batch No.</label>
-        <select id="batch-no" class="border p-2 w-full"></select>
+        <select id="batch-no" class="border p-2 w-full" required></select>
       </div>
       <div>
         <label for="quantity" data-lang-key="quantity" class="block">Quantity</label>
-        <input type="number" id="quantity" min="1" pattern="[0-9]*" class="border p-2 w-full" />
+        <input type="number" id="quantity" min="1" pattern="[0-9]*" class="border p-2 w-full" required />
       </div>
       <div>
         <label for="selling-price" data-lang-key="selling-price" class="block">Selling Price</label>
-        <input type="number" id="selling-price" step="0.01" pattern="[0-9]*\\.?[0-9]*" class="border p-2 w-full" />
+        <input type="number" id="selling-price" step="0.01" pattern="[0-9]*\\.?[0-9]*" class="border p-2 w-full" required />
       </div>
       <div>
         <label for="loan-date" data-lang-key="loan-date" class="block">Loan Date</label>
-        <input type="date" id="loan-date" class="border p-2 w-full" />
+        <input type="date" id="loan-date" class="border p-2 w-full" required />
       </div>
     </div>
     <button type="submit" data-lang-key="add-loan" class="bg-blue-500 text-white p-2 rounded mt-4 hover:bg-blue-600">Add Loan</button>
@@ -93,7 +93,16 @@
         });
       });
 
-      document.getElementById('add-loan-record-form').addEventListener('submit', addLoanRecord);
+      // Reset form after successful submission
+      const form = document.getElementById('add-loan-record-form');
+      form.addEventListener('submit', (event) => {
+        addLoanRecord(event).then(() => {
+          if (document.getElementById('message').textContent.includes('successfully')) {
+            form.reset();
+          }
+        });
+      });
+
       document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
     });
   </script>
