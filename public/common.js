@@ -1617,30 +1617,27 @@ async function deleteVendor(vendorId) {
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM fully loaded and parsed', new Date().toISOString());
+  applyTranslations();
   const toggleButton = document.getElementById('toggle-language');
   if (toggleButton) {
     toggleButton.addEventListener('click', toggleLanguage);
   }
 
   if (document.getElementById('add-vendor-form')) {
-    const form = document.getElementById('add-vendor-form');
-    if (form) form.addEventListener('submit', handleAddVendor);
+    document.getElementById('add-vendor-form').addEventListener('submit', handleAddVendor);
     loadVendors();
   }
   if (document.getElementById('add-product-form')) {
-    const form = document.getElementById('add-product-form');
-    if (form) form.addEventListener('submit', handleAddProduct);
+    document.getElementById('add-product-form').addEventListener('submit', handleAddProduct);
     loadProducts();
   }
   if (document.getElementById('add-customer-sale-form')) {
-    const form = document.getElementById('add-customer-sale-form');
-    if (form) form.addEventListener('submit', handleAddCustomerSale);
+    document.getElementById('add-customer-sale-form').addEventListener('submit', handleAddCustomerSale);
     loadCustomerSales();
     populateProductDropdown();
   }
   if (document.getElementById('add-loan-record-form')) {
-    const form = document.getElementById('add-loan-record-form');
-    if (form) form.addEventListener('submit', addLoanRecord);
+    document.getElementById('add-loan-record-form').addEventListener('submit', addLoanRecord);
     loadLoanRecords();
     populateProductDropdown();
     populateVendorDropdown();
