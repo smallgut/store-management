@@ -1,0 +1,130 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en" id="lang-body" class="lang-en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-lang-key="manage-products">Manage Products</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="common.js"></script>
+</head>
+<body class="bg-gray-100 p-4">
+  <nav class="bg-blue-500 text-white p-4 mb-4">
+    <ul class="flex space-x-4">
+      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
+      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
+      <li><a href="manage-products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
+      <li><a href="manage-vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+      <li><button id="toggle-language" data-lang-key="toggle-language" class="bg-blue-700 px-2 py-1 rounded">Toggle Language</button></li>
+    </ul>
+  </nav>
+
+  <h1 data-lang-key="manage-products" class="text-2xl font-bold mb-4">Manage Products</h1>
+
+  <div id="error" class="text-red-500 mb-4"></div>
+  <div id="message" class="text-green-500 mb-4"></div>
+  <div id="loading" class="text-blue-500 mb-4" style="display: none;">Loading...</div>
+
+  <form id="add-product-form" class="mb-4 bg-white p-4 rounded shadow">
+    <h2 data-lang-key="add-product" class="text-xl font-semibold mb-4">Add Product</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="product-name" data-lang-key="product-name" class="block">Product Name</label>
+        <input type="text" id="product-name" class="border p-2 w-full" />
+      </div>
+      <div>
+        <label for="product-barcode" data-lang-key="product-barcode" class="block">Product Barcode</label>
+        <input type="text" id="product-barcode" class="border p-2 w-full" />
+      </div>
+      <div>
+        <label for="batch-no" data-lang-key="batch-no" class="block">Batch No.</label>
+        <input type="text" id="batch-no" class="border p-2 w-full" />
+      </div>
+      <div>
+        <label for="stock" data-lang-key="stock" class="block">Stock</label>
+        <input type="number" id="stock" min="0" pattern="[0-9]*" class="border p-2 w-full" />
+      </div>
+      <div>
+        <label for="price" data-lang-key="price" class="block">Price</label>
+        <input type="number" id="price" step="0.01" pattern="[0-9]*\\.?[0-9]*" class="border p-2 w-full" />
+      </div>
+    </div>
+    <button type="submit" data-lang-key="add-product" class="bg-blue-500 text-white p-2 rounded mt-4 hover:bg-blue-600">Add Product</button>
+  </form>
+
+  <table id="products-table" class="w-full bg-white rounded shadow">
+    <thead>
+      <tr class="bg-gray-200">
+        <th class="border p-2" data-lang-key="product-name">Product Name</th>
+        <th class="border p-2" data-lang-key="product-barcode">Barcode</th>
+        <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
+        <th class="border p-2" data-lang-key="stock">Stock</th>
+        <th class="border p-2" data-lang-key="price">Price</th>
+        <th class="border p-2" data-lang-key="actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM fully loaded and parsed', new Date().toISOString());
+      applyTranslations();
+      // Assuming loadProducts exists in common.js to populate the table
+      if (typeof loadProducts === 'function') loadProducts();
+      document.getElementById('add-product-form').addEventListener('submit', handleAddProduct);
+      document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
+
+      // Add input validation to strip commas
+      const stockInput = document.getElementById('stock');
+      const priceInput = document.getElementById('price');
+      [stockInput, priceInput].forEach(input => {
+        input.addEventListener('input', () => {
+          input.value = input.value.replace(/[^0-9.]/g, '');
+        });
+      });
+    });
+  </script>
+</body>
+</html>
