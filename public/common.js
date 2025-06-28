@@ -182,11 +182,11 @@ function setLoading(isLoading) {
   }
 }
 
-function clearMessage(type) {
+function clearMessage(type, timeout = 1000) {
   setTimeout(() => {
     const el = document.getElementById(type);
     if (el) el.textContent = '';
-  }, 1000);
+  }, timeout);
 }
 
 function handleAddCustomerSale(event) {
