@@ -339,19 +339,24 @@ async function populateVendorDropdown() {
   console.log('Populating vendor dropdown...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
-    const { data: vendors, error: vendorError } = await client
-      .from('vendors')
-      .select('id, name')
-      .order('name');
-    if (vendorError) throw vendorError;
+    const vendorSelect = document.getElementById('vendor-name');
+    if (!vendorSelect) return;
+
+    vendorSelect.innerHTML = '<option value="" disabled selected>Select a vendor</option>';
+    const { data: vendors, error } = await client.from('vendors').select('id, name');
+    if (error) throw error;
 
     console.log('Vendors for dropdown:', vendors, new Date().toISOString());
-
-    const vendorSelect = document.getElementById('vendor-name');
-    if (!vendorSelect) {
-      console.error('Vendor select element not found', new Date().toISOString());
-      return;
-    }
+    vendors.forEach(vendor => {
+      const option = document.createElement('option');
+      option.value = vendor.id; // Use numeric ID
+      option.textContent = vendor.name;
+      vendorSelect.appendChild(option);
+    });
+  } catch (error) {
+    console.error('Error populating vendor dropdown:', error.message, new Date().toISOString());
+  }
+}
 
     const proto = Object.getPrototypeOf(vendorSelect);
     if (proto.hasOwnProperty('change')) {
@@ -887,7 +892,7 @@ async function handleDeleteLoanRecord(loanId) {
     console.log('Loan record deleted:', loanId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record deleted successfully'}`;
-    clearMessage('message', 3000);
+    clearMessage('message', 10000);
     loadLoanRecords();
   } catch (error) {
     console.error('Error deleting loan record:', error.message, new Date().toISOString());
@@ -895,7 +900,7 @@ async function handleDeleteLoanRecord(loanId) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸貨記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
-      clearMessage('error', 3000);
+      clearMessage('error', 10000);
     }
   } finally {
     setLoading(false);
