@@ -776,71 +776,62 @@ async function addLoanRecord(event) {
     setLoading(false);
   }
 }
-
-function handleDeleteLoanRecord(loanId) {
-  const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-  if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
-    deleteLoanRecord(loanId);
-  }
-}
-
-async function deleteLoanRecord(loanId) {
-  console.log('Deleting loan record...', loanId);
+async function handleAddProduct(event) {
+  event.preventDefault();
+  console.log('Adding product...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
-    const { data: loan, error: loanError } = await client
-      .from('vendor_loans')
-      .select('product_id, quantity')
-      .eq('id', loanId)
-      .single();
-    if (loanError && loanError.code !== 'PGRST116') throw loanError;
-    if (!loan) {
-      throw new Error('Loan record not found');
+    const name = document.getElementById('product-name')?.value?.trim();
+    const barcode = document.getElementById('product-barcode')?.value?.trim();
+    const batchNo = document.getElementById('batch-no')?.value?.trim() || null;
+    const stock = parseInt(document.getElementById('stock')?.value?.replace(/,/g, '') || '0');
+    const price = parseFloat(document.getElementById('price')?.value?.replace(/,/g, '') || '0');
+
+    if (!name || !barcode || !stock || !price) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      const errorEl = document.getElementById('error');
+      if (errorEl) {
+        errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
+        clearMessage('error', 3000);
+      }
+      return;
     }
 
-    const { data: product, error: productError } = await client
+    const product = {
+      name,
+      barcode,
+      batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
+      stock,
+      price
+    };
+    console.log('Product data to insert:', product, new Date().toISOString());
+
+    const { data: newProduct, error } = await client
       .from('products')
-      .select('id, stock')
-      .eq('id', loan.product_id)
-      .single();
-    if (productError && productError.code !== 'PGRST116') throw productError;
-    if (!product) {
-      throw new Error('Product not found');
-    }
+      .insert(product)
+      .select();
+    if (error) throw error;
 
-    const { error: deleteError } = await client
-      .from('vendor_loans')
-      .delete()
-      .eq('id', loanId);
-    if (deleteError) throw deleteError;
-
-    const { error: updateError } = await client
-      .from('products')
-      .update({ stock: product.stock + loan.quantity })
-      .eq('id', product.id);
-    if (updateError) throw updateError;
-
-    console.log('Loan record deleted:', loanId);
+    console.log('Product added:', newProduct, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record deleted successfully'}`;
-    clearMessage('message');
-    loadLoanRecords();
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品添加成功' : 'Product added successfully'}`;
+    clearMessage('message', 3000);
+    // Assuming you have a loadProducts function to refresh the product table
+    if (typeof loadProducts === 'function') loadProducts();
   } catch (error) {
-    console.error('Error deleting loan record:', error.message);
+    console.error('Error adding product:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸貨記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
-      clearMessage('error');
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加產品失敗：${error.message}` : `Failed to add product: ${error.message}`}`;
+      clearMessage('error', 3000);
     }
   } finally {
     setLoading(false);
   }
 }
-
-
 function handleDeleteLoanRecord(loanId) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
   if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
@@ -848,6 +839,32 @@ function handleDeleteLoanRecord(loanId) {
   }
 }
 
+async function handleDeleteLoanRecord(loanId) {
+  console.log('Deleting loan record...', loanId, new Date().toISOString());
+  try {
+    const client = await ensureSupabaseClient();
+    setLoading(true);
+
+    const { error } = await client.from('vendor_loans').delete().eq('id', loanId);
+    if (error) throw error;
+
+    console.log('Loan record deleted:', loanId, new Date().toISOString());
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '貸貨記錄刪除成功' : 'Loan record deleted successfully'}`;
+    clearMessage('message', 3000);
+    loadLoanRecords();
+  } catch (error) {
+    console.error('Error deleting loan record:', error.message, new Date().toISOString());
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除貸貨記錄失敗：${error.message}` : `Failed to delete loan record: ${error.message}`}`;
+      clearMessage('error', 3000);
+    }
+  } finally {
+    setLoading(false);
+  }
+}
 async function deleteLoanRecord(loanId) {
   console.log('Deleting loan record...', loanId, new Date().toISOString());
   try {
