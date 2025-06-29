@@ -1533,6 +1533,7 @@ async function addVendor(vendor) {
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
     clearMessage('message');
     loadVendors();
+    isVendorDropdownPopulated = false; // Reset flag to allow repopulation
     populateVendorDropdown();
   } catch (error) {
     console.error('Error adding vendor:', error.message, error.details, new Date().toISOString());
