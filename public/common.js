@@ -915,7 +915,7 @@ async function handleAddCustomerSale(event) {
       customer_name: customerName || null,
       quantity,
       selling_price: sellingPrice,
-      sale_date: new Date(saleDate).toISOString().replace('Z', '+08:00')
+      sale_date: new Date().toISOString().replace('Z', '+08:00')
     };
     console.log('Sale data to insert:', sale, new Date().toISOString());
 
