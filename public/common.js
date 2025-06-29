@@ -1004,11 +1004,11 @@ async function deleteProduct(productId) {
 
 function handleAddVendor(event) {
   event.preventDefault();
-  console.log('Handling add vendor...');
+  console.log('Handling add vendor...', new Date().toISOString());
   const name = document.getElementById('vendor-name')?.value;
   const contact = document.getElementById('vendor-contact')?.value;
 
-  console.log('Form data:', { name, contact });
+  console.log('Form data:', { name, contact }, new Date().toISOString());
 
   if (!name || !contact) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -1020,15 +1020,7 @@ function handleAddVendor(event) {
     return;
   }
 
-  // Dynamically construct vendor object with flexible contact
-  const vendor = { name, contact }; // Store contact as is, adjust if Supabase schema requires specific field
-  if (supabaseClient) {
-    // Adjust based on Supabase schema; if 'contact_email' is required, map 'contact' to it
-    vendor.contact_email = contact; // Assuming 'contact_email' is the field name in Supabase
-    vendor.address = null;
-    vendor.phone_number = null;
-  }
-  console.log('Vendor object to add:', vendor);
+  const vendor = { name, contact };
   addVendor(vendor);
 }
 
