@@ -776,7 +776,7 @@ async function addLoanRecord(event) {
       batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
       quantity,
       selling_price: sellingPrice,
-      date: new Date(loanDate).toISOString().replace('Z', '+08:00')
+      date: new Date().toISOString().replace('Z', '+08:00')
     };
     console.log('Loan data to insert:', loan, new Date().toISOString());
 
