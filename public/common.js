@@ -880,6 +880,7 @@ async function handleAddCustomerSale(event) {
 
     const productBarcode = String(document.getElementById('product-barcode')?.value || document.getElementById('product-select')?.value.split('|')[0] || '');
     const batchNo = String(document.getElementById('batch-no')?.value || '');
+    const customerName = document.getElementById('customer-name')?.value || '';
     const quantity = parseInt(document.getElementById('quantity')?.value?.replace(/,/g, '') || '0');
     const sellingPrice = parseFloat(document.getElementById('selling-price')?.value?.replace(/,/g, '') || '0');
     const saleDate = document.getElementById('sale-date')?.value;
@@ -911,10 +912,10 @@ async function handleAddCustomerSale(event) {
 
     const sale = {
       product_id: product.id,
-      batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
+      customer_name: customerName || null,
       quantity,
       selling_price: sellingPrice,
-      date: new Date(saleDate).toISOString().replace('Z', '+08:00')
+      sale_date: new Date(saleDate).toISOString().replace('Z', '+08:00')
     };
     console.log('Sale data to insert:', sale, new Date().toISOString());
 
@@ -949,6 +950,7 @@ async function handleAddCustomerSale(event) {
   } finally {
     setLoading(false);
   }
+}
 }
 function handleDeleteLoanRecord(loanId) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
