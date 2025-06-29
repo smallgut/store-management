@@ -335,42 +335,24 @@ async function populateProductDropdown(barcodeInput = null) {
   }
 }
 
-let isVendorDropdownPopulated = false; // Global flag to track population state
-
 async function populateVendorDropdown() {
   console.log('Populating vendor dropdown...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     const vendorSelect = document.getElementById('vendor-name');
-    if (!vendorSelect) {
-      console.log('Vendor select element not found, skipping...', new Date().toISOString());
-      return;
-    }
+    if (!vendorSelect) return;
 
-    // Skip if already populated
-    if (isVendorDropdownPopulated) {
-      console.log('Vendor dropdown already populated, skipping...', new Date().toISOString());
-      return;
-    }
-
-    // Clear existing options
     vendorSelect.innerHTML = '<option value="" disabled selected>Select a vendor</option>';
-
-    const { data: vendors, error } = await client.from('vendors').select('id, name').order('name');
+    const { data: vendors, error } = await client.from('vendors').select('id, name');
     if (error) throw error;
 
-    console.log('Vendors for dropdown:', vendors.map(v => ({ id: v.id, name: v.name })), new Date().toISOString());
-
-    // Add vendors to dropdown
+    console.log('Vendors for dropdown:', vendors, new Date().toISOString());
     vendors.forEach(vendor => {
       const option = document.createElement('option');
-      option.value = vendor.id;
+      option.value = vendor.id; // Use numeric ID
       option.textContent = vendor.name;
       vendorSelect.appendChild(option);
     });
-
-    // Mark dropdown as populated
-    isVendorDropdownPopulated = true;
   } catch (error) {
     console.error('Error populating vendor dropdown:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -378,6 +360,55 @@ async function populateVendorDropdown() {
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商下拉選單：${error.message}` : `Failed to populate vendor dropdown: ${error.message}`}`;
       clearMessage('error', 10000);
+    }
+  }
+}
+
+async function populateCustomerDropdown() {
+  console.log('Populating customer dropdown...', new Date().toISOString());
+  try {
+    const client = await ensureSupabaseClient();
+    const { data: customers, error: customerError } = await client
+      .from('customer_sales')
+      .select('customer_name')
+      .order('customer_name');
+    if (customerError) throw customerError;
+
+    const uniqueCustomers = [...new Set(customers.map(c => c.customer_name).filter(name => name))];
+    console.log('Customers for dropdown:', uniqueCustomers, new Date().toISOString());
+
+    const customerSelect = document.getElementById('customer-name');
+    if (!customerSelect) {
+      console.error('Customer select element not found', new Date().toISOString());
+      return;
+    }
+
+    const proto = Object.getPrototypeOf(customerSelect);
+    if (proto.hasOwnProperty('change')) {
+      customerSelect.removeEventListener('change', proto.change);
+    }
+
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const lang = isChinese ? 'zh' : 'en';
+    customerSelect.innerHTML = `<option value="" data-lang-key="all-customers">${translations[lang]['all-customers']}</option>`;
+
+    uniqueCustomers.forEach(name => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      customerSelect.appendChild(option);
+    });
+
+    setTimeout(() => {
+      customerSelect.dispatchEvent(new Event('change'));
+    }, 100);
+  } catch (error) {
+    console.error('Error populating customer dropdown:', error.message, new Date().toISOString());
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入客戶下拉選單：${error.message}` : `Failed to populate customer dropdown: ${error.message}`}`;
+      clearMessage('error');
     }
   }
 }
@@ -1533,7 +1564,6 @@ async function addVendor(vendor) {
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
     clearMessage('message');
     loadVendors();
-    isVendorDropdownPopulated = false; // Reset flag to allow repopulation
     populateVendorDropdown();
   } catch (error) {
     console.error('Error adding vendor:', error.message, error.details, new Date().toISOString());
@@ -1585,15 +1615,7 @@ async function deleteVendor(vendorId) {
   }
 }
 
-let isDomContentLoaded = false;
-
 document.addEventListener('DOMContentLoaded', () => {
-  if (isDomContentLoaded) {
-    console.log('DOMContentLoaded already handled, skipping...', new Date().toISOString());
-    return;
-  }
-  isDomContentLoaded = true;
-
   console.log('DOM fully loaded and parsed', new Date().toISOString());
   applyTranslations();
   const toggleButton = document.getElementById('toggle-language');
