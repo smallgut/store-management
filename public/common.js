@@ -336,49 +336,46 @@ async function populateProductDropdown(barcodeInput = null) {
 }
 
 async function populateVendorDropdown() {
-  console.log('Populating vendor dropdown...');
+  console.log('Populating vendor dropdown...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
-    const { data: vendors, error: vendorError } = await client
-      .from('vendors')
-      .select('id, name')
-      .order('name');
-    if (vendorError) throw vendorError;
-
-    console.log('Vendors for dropdown:', vendors);
-
     const vendorSelect = document.getElementById('vendor-name');
-    if (!vendorSelect) {
-      console.error('Vendor select element not found');
+    if (!vendorSelect) return;
+
+    // Skip if already populated with more than just the default option
+    if (vendorSelect.options.length > 1) {
+      console.log('Vendor dropdown already populated, skipping...', new Date().toISOString());
       return;
     }
 
-    const proto = Object.getPrototypeOf(vendorSelect);
-    if (proto.hasOwnProperty('change')) {
-      vendorSelect.removeEventListener('change', proto.change);
-    }
+    vendorSelect.innerHTML = '<option value="" disabled selected>Select a vendor</option>';
+    const { data: vendors, error } = await client.from('vendors').select('id, name').order('name');
+    if (error) throw error;
 
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const lang = isChinese ? 'zh' : 'en';
-    vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
-
-    vendors.forEach(v => {
-      const option = document.createElement('option');
-      option.value = v.id;
-      option.textContent = v.name;
-      vendorSelect.appendChild(option);
+    console.log('Vendors for dropdown:', vendors, new Date().toISOString());
+    
+    const uniqueVendors = [];
+    const seenNames = new Set();
+    vendors.forEach(vendor => {
+      if (!seenNames.has(vendor.name)) {
+        seenNames.add(vendor.name);
+        uniqueVendors.push(vendor);
+      }
     });
 
-    setTimeout(() => {
-      vendorSelect.dispatchEvent(new Event('change'));
-    }, 100);
+    uniqueVendors.forEach(vendor => {
+      const option = document.createElement('option');
+      option.value = vendor.id;
+      option.textContent = vendor.name;
+      vendorSelect.appendChild(option);
+    });
   } catch (error) {
-    console.error('Error populating vendor dropdown:', error.message);
+    console.error('Error populating vendor dropdown:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商下拉選單：${error.message}` : `Failed to populate vendor dropdown: ${error.message}`}`;
-      clearMessage('error');
+      clearMessage('error', 10000);
     }
   }
 }
