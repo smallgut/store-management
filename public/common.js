@@ -1025,24 +1025,24 @@ function handleAddVendor(event) {
 }
 
 async function loadVendors() {
-  console.log('Loading vendors...');
+  console.log('Loading vendors...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
     const { data: vendors, error } = await client
       .from('vendors')
-      .select('*')
+      .select('id, name, contact')
       .order('name');
     if (error) throw error;
-    console.log('Vendors:', vendors);
+    console.log('Vendors:', vendors, new Date().toISOString());
     const vendorsBody = document.querySelector('#vendors-table tbody');
     if (vendorsBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       vendorsBody.innerHTML = vendors.length
         ? vendors.map(v => `
             <tr>
-              <td class="border p-2">${v.name || (isChinese ? '無' : 'N/A')}</td>
-              <td class="border p-2">${v.contact_email || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${v.name}</td>
+              <td class="border p-2">${v.contact}</td>
               <td class="border p-2">
                 <button data-vendor-id="${v.id}" class="delete-vendor bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
               </td>
@@ -1050,7 +1050,6 @@ async function loadVendors() {
           `).join('')
         : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
       applyTranslations();
-      // Add event delegation for delete buttons
       document.querySelectorAll('.delete-vendor').forEach(button => {
         button.addEventListener('click', (e) => {
           const vendorId = e.target.getAttribute('data-vendor-id');
@@ -1059,7 +1058,7 @@ async function loadVendors() {
       });
     }
   } catch (error) {
-    console.error('Error loading vendors:', error.message);
+    console.error('Error loading vendors:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -1070,7 +1069,6 @@ async function loadVendors() {
     setLoading(false);
   }
 }
-
 async function addVendor(vendor) {
   console.log('Adding vendor...', vendor, new Date().toISOString());
   try {
