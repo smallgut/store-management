@@ -335,40 +335,42 @@ async function populateProductDropdown(barcodeInput = null) {
   }
 }
 
+let isVendorDropdownPopulated = false; // Global flag to track population state
+
 async function populateVendorDropdown() {
   console.log('Populating vendor dropdown...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     const vendorSelect = document.getElementById('vendor-name');
-    if (!vendorSelect) return;
+    if (!vendorSelect) {
+      console.log('Vendor select element not found, skipping...', new Date().toISOString());
+      return;
+    }
 
-    // Skip if already populated with more than just the default option
-    if (vendorSelect.options.length > 1) {
+    // Skip if already populated
+    if (isVendorDropdownPopulated) {
       console.log('Vendor dropdown already populated, skipping...', new Date().toISOString());
       return;
     }
 
+    // Clear existing options
     vendorSelect.innerHTML = '<option value="" disabled selected>Select a vendor</option>';
+
     const { data: vendors, error } = await client.from('vendors').select('id, name').order('name');
     if (error) throw error;
 
-    console.log('Vendors for dropdown:', vendors, new Date().toISOString());
-    
-    const uniqueVendors = [];
-    const seenNames = new Set();
-    vendors.forEach(vendor => {
-      if (!seenNames.has(vendor.name)) {
-        seenNames.add(vendor.name);
-        uniqueVendors.push(vendor);
-      }
-    });
+    console.log('Vendors for dropdown:', vendors.map(v => ({ id: v.id, name: v.name })), new Date().toISOString());
 
-    uniqueVendors.forEach(vendor => {
+    // Add vendors to dropdown
+    vendors.forEach(vendor => {
       const option = document.createElement('option');
       option.value = vendor.id;
       option.textContent = vendor.name;
       vendorSelect.appendChild(option);
     });
+
+    // Mark dropdown as populated
+    isVendorDropdownPopulated = true;
   } catch (error) {
     console.error('Error populating vendor dropdown:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
