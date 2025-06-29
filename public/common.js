@@ -342,15 +342,18 @@ async function populateVendorDropdown() {
     const vendorSelect = document.getElementById('vendor-name');
     if (!vendorSelect) return;
 
-    // Clear existing options
-    vendorSelect.innerHTML = '<option value="" disabled selected>Select a vendor</option>';
+    // Skip if already populated with more than just the default option
+    if (vendorSelect.options.length > 1) {
+      console.log('Vendor dropdown already populated, skipping...', new Date().toISOString());
+      return;
+    }
 
+    vendorSelect.innerHTML = '<option value="" disabled selected>Select a vendor</option>';
     const { data: vendors, error } = await client.from('vendors').select('id, name').order('name');
     if (error) throw error;
 
     console.log('Vendors for dropdown:', vendors, new Date().toISOString());
     
-    // Deduplicate vendors by name
     const uniqueVendors = [];
     const seenNames = new Set();
     vendors.forEach(vendor => {
@@ -360,7 +363,6 @@ async function populateVendorDropdown() {
       }
     });
 
-    // Add unique vendors to dropdown
     uniqueVendors.forEach(vendor => {
       const option = document.createElement('option');
       option.value = vendor.id;
