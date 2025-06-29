@@ -133,7 +133,21 @@ function applyTranslations() {
   });
   console.log('Applied translations for:', lang, new Date().toISOString());
 }
+function initLanguage() {
+  console.log('Initializing language to Traditional Chinese...', new Date().toISOString());
+  const body = document.getElementById('lang-body');
+  if (body) {
+    body.classList.add('lang-zh'); // Set Traditional Chinese as default
+    applyTranslations();
+  } else {
+    console.error('lang-body element not found for language initialization', new Date().toISOString());
+  }
+}
 
+// Call initLanguage when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  initLanguage();
+});
 function toggleLanguage() {
   console.log('Toggling language...', new Date().toISOString());
   const body = document.getElementById('lang-body');
