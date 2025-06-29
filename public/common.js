@@ -1105,7 +1105,7 @@ function handleDeleteVendor(vendorId) {
 }
 
 async function deleteVendor(vendorId) {
-  console.log('Deleting vendor...', vendorId);
+  console.log('Deleting vendor...', vendorId, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
@@ -1114,14 +1114,13 @@ async function deleteVendor(vendorId) {
       .delete()
       .eq('id', vendorId);
     if (error) throw error;
-    console.log('Vendor deleted:', vendorId);
+    console.log('Vendor deleted:', vendorId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商刪除成功' : 'Vendor deleted successfully'}`;
     clearMessage('message');
     loadVendors();
-    populateVendorDropdown();
   } catch (error) {
-    console.error('Error deleting vendor:', error.message);
+    console.error('Error deleting vendor:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
