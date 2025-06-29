@@ -1072,31 +1072,26 @@ async function loadVendors() {
 }
 
 async function addVendor(vendor) {
-  console.log('Adding vendor...', vendor);
+  console.log('Adding vendor...', vendor, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
-    console.log('Inserting vendor data into Supabase:', vendor);
     const { data, error } = await client
       .from('vendors')
       .insert(vendor)
       .select();
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
-    console.log('Vendor added:', data);
+    if (error) throw error;
+    console.log('Vendor added:', data, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
     clearMessage('message');
     loadVendors();
-    populateVendorDropdown();
   } catch (error) {
-    console.error('Error adding vendor:', error.message, error.details);
+    console.error('Error adding vendor:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加供應商失敗：${error.message}` : `Failed to add vendor: ${error.message}`}${error.details ? ` - ${error.details}` : ''}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加供應商失敗：${error.message}` : `Failed to add vendor: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
