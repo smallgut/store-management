@@ -1584,7 +1584,15 @@ async function deleteVendor(vendorId) {
   }
 }
 
+let isDomContentLoaded = false;
+
 document.addEventListener('DOMContentLoaded', () => {
+  if (isDomContentLoaded) {
+    console.log('DOMContentLoaded already handled, skipping...', new Date().toISOString());
+    return;
+  }
+  isDomContentLoaded = true;
+
   console.log('DOM fully loaded and parsed', new Date().toISOString());
   applyTranslations();
   const toggleButton = document.getElementById('toggle-language');
