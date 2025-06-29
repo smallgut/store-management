@@ -951,7 +951,6 @@ async function handleAddCustomerSale(event) {
     setLoading(false);
   }
 }
-}
 function handleDeleteLoanRecord(loanId) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
   if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
