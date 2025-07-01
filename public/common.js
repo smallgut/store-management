@@ -350,7 +350,7 @@ async function populateProductDropdown(barcodeInput = null) {
 }
 
 async function populateVendorDropdown() {
-  console.log('Populating vendor dropdown...', new Date().toISOString());
+  console.log('Populating vendor dropdown...');
   try {
     const client = await ensureSupabaseClient();
     const { data: vendors, error: vendorError } = await client
@@ -359,11 +359,11 @@ async function populateVendorDropdown() {
       .order('name');
     if (vendorError) throw vendorError;
 
-    console.log('Vendors for dropdown:', vendors, new Date().toISOString());
+    console.log('Vendors for dropdown:', vendors);
 
     const vendorSelect = document.getElementById('vendor-name');
     if (!vendorSelect) {
-      console.error('Vendor select element not found', new Date().toISOString());
+      console.error('Vendor select element not found');
       return;
     }
 
@@ -374,11 +374,11 @@ async function populateVendorDropdown() {
 
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const lang = isChinese ? 'zh' : 'en';
-    vendorSelect.innerHTML = `<option value="" data-lang-key="all-vendors">${translations[lang]['all-vendors']}</option>`;
+    vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
 
     vendors.forEach(v => {
       const option = document.createElement('option');
-      option.value = v.name;
+      option.value = v.id;
       option.textContent = v.name;
       vendorSelect.appendChild(option);
     });
@@ -387,7 +387,7 @@ async function populateVendorDropdown() {
       vendorSelect.dispatchEvent(new Event('change'));
     }, 100);
   } catch (error) {
-    console.error('Error populating vendor dropdown:', error.message, new Date().toISOString());
+    console.error('Error populating vendor dropdown:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
@@ -396,7 +396,6 @@ async function populateVendorDropdown() {
     }
   }
 }
-
 
 async function populateCustomerDropdown() {
   console.log('Populating customer dropdown...', new Date().toISOString());
