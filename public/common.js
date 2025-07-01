@@ -1244,6 +1244,7 @@ async function generateVendorLoanReport(startDate, endDate, vendorName) {
   }
 }
 
+
 async function generateCustomerSalesReport(startDate, endDate, customerName) {
   console.log('Generating customer sales report...', { startDate, endDate, customerName }, new Date().toISOString());
   try {
