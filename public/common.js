@@ -1330,7 +1330,17 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
     setLoading(false);
   }
 }
+// Initialize dropdown and report on page load
+document.addEventListener('DOMContentLoaded', () => {
+  loadVendorsForDropdown();
+  generateVendorLoanReport();
+});
 
+// Update report when vendor selection changes
+document.getElementById('vendor-select')?.addEventListener('change', () => {
+  console.log('Vendor selection changed, regenerating report...', new Date().toISOString());
+  generateVendorLoanReport();
+});
 async function loadProducts() {
   console.log('Loading products...', new Date().toISOString());
   try {
