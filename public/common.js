@@ -1090,18 +1090,11 @@ async function generateProductReport(startDate, endDate) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
-    // Convert dates to DDMMYY format for batch_no filtering
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const startBatch = `${start.getDate().toString().padStart(2, '0')}${String(start.getMonth() + 1).padStart(2, '0')}${start.getFullYear().toString().slice(-2)}`;
-    const endBatch = `${end.getDate().toString().padStart(2, '0')}${String(end.getMonth() + 1).padStart(2, '0')}${end.getFullYear().toString().slice(-2)}`;
-
     const { data: products, error: productsError } = await client
       .from('products')
-      .select('id, name, price, batch_no, stock')
-      .gte('batch_no', startBatch)
-      .lte('batch_no', endBatch);
+      .select('id, name, price, batch_no, stock');
     if (productsError) throw productsError;
+    console.log('Products for report:', products, new Date().toISOString());
 
     const { data: sales, error: salesError } = await client
       .from('customer_sales')
@@ -1122,27 +1115,27 @@ async function generateProductReport(startDate, endDate) {
       productReportBody.innerHTML = '';
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
 
-      products.forEach(product => {
-        const salesForProduct = sales.filter(s => s.product_id === product.id && s.products.batch_no === product.batch_no);
-        const loansForProduct = loans.filter(l => l.product_id === product.id && l.products.batch_no === product.batch_no);
+      if (products.length > 0) {
+        products.forEach(product => {
+          const salesForProduct = sales.filter(s => s.product_id === product.id && s.products.batch_no === product.batch_no);
+          const loansForProduct = loans.filter(l => l.product_id === product.id && l.products.batch_no === product.batch_no);
 
-        const soldQuantity = salesForProduct.reduce((sum, s) => sum + s.quantity, 0);
-        const loanedQuantity = loansForProduct.reduce((sum, l) => sum + l.quantity, 0);
-        const originalStockIn = product.stock + soldQuantity + loanedQuantity;
+          const soldQuantity = salesForProduct.reduce((sum, s) => sum + s.quantity, 0);
+          const loanedQuantity = loansForProduct.reduce((sum, l) => sum + l.quantity, 0);
+          const originalStockIn = product.stock + soldQuantity + loanedQuantity;
 
-        const row = `
-          <tr>
-            <td class="border p-2">${product.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
-            <td class="border p-2">${product.batch_no || (isChinese ? '無' : 'N/A')}</td>
-            <td class="border p-2">${product.price ? product.price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
-            <td class="border p-2">${originalStockIn}</td>
-            <td class="border p-2">${product.stock}</td>
-          </tr>
-        `;
-        productReportBody.innerHTML += row;
-      });
-
-      if (products.length === 0) {
+          const row = `
+            <tr>
+              <td class="border p-2">${product.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
+              <td class="border p-2">${product.batch_no || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${product.price ? product.price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${originalStockIn}</td>
+              <td class="border p-2">${product.stock}</td>
+            </tr>
+          `;
+          productReportBody.innerHTML += row;
+        });
+      } else {
         productReportBody.innerHTML = `<tr><td colspan="5" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
       }
       applyTranslations();
@@ -1153,7 +1146,7 @@ async function generateProductReport(startDate, endDate) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `生成產品報告失敗：${error.message}` : `Failed to generate product report: ${error.message}`}`;
-      clearMessage('error');
+      clearMessage('error', 10000);
     }
   } finally {
     setLoading(false);
