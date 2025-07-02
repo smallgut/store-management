@@ -1175,6 +1175,7 @@ async function generateProductReport(startDate, endDate) {
 }
 
 
+
 async function generateVendorLoanReport(startDate, endDate, vendorName) {
   console.log('Generating vendor loan report...', { startDate, endDate, vendorName }, new Date().toISOString());
   try {
