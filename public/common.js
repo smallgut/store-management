@@ -1181,23 +1181,23 @@ async function generateVendorLoanReport(startDate, endDate, vendorName) {
     setLoading(true);
 
     let query = client
-  .from('vendor_loans')
-  .select(`
-    id,
-    vendor_id,
-    product_id,
-    quantity,
-    date,
-    vendors!inner (name),
-    products (name, batch_no)
-  `)
-  .gte('date', startDate)
-  .lte('date', endDate)
-  .not('vendor_id', 'is', null);
+      .from('vendor_loans')
+      .select(`
+        id,
+        vendor_id,
+        product_id,
+        quantity,
+        date,
+        vendors!inner (name),
+        products (name, batch_no)
+      `)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .not('vendor_id', 'is', null); // Exclude records with null vendor_id
 
-if (vendorName) {
-  query = query.eq('vendor_id', parseInt(vendorName)); // Filter by vendor_id
-}
+    if (vendorName) {
+      query = query.eq('vendors.name', vendorName);
+    }
 
     const { data: loans, error: loansError } = await query;
     if (loansError) throw loansError;
