@@ -1174,14 +1174,15 @@ async function generateVendorLoanReport(startDate, endDate, vendorName) {
     product_id,
     quantity,
     date,
-    vendors (name), // Change to left join
+    vendors!inner (name),
     products (name, batch_no)
   `)
   .gte('date', startDate)
-  .lte('date', endDate);
+  .lte('date', endDate)
+  .not('vendor_id', 'is', null);
 
 if (vendorName) {
-  query = query.eq('vendors.name', vendorName);
+  query = query.eq('vendor_id', parseInt(vendorName)); // Filter by vendor_id
 }
 
     const { data: loans, error: loansError } = await query;
