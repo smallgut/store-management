@@ -1104,18 +1104,15 @@ async function generateProductReport(startDate, endDate) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
-    // Convert dates to DDMMYY format for batch_no filtering
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const startBatch = `${start.getDate().toString().padStart(2, '0')}${String(start.getMonth() + 1).padStart(2, '0')}${start.getFullYear().toString().slice(-2)}`;
-    const endBatch = `${end.getDate().toString().padStart(2, '0')}${String(end.getMonth() + 1).padStart(2, '0')}${end.getFullYear().toString().slice(-2)}`;
+    end.setHours(23, 59, 59, 999); // Include entire end date
 
     const { data: products, error: productsError } = await client
       .from('products')
-      .select('id, name, price, batch_no, stock')
-      .gte('batch_no', startBatch)
-      .lte('batch_no', endBatch);
+      .select('id, name, price, batch_no, stock');
     if (productsError) throw productsError;
+    console.log('All products fetched:', products, new Date().toISOString());
 
     const { data: sales, error: salesError } = await client
       .from('customer_sales')
@@ -1123,6 +1120,7 @@ async function generateProductReport(startDate, endDate) {
       .gte('sale_date', startDate)
       .lte('sale_date', endDate);
     if (salesError) throw salesError;
+    console.log('Sales data:', sales, new Date().toISOString());
 
     const { data: loans, error: loansError } = await client
       .from('vendor_loans')
@@ -1130,33 +1128,47 @@ async function generateProductReport(startDate, endDate) {
       .gte('date', startDate)
       .lte('date', endDate);
     if (loansError) throw loansError;
+    console.log('Loans data:', loans, new Date().toISOString());
 
     const productReportBody = document.querySelector('#product-report-table tbody');
     if (productReportBody) {
       productReportBody.innerHTML = '';
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
 
-      products.forEach(product => {
-        const salesForProduct = sales.filter(s => s.product_id === product.id && s.products.batch_no === product.batch_no);
-        const loansForProduct = loans.filter(l => l.product_id === product.id && l.products.batch_no === product.batch_no);
-
-        const soldQuantity = salesForProduct.reduce((sum, s) => sum + s.quantity, 0);
-        const loanedQuantity = loansForProduct.reduce((sum, l) => sum + l.quantity, 0);
-        const originalStockIn = product.stock + soldQuantity + loanedQuantity;
-
-        const row = `
-          <tr>
-            <td class="border p-2">${product.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
-            <td class="border p-2">${product.batch_no || (isChinese ? '無' : 'N/A')}</td>
-            <td class="border p-2">${product.price ? product.price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
-            <td class="border p-2">${originalStockIn}</td>
-            <td class="border p-2">${product.stock}</td>
-          </tr>
-        `;
-        productReportBody.innerHTML += row;
+      const filteredProducts = products.filter(product => {
+        const batchDate = parseBatchNoToDate(product.batch_no);
+        if (!batchDate) {
+          console.warn(`Invalid or null batch_no for product ${product.id}: ${product.batch_no}`, new Date().toISOString());
+          // Include products with null/invalid batch_no if they have sales or loans
+          const hasSales = sales.some(s => s.product_id === product.id);
+          const hasLoans = loans.some(l => l.product_id === product.id);
+          return hasSales || hasLoans;
+        }
+        return batchDate >= start && batchDate <= end;
       });
+      console.log('Filtered products:', filteredProducts, new Date().toISOString());
 
-      if (products.length === 0) {
+      if (filteredProducts.length > 0) {
+        filteredProducts.forEach(product => {
+          const salesForProduct = sales.filter(s => s.product_id === product.id && s.products.batch_no === product.batch_no);
+          const loansForProduct = loans.filter(l => l.product_id === product.id && l.products.batch_no === product.batch_no);
+
+          const soldQuantity = salesForProduct.reduce((sum, s) => sum + s.quantity, 0);
+          const loanedQuantity = loansForProduct.reduce((sum, l) => sum + l.quantity, 0);
+          const originalStockIn = product.stock + soldQuantity + loanedQuantity;
+
+          const row = `
+            <tr>
+              <td class="border p-2">${product.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
+              <td class="border p-2">${product.batch_no || (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${product.price ? product.price.toFixed(2) : (isChinese ? '無' : 'N/A')}</td>
+              <td class="border p-2">${originalStockIn}</td>
+              <td class="border p-2">${product.stock}</td>
+            </tr>
+          `;
+          productReportBody.innerHTML += row;
+        });
+      } else {
         productReportBody.innerHTML = `<tr><td colspan="5" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
       }
       applyTranslations();
@@ -1167,7 +1179,7 @@ async function generateProductReport(startDate, endDate) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `生成產品報告失敗：${error.message}` : `Failed to generate product report: ${error.message}`}`;
-      clearMessage('error');
+      clearMessage('error', 10000);
     }
   } finally {
     setLoading(false);
