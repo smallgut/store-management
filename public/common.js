@@ -1097,7 +1097,16 @@ async function loadAnalytics() {
     setLoading(false);
   }
 }
-
+function parseBatchNoToDate(batchNo) {
+  if (!batchNo || batchNo.length !== 6 || isNaN(batchNo)) {
+    return null;
+  }
+  const day = parseInt(batchNo.slice(0, 2));
+  const month = parseInt(batchNo.slice(2, 4)) - 1;
+  const year = parseInt('20' + batchNo.slice(4, 6));
+  const date = new Date(year, month, day);
+  return isNaN(date.getTime()) ? null : date;
+}
 async function generateProductReport(startDate, endDate) {
   console.log('Generating product report...', { startDate, endDate }, new Date().toISOString());
   try {
