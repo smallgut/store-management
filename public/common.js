@@ -5,14 +5,14 @@ const translations = {
     'nav-home': 'Home',
     'nav-analytics': 'Analytics',
     'nav-manage-products': 'Manage Products',
-    'nav-manage-industry peerss': 'Manage industry peerss',
+    'nav-manage-vendors': 'Manage Vendors',
     'nav-record-customer-sales': 'Record Customer Sales',
-    'nav-industry peers-loan-record': 'industry peers Loan Record',
+    'nav-vendor-loan-record': 'Vendor Loan Record',
     'toggle-language': 'Toggle Language',
     'home-welcome': 'Welcome to the Home page!',
     'manage-products-welcome': 'Welcome to Manage Products!',
-    'manage-industry peerss-welcome': 'Welcome to Manage industry peerss!',
-    'industry peers-loan-record-welcome': 'Welcome to industry peers Loan Record!',
+    'manage-vendors-welcome': 'Welcome to Manage Vendors!',
+    'vendor-loan-record-welcome': 'Welcome to Vendor Loan Record!',
     'record-customer-sales': 'Record Customer Sales',
     'add-customer-sale': 'Add Customer Sale',
     'select-product': 'Select Product (or input barcode)',
@@ -31,17 +31,17 @@ const translations = {
     'stock': 'Stock',
     'buy-in-price': 'Buy-In Price',
     'inventory-value': 'Inventory Value',
-    'add-industry peers': 'Add industry peers',
-    'industry peers-name': 'industry peers Name',
-    'industry peers-contact': 'industry peers Contact',
+    'add-vendor': 'Add Vendor',
+    'vendor-name': 'Vendor Name',
+    'vendor-contact': 'Vendor Contact',
     'manage-products': 'Manage Products',
-    'manage-industry peerss': 'Manage industry peerss',
+    'manage-vendors': 'Manage Vendors',
     'add-loan-record': 'Add Loan Record',
     'loan-amount': 'Loan Amount',
     'loan-date': 'Loan Date',
-    'industry peers-loan': 'industry peers Loan',
+    'vendor-loan': 'Vendor Loan',
     'no-products-found': 'No products found.',
-    'no-industry peerss-found': 'No industry peerss found.',
+    'no-vendors-found': 'No vendors found.',
     'no-loan-records-found': 'No loan records found.',
     'unknown-product': 'Unknown Product',
     'no-customer-sales-found': 'No customer sales found.',
@@ -54,25 +54,25 @@ const translations = {
     'start-date': 'Start Date',
     'end-date': 'End Date',
     'product-report': 'Product Report',
-    'industry peers-loan-report': 'industry peers Loan Report',
+    'vendor-loan-report': 'Vendor Loan Report',
     'customer-sales-report': 'Customer Sales Report',
     'original-stock-in': 'Original Stock-In',
     'all-customers': '-- All Customers --',
-    'all-industry peerss': '-- All industry peerss --',
-    'unknown-industry peers': 'Unknown industry peers'
+    'all-vendors': '-- All Vendors --',
+    'unknown-vendor': 'Unknown Vendor'
   },
   zh: {
     'nav-home': '首頁',
     'nav-analytics': '分析',
     'nav-manage-products': '管理產品',
-    'nav-manage-industry peerss': '管理業界同行',
+    'nav-manage-vendors': '管理供應商',
     'nav-record-customer-sales': '記錄客戶銷售',
-    'nav-industry peers-loan-record': '業界同行貸貨記錄',
+    'nav-vendor-loan-record': '供應商貸貨記錄',
     'toggle-language': '切換語言',
     'home-welcome': '歡迎來到首頁！',
     'manage-products-welcome': '歡迎來到管理產品！',
-    'manage-industry peerss-welcome': '歡迎來到管理業界同行！',
-    'industry peers-loan-record-welcome': '歡迎來到業界同行貸貨記錄！',
+    'manage-vendors-welcome': '歡迎來到管理供應商！',
+    'vendor-loan-record-welcome': '歡迎來到供應商貸貨記錄！',
     'record-customer-sales': '記錄客戶銷售',
     'add-customer-sale': '添加客戶銷售',
     'select-product': '選擇產品（或輸入條碼）',
@@ -91,17 +91,17 @@ const translations = {
     'stock': '庫存',
     'buy-in-price': '進貨價',
     'inventory-value': '庫存價值',
-    'add-industry peers': '添加業界同行',
-    'industry peers-name': '業界同行名稱',
-    'industry peers-contact': '業界同行聯繫方式',
+    'add-vendor': '添加供應商',
+    'vendor-name': '供應商名稱',
+    'vendor-contact': '供應商聯繫方式',
     'manage-products': '管理產品',
-    'manage-industry peerss': '管理業界同行',
+    'manage-vendors': '管理供應商',
     'add-loan-record': '添加貸貨記錄',
     'loan-amount': '貸貨金額',
     'loan-date': '貸貨日期',
-    'industry peers-loan': '業界同行貸貨',
+    'vendor-loan': '供應商貸貨',
     'no-products-found': '未找到產品。',
-    'no-industry peerss-found': '未找到業界同行。',
+    'no-vendors-found': '未找到供應商。',
     'no-loan-records-found': '未找到貸貨記錄。',
     'unknown-product': '未知產品',
     'no-customer-sales-found': '未找到客戶銷售記錄。',
@@ -114,12 +114,12 @@ const translations = {
     'start-date': '開始日期',
     'end-date': '結束日期',
     'product-report': '產品報告',
-    'industry peers-loan-report': '業界同行貸貨報告',
+    'vendor-loan-report': '供應商貸貨報告',
     'customer-sales-report': '客戶銷售報告',
     'original-stock-in': '原始入庫數量',
     'all-customers': '-- 所有客戶 --',
-    'all-industry peerss': '-- 所有業界同行 --',
-    'unknown-industry peers': '未知業界同行'
+    'all-vendors': '-- 所有供應商 --',
+    'unknown-vendor': '未知供應商'
   }
 };
 
@@ -155,7 +155,7 @@ function toggleLanguage() {
     body.classList.toggle('lang-zh');
     applyTranslations();
     if (document.querySelector('#products-table')) loadProducts();
-    if (document.querySelector('#industry peerss-table')) loadindustry peerss();
+    if (document.querySelector('#vendors-table')) loadVendors();
     if (document.querySelector('#loan-records-table')) loadLoanRecords();
     if (document.querySelector('#customer-sales')) loadCustomerSales();
     if (document.querySelector('#product-report-table')) loadAnalytics();
@@ -349,49 +349,49 @@ async function populateProductDropdown(barcodeInput = null) {
   }
 }
 
-async function populateindustry peersDropdown() {
-  console.log('Populating industry peers dropdown...');
+async function populateVendorDropdown() {
+  console.log('Populating vendor dropdown...');
   try {
     const client = await ensureSupabaseClient();
-    const { data: industry peerss, error: industry peersError } = await client
-      .from('industry peerss')
+    const { data: vendors, error: vendorError } = await client
+      .from('vendors')
       .select('id, name')
       .order('name');
-    if (industry peersError) throw industry peersError;
+    if (vendorError) throw vendorError;
 
-    console.log('industry peerss for dropdown:', industry peerss);
+    console.log('Vendors for dropdown:', vendors);
 
-    const industry peersSelect = document.getElementById('industry peers-name');
-    if (!industry peersSelect) {
-      console.error('industry peers select element not found');
+    const vendorSelect = document.getElementById('vendor-name');
+    if (!vendorSelect) {
+      console.error('Vendor select element not found');
       return;
     }
 
-    const proto = Object.getPrototypeOf(industry peersSelect);
+    const proto = Object.getPrototypeOf(vendorSelect);
     if (proto.hasOwnProperty('change')) {
-      industry peersSelect.removeEventListener('change', proto.change);
+      vendorSelect.removeEventListener('change', proto.change);
     }
 
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const lang = isChinese ? 'zh' : 'en';
-    industry peersSelect.innerHTML = '<option value="">-- Select industry peers --</option>';
+    vendorSelect.innerHTML = '<option value="">-- Select Vendor --</option>';
 
-    industry peerss.forEach(v => {
+    vendors.forEach(v => {
       const option = document.createElement('option');
       option.value = v.id;
       option.textContent = v.name;
-      industry peersSelect.appendChild(option);
+      vendorSelect.appendChild(option);
     });
 
     setTimeout(() => {
-      industry peersSelect.dispatchEvent(new Event('change'));
+      vendorSelect.dispatchEvent(new Event('change'));
     }, 100);
   } catch (error) {
-    console.error('Error populating industry peers dropdown:', error.message);
+    console.error('Error populating vendor dropdown:', error.message);
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入業界同行下拉選單：${error.message}` : `Failed to populate industry peers dropdown: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商下拉選單：${error.message}` : `Failed to populate vendor dropdown: ${error.message}`}`;
       clearMessage('error');
     }
   }
@@ -647,16 +647,16 @@ async function loadLoanRecords() {
     const client = await ensureSupabaseClient();
     setLoading(true);
     const { data: loans, error } = await client
-      .from('industry peers_loans')
+      .from('vendor_loans')
       .select(`
         id,
-        industry peers_id,
+        vendor_id,
         product_id,
         batch_no,
         quantity,
         selling_price,
         date,
-        industry peerss (
+        vendors (
           name
         ),
         products (
@@ -666,14 +666,14 @@ async function loadLoanRecords() {
       .order('date', { ascending: false });
     if (error) throw error;
 
-    console.log('industry peers Loans:', loans, new Date().toISOString());
+    console.log('Vendor Loans:', loans, new Date().toISOString());
     const loansBody = document.querySelector('#loan-records-table tbody');
     if (loansBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       loansBody.innerHTML = loans.length
         ? loans.map(l => `
             <tr>
-              <td class="border p-2">${l.industry peerss?.name || (isChinese ? '未知業界同行' : 'Unknown industry peers')}</td>
+              <td class="border p-2">${l.vendors?.name || (isChinese ? '未知供應商' : 'Unknown Vendor')}</td>
               <td class="border p-2">${l.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
               <td class="border p-2">${l.batch_no || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.quantity || (isChinese ? '無' : 'N/A')}</td>
@@ -687,7 +687,7 @@ async function loadLoanRecords() {
         : `<tr><td colspan="7" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄。' : 'No loan records found.'}</td></tr>`;
       applyTranslations();
       populateProductDropdown();
-      populateindustry peersDropdown();
+      populateVendorDropdown();
       document.querySelectorAll('.delete-loan').forEach(button => {
         button.addEventListener('click', (e) => {
           const loanId = e.target.getAttribute('data-loan-id');
@@ -718,14 +718,14 @@ async function addLoanRecord(event) {
     const productBarcodeRaw = document.getElementById('product-barcode')?.value;
     const productSelectRaw = document.getElementById('product-select')?.value;
     const batchNoRaw = document.getElementById('batch-no')?.value;
-    const industry peersIdRaw = document.getElementById('industry peers-name')?.value;
+    const vendorIdRaw = document.getElementById('vendor-name')?.value;
     const quantityRaw = document.getElementById('quantity')?.value;
     const sellingPriceRaw = document.getElementById('selling-price')?.value;
     const loanDateRaw = document.getElementById('loan-date')?.value;
 
     const productBarcode = String(productBarcodeRaw || (productSelectRaw ? productSelectRaw.split('|')[0] : '') || '');
     const batchNo = String(batchNoRaw || '');
-    const industry peersId = parseInt(industry peersIdRaw || '0');
+    const vendorId = parseInt(vendorIdRaw || '0');
     const quantity = parseInt(quantityRaw?.replace(/,/g, '') || '0');
     const sellingPrice = parseFloat(sellingPriceRaw?.replace(/,/g, '') || '0');
     const loanDate = loanDateRaw;
@@ -735,7 +735,7 @@ async function addLoanRecord(event) {
       productBarcodeRaw,
       productSelectRaw,
       batchNoRaw,
-      industry peersIdRaw,
+      vendorIdRaw,
       quantityRaw,
       sellingPriceRaw,
       loanDateRaw
@@ -743,7 +743,7 @@ async function addLoanRecord(event) {
     console.log('Processed form inputs:', {
       productBarcode,
       batchNo,
-      industry peersId,
+      vendorId,
       quantity,
       sellingPrice,
       loanDate
@@ -751,7 +751,7 @@ async function addLoanRecord(event) {
 
     // Specific validation error messages
     const errors = [];
-    if (!industry peersId) errors.push('industry peers ID is missing or invalid');
+    if (!vendorId) errors.push('Vendor ID is missing or invalid');
     if (!productBarcode) errors.push('Product barcode or selection is missing');
     if (!batchNo) errors.push('Batch number is missing');
     if (!quantity) errors.push('Quantity is missing or invalid');
@@ -785,7 +785,7 @@ async function addLoanRecord(event) {
     }
 
     const loan = {
-      industry peers_id: industry peersId,
+      vendor_id: vendorId,
       product_id: product.id,
       batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
       quantity,
@@ -795,7 +795,7 @@ async function addLoanRecord(event) {
     console.log('Loan data to insert:', loan, new Date().toISOString());
 
     const { data: newLoan, error } = await client
-      .from('industry peers_loans')
+      .from('vendor_loans')
       .insert(loan)
       .select();
     if (error) {
@@ -978,7 +978,7 @@ async function handleDeleteLoanRecord(loanId) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
-    const { error } = await client.from('industry peers_loans').delete().eq('id', loanId);
+    const { error } = await client.from('vendor_loans').delete().eq('id', loanId);
     if (error) throw error;
 
     console.log('Loan record deleted:', loanId, new Date().toISOString());
@@ -1005,7 +1005,7 @@ async function deleteLoanRecord(loanId) {
     setLoading(true);
 
     const { data: loan, error: loanError } = await client
-      .from('industry peers_loans')
+      .from('vendor_loans')
       .select('product_id, quantity')
       .eq('id', loanId)
       .single();
@@ -1025,7 +1025,7 @@ async function deleteLoanRecord(loanId) {
     }
 
     const { error: deleteError } = await client
-      .from('industry peers_loans')
+      .from('vendor_loans')
       .delete()
       .eq('id', loanId);
     if (deleteError) throw deleteError;
@@ -1058,7 +1058,7 @@ async function loadAnalytics() {
   console.log('Loading analytics...', new Date().toISOString());
   try {
     await populateCustomerDropdown();
-    await populateindustry peersDropdown();
+    await populateVendorDropdown();
     const form = document.getElementById('report-form');
     if (form) {
       form.addEventListener('submit', async (event) => {
@@ -1067,7 +1067,7 @@ async function loadAnalytics() {
         const startDate = document.getElementById('start-date').value;
         const endDate = document.getElementById('end-date').value;
         const customerName = document.getElementById('customer-name').value;
-        const industry peersName = document.getElementById('industry peers-name').value;
+        const vendorName = document.getElementById('vendor-name').value;
 
         if (!startDate || !endDate) {
           const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
@@ -1081,7 +1081,7 @@ async function loadAnalytics() {
         }
 
         await generateProductReport(startDate, endDate);
-        await generateindustry peersLoanReport(startDate, endDate, industry peersName);
+        await generateVendorLoanReport(startDate, endDate, vendorName);
         await generateCustomerSalesReport(startDate, endDate, customerName);
         setLoading(false);
       });
@@ -1132,7 +1132,7 @@ async function generateProductReport(startDate, endDate) {
     console.log('Sales data:', sales, new Date().toISOString());
 
     const { data: loans, error: loansError } = await client
-      .from('industry peers_loans')
+      .from('vendor_loans')
       .select('product_id, quantity, date, products(batch_no)')
       .gte('date', startDate)
       .lte('date', endDate);
@@ -1197,69 +1197,69 @@ async function generateProductReport(startDate, endDate) {
 
 
 
-async function generateindustry peersLoanReport(startDate, endDate, industry peersName) {
-  console.log('Generating industry peers loan report...', { startDate, endDate, industry peersName }, new Date().toISOString());
+async function generateVendorLoanReport(startDate, endDate, vendorName) {
+  console.log('Generating vendor loan report...', { startDate, endDate, vendorName }, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
     let query = client
-  .from('industry peers_loans')
+  .from('vendor_loans')
   .select(`
     id,
-    industry peers_id,
+    vendor_id,
     product_id,
     quantity,
     date,
-    industry peerss!inner (name),
+    vendors!inner (name),
     products (name, batch_no)
   `)
   .gte('date', startDate)
   .lte('date', endDate)
-  .not('industry peers_id', 'is', null);
+  .not('vendor_id', 'is', null);
 
-if (industry peersName) {
-  query = query.eq('industry peers_id', parseInt(industry peersName)); // Filter by industry peers_id
+if (vendorName) {
+  query = query.eq('vendor_id', parseInt(vendorName)); // Filter by vendor_id
 }
 
     const { data: loans, error: loansError } = await query;
     if (loansError) throw loansError;
 
-    console.log('industry peers Loans Report Data:', loans, new Date().toISOString());
+    console.log('Vendor Loans Report Data:', loans, new Date().toISOString());
 
-    const industry peersLoanReportBody = document.querySelector('#industry peers-loan-report-table tbody');
-    if (industry peersLoanReportBody) {
-      industry peersLoanReportBody.innerHTML = '';
+    const vendorLoanReportBody = document.querySelector('#vendor-loan-report-table tbody');
+    if (vendorLoanReportBody) {
+      vendorLoanReportBody.innerHTML = '';
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
 
       if (loans.length > 0) {
         loans.forEach(loan => {
-          const industry peersNameDisplay = loan.industry peerss?.name || (isChinese ? translations.zh['unknown-industry peers'] : translations.en['unknown-industry peers']);
-          if (!loan.industry peerss?.name) {
-            console.warn('industry peers loan record with missing industry peers name:', loan, new Date().toISOString());
+          const vendorNameDisplay = loan.vendors?.name || (isChinese ? translations.zh['unknown-vendor'] : translations.en['unknown-vendor']);
+          if (!loan.vendors?.name) {
+            console.warn('Vendor loan record with missing vendor name:', loan, new Date().toISOString());
           }
           const row = `
             <tr>
-              <td class="border p-2">${industry peersNameDisplay}</td>
+              <td class="border p-2">${vendorNameDisplay}</td>
               <td class="border p-2">${loan.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
               <td class="border p-2">${loan.products?.batch_no || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${loan.quantity}</td>
               <td class="border p-2">${new Date(loan.date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' })}</td>
             </tr>
           `;
-          industry peersLoanReportBody.innerHTML += row;
+          vendorLoanReportBody.innerHTML += row;
         });
       } else {
-        industry peersLoanReportBody.innerHTML = `<tr><td colspan="5" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄。' : 'No loan records found.'}</td></tr>`;
+        vendorLoanReportBody.innerHTML = `<tr><td colspan="5" data-lang-key="no-loan-records-found" class="border p-2">${isChinese ? '未找到貸貨記錄。' : 'No loan records found.'}</td></tr>`;
       }
       applyTranslations();
     }
   } catch (error) {
-    console.error('Error generating industry peers loan report:', error.message, new Date().toISOString());
+    console.error('Error generating vendor loan report:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `生成業界同行貸貨報告失敗：${error.message}` : `Failed to generate industry peers loan report: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `生成供應商貸貨報告失敗：${error.message}` : `Failed to generate vendor loan report: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1534,11 +1534,11 @@ async function deleteProduct(productId) {
   }
 }
 
-function handleAddindustry peers(event) {
+function handleAddVendor(event) {
   event.preventDefault();
-  console.log('Handling add industry peers...', new Date().toISOString());
-  const name = document.getElementById('industry peers-name')?.value;
-  const contact = document.getElementById('industry peers-contact')?.value;
+  console.log('Handling add vendor...', new Date().toISOString());
+  const name = document.getElementById('vendor-name')?.value;
+  const contact = document.getElementById('vendor-contact')?.value;
 
   console.log('Form data:', { name, contact }, new Date().toISOString());
 
@@ -1552,49 +1552,49 @@ function handleAddindustry peers(event) {
     return;
   }
 
-  const industry peers = { name, contact_email: contact, address: null, phone_number: null };
-  addindustry peers(industry peers);
+  const vendor = { name, contact_email: contact, address: null, phone_number: null };
+  addVendor(vendor);
 }
 
-async function loadindustry peerss() {
-  console.log('Loading industry peerss...', new Date().toISOString());
+async function loadVendors() {
+  console.log('Loading vendors...', new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
-    const { data: industry peerss, error } = await client
-      .from('industry peerss')
+    const { data: vendors, error } = await client
+      .from('vendors')
       .select('*')
       .order('name');
     if (error) throw error;
-    console.log('industry peerss:', industry peerss, new Date().toISOString());
-    const industry peerssBody = document.querySelector('#industry peerss-table tbody');
-    if (industry peerssBody) {
+    console.log('Vendors:', vendors, new Date().toISOString());
+    const vendorsBody = document.querySelector('#vendors-table tbody');
+    if (vendorsBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      industry peerssBody.innerHTML = industry peerss.length
-        ? industry peerss.map(v => `
+      vendorsBody.innerHTML = vendors.length
+        ? vendors.map(v => `
             <tr>
               <td class="border p-2">${v.name || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${v.contact_email || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">
-                <button data-industry peers-id="${v.id}" class="delete-industry peers bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
+                <button data-vendor-id="${v.id}" class="delete-vendor bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="3" data-lang-key="no-industry peerss-found" class="border p-2">${isChinese ? '未找到業界同行。' : 'No industry peerss found.'}</td></tr>`;
+        : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
       applyTranslations();
-      document.querySelectorAll('.delete-industry peers').forEach(button => {
+      document.querySelectorAll('.delete-vendor').forEach(button => {
         button.addEventListener('click', (e) => {
-          const industry peersId = e.target.getAttribute('data-industry peers-id');
-          handleDeleteindustry peers(industry peersId);
+          const vendorId = e.target.getAttribute('data-vendor-id');
+          handleDeleteVendor(vendorId);
         });
       });
     }
   } catch (error) {
-    console.error('Error loading industry peerss:', error.message, new Date().toISOString());
+    console.error('Error loading vendors:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入業界同行：${error.message}` : `Failed to load industry peerss: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商：${error.message}` : `Failed to load vendors: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1602,32 +1602,32 @@ async function loadindustry peerss() {
   }
 }
 
-async function addindustry peers(industry peers) {
-  console.log('Adding industry peers...', industry peers, new Date().toISOString());
+async function addVendor(vendor) {
+  console.log('Adding vendor...', vendor, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
-    console.log('Inserting industry peers data into Supabase:', industry peers, new Date().toISOString());
+    console.log('Inserting vendor data into Supabase:', vendor, new Date().toISOString());
     const { data, error } = await client
-      .from('industry peerss')
-      .insert(industry peers)
+      .from('vendors')
+      .insert(vendor)
       .select();
     if (error) {
       console.error('Supabase error:', error, new Date().toISOString());
       throw error;
     }
-    console.log('industry peers added:', data, new Date().toISOString());
+    console.log('Vendor added:', data, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '業界同行添加成功' : 'industry peers added successfully'}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
     clearMessage('message');
-    loadindustry peerss();
-    populateindustry peersDropdown();
+    loadVendors();
+    populateVendorDropdown();
   } catch (error) {
-    console.error('Error adding industry peers:', error.message, error.details, new Date().toISOString());
+    console.error('Error adding vendor:', error.message, error.details, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加業界同行失敗：${error.message}` : `Failed to add industry peers: ${error.message}`}${error.details ? ` - ${error.details}` : ''}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加供應商失敗：${error.message}` : `Failed to add vendor: ${error.message}`}${error.details ? ` - ${error.details}` : ''}`;
       clearMessage('error');
     }
   } finally {
@@ -1635,36 +1635,36 @@ async function addindustry peers(industry peers) {
   }
 }
 
-function handleDeleteindustry peers(industry peersId) {
+function handleDeleteVendor(vendorId) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
   if (confirm(translations[isChinese ? 'zh' : 'en']['delete-confirm'])) {
-    deleteindustry peers(industry peersId);
+    deleteVendor(vendorId);
   }
 }
 
-async function deleteindustry peers(industry peersId) {
-  console.log('Deleting industry peers...', industry peersId, new Date().toISOString());
+async function deleteVendor(vendorId) {
+  console.log('Deleting vendor...', vendorId, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
     const { error: deleteError } = await client
-      .from('industry peerss')
+      .from('vendors')
       .delete()
-      .eq('id', industry peersId);
+      .eq('id', vendorId);
     if (deleteError) throw deleteError;
 
-    console.log('industry peers deleted:', industry peersId, new Date().toISOString());
+    console.log('Vendor deleted:', vendorId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '業界同行刪除成功' : 'industry peers deleted successfully'}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商刪除成功' : 'Vendor deleted successfully'}`;
     clearMessage('message');
-    loadindustry peerss();
+    loadVendors();
   } catch (error) {
-    console.error('Error deleting industry peers:', error.message, new Date().toISOString());
+    console.error('Error deleting vendor:', error.message, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除業界同行失敗：${error.message}` : `Failed to delete industry peers: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除供應商失敗：${error.message}` : `Failed to delete vendor: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1680,9 +1680,9 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleButton.addEventListener('click', toggleLanguage);
   }
 
-  if (document.getElementById('add-industry peers-form')) {
-    document.getElementById('add-industry peers-form').addEventListener('submit', handleAddindustry peers);
-    loadindustry peerss();
+  if (document.getElementById('add-vendor-form')) {
+    document.getElementById('add-vendor-form').addEventListener('submit', handleAddVendor);
+    loadVendors();
   }
   if (document.getElementById('add-product-form')) {
     document.getElementById('add-product-form').addEventListener('submit', handleAddProduct);
@@ -1697,7 +1697,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('add-loan-record-form').addEventListener('submit', addLoanRecord);
     loadLoanRecords();
     populateProductDropdown();
-    populateindustry peersDropdown();
+    populateVendorDropdown();
   }
   if (document.getElementById('report-form')) {
     loadAnalytics();
