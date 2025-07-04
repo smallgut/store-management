@@ -29,6 +29,10 @@ const translations = {
     'actions': 'Actions',
     'add-product': 'Add Product',
     'stock': 'Stock',
+    'units': 'Units',
+    'unit-box': 'box',
+    'unit-taijin': 'Taijin',
+    'select-unit': '-- Select Unit --',
     'buy-in-price': 'Buy-In Price',
     'inventory-value': 'Inventory Value',
     'add-vendor': 'Add Vendor',
@@ -89,6 +93,10 @@ const translations = {
     'actions': '操作',
     'add-product': '添加產品',
     'stock': '庫存',
+    'units': '單位',
+    'unit-box': '箱',
+    'unit-taijin': '台斤',
+    'select-unit': '-- 選擇單位 --',
     'buy-in-price': '進貨價',
     'inventory-value': '庫存價值',
     'add-vendor': '添加業界同行',
@@ -1347,32 +1355,35 @@ async function loadProducts() {
     setLoading(true);
     const { data: products, error } = await client
       .from('products')
-      .select('id, barcode, name, stock, batch_no, price')
+      .select('id, barcode, name, stock, units, batch_no, price')
       .order('name');
     if (error) throw error;
     console.log('Products:', products, new Date().toISOString());
     const productsBody = document.querySelector('#products-table tbody');
     if (productsBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      const lang = isChinese ? 'zh' : 'en';
       productsBody.innerHTML = products.length
         ? products.map(p => {
             const inventoryValue = p.stock * (p.price || 0);
+            const unitDisplay = p.units ? translations[lang][`unit-${p.units}`] : (isChinese ? '無' : 'N/A');
             return `
               <tr>
                 <td class="border p-2">${p.barcode}</td>
                 <td class="border p-2">${p.name}</td>
                 <td class="border p-2">${p.stock}</td>
+                <td class="border p-2">${unitDisplay}</td>
                 <td class="border p-2">${p.batch_no || 'N/A'}</td>
                 <td class="border p-2">${p.price ? p.price.toFixed(2) : 'N/A'}</td>
                 <td class="border p-2">${inventoryValue.toFixed(2)}</td>
                 <td class="border p-2">
-                  <button data-product-id="${p.id}" data-stock="${p.stock}" data-price="${p.price || 0}" data-batch-no="${p.batch_no || ''}" class="update-product bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">Update</button>
+                  <button data-product-id="${p.id}" data-stock="${p.stock}" data-price="${p.price || 0}" data-batch-no="${p.batch_no || ''}" data-units="${p.units || ''}" class="update-product bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">Update</button>
                   <button data-product-id="${p.id}" class="delete-product bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
                 </td>
               </tr>
             `;
           }).join('')
-        : `<tr><td colspan="7" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
+        : `<tr><td colspan="8" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
       applyTranslations();
       document.querySelectorAll('.update-product').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -1380,7 +1391,8 @@ async function loadProducts() {
           const currentStock = parseInt(e.target.getAttribute('data-stock'));
           const currentPrice = parseFloat(e.target.getAttribute('data-price'));
           const currentBatchNo = e.target.getAttribute('data-batch-no');
-          handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo);
+          const currentUnits = e.target.getAttribute('data-units');
+          handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo, currentUnits);
         });
       });
       document.querySelectorAll('.delete-product').forEach(button => {
@@ -1396,32 +1408,32 @@ async function loadProducts() {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入產品：${error.message}` : `Failed to load products: ${error.message}`}`;
-      clearMessage('error');
+      clearMessage('error', 10000);
     }
   } finally {
     setLoading(false);
   }
 }
-
 function handleAddProduct(event) {
   event.preventDefault();
   console.log('Handling add product...', new Date().toISOString());
-  const barcode = document.getElementById('product-barcode')?.value;
-  const name = document.getElementById('product-name')?.value;
-  const stock = parseInt(document.getElementById('stock')?.value || '0');
-  const price = parseFloat(document.getElementById('buy-in-price')?.value || '0');
+  const barcode = document.getElementById('product-barcode')?.value?.trim();
+  const name = document.getElementById('product-name')?.value?.trim();
+  const stock = parseInt(document.getElementById('stock')?.value?.replace(/,/g, '') || '0');
+  const units = document.getElementById('units')?.value?.trim();
+  const price = parseFloat(document.getElementById('buy-in-price')?.value?.replace(/,/g, '') || '0');
 
-  if (!barcode || !name || !stock || !price) {
+  if (!barcode || !name || !stock || !units || !price) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
-      clearMessage('error');
+      clearMessage('error', 10000);
     }
     return;
   }
 
-  const product = { barcode, name, stock, price, batch_no: getGMT8Date() };
+  const product = { barcode, name, stock, units, price, batch_no: getGMT8Date() };
   addProduct(product);
 }
 
@@ -1438,7 +1450,7 @@ async function addProduct(product) {
     console.log('Product added:', data, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品添加成功' : 'Product added successfully'}`;
-    clearMessage('message');
+    clearMessage('message', 10000);
     loadProducts();
   } catch (error) {
     console.error('Error adding product:', error.message, new Date().toISOString());
@@ -1446,45 +1458,47 @@ async function addProduct(product) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加產品失敗：${error.message}` : `Failed to add product: ${error.message}`}`;
-      clearMessage('error');
+      clearMessage('error', 10000);
     }
   } finally {
     setLoading(false);
   }
 }
 
-function handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo) {
+function handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo, currentUnits) {
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
   const newStock = prompt(isChinese ? '輸入新的庫存數量：' : 'Enter new stock quantity:', currentStock);
+  const newUnits = prompt(isChinese ? '輸入新的單位（box 或 Taijin）：' : 'Enter new units (box or Taijin):', currentUnits);
   const newPrice = prompt(isChinese ? '輸入新的進貨價：' : 'Enter new buy-in price:', currentPrice);
 
-  if (newStock !== null && newPrice !== null) {
+  if (newStock !== null && newUnits !== null && newPrice !== null) {
     const stock = parseInt(newStock);
+    const units = newUnits.trim();
     const price = parseFloat(newPrice);
-    if (!isNaN(stock) && stock >= 0 && !isNaN(price) && price >= 0) {
+    if (!isNaN(stock) && stock >= 0 && ['box', 'Taijin'].includes(units) && !isNaN(price) && price >= 0) {
       const batchNo = getGMT8Date();
-      updateProduct(productId, stock, price, batchNo);
+      updateProduct(productId, stock, price, batchNo, units);
     } else {
-      alert(isChinese ? '請輸入有效的庫存和價格！' : 'Please enter valid stock and price!');
+      alert(isChinese ? '請輸入有效的庫存、單位（box 或 Taijin）和價格！' : 'Please enter valid stock, units (box or Taijin), and price!');
     }
   }
 }
 
-async function updateProduct(productId, stock, price, batchNo) {
-  console.log('Updating product...', { productId, stock, price, batchNo }, new Date().toISOString());
+async function updateProduct(productId, stock, price, batchNo, units) {
+  console.log('Updating product...', { productId, stock, price, batchNo, units }, new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
     setLoading(true);
     const { data, error } = await client
       .from('products')
-      .update({ stock, price, batch_no: batchNo })
+      .update({ stock, price, batch_no: batchNo, units })
       .eq('id', productId)
       .select();
     if (error) throw error;
     console.log('Product updated:', data, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品更新成功' : 'Product updated successfully'}`;
-    clearMessage('message');
+    clearMessage('message', 10000);
     loadProducts();
   } catch (error) {
     console.error('Error updating product:', error.message, new Date().toISOString());
@@ -1492,7 +1506,7 @@ async function updateProduct(productId, stock, price, batchNo) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
       errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `更新產品失敗：${error.message}` : `Failed to update product: ${error.message}`}`;
-      clearMessage('error');
+      clearMessage('error', 10000);
     }
   } finally {
     setLoading(false);
