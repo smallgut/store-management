@@ -65,14 +65,14 @@ const translations = {
     'nav-home': '首頁',
     'nav-analytics': '分析',
     'nav-manage-products': '管理產品',
-    'nav-manage-vendors': '管理供應商',
+    'nav-manage-vendors': '管理業界同行',
     'nav-record-customer-sales': '記錄客戶銷售',
-    'nav-vendor-loan-record': '供應商貸貨記錄',
+    'nav-vendor-loan-record': '業界同行貸貨記錄',
     'toggle-language': '切換語言',
     'home-welcome': '歡迎來到首頁！',
     'manage-products-welcome': '歡迎來到管理產品！',
-    'manage-vendors-welcome': '歡迎來到管理供應商！',
-    'vendor-loan-record-welcome': '歡迎來到供應商貸貨記錄！',
+    'manage-vendors-welcome': '歡迎來到管理業界同行！',
+    'vendor-loan-record-welcome': '歡迎來到業界同行貸貨記錄！',
     'record-customer-sales': '記錄客戶銷售',
     'add-customer-sale': '添加客戶銷售',
     'select-product': '選擇產品（或輸入條碼）',
@@ -91,17 +91,17 @@ const translations = {
     'stock': '庫存',
     'buy-in-price': '進貨價',
     'inventory-value': '庫存價值',
-    'add-vendor': '添加供應商',
-    'vendor-name': '供應商名稱',
-    'vendor-contact': '供應商聯繫方式',
+    'add-vendor': '添加業界同行',
+    'vendor-name': '業界同行名稱',
+    'vendor-contact': '業界同行聯繫方式',
     'manage-products': '管理產品',
-    'manage-vendors': '管理供應商',
+    'manage-vendors': '管理業界同行',
     'add-loan-record': '添加貸貨記錄',
     'loan-amount': '貸貨金額',
     'loan-date': '貸貨日期',
-    'vendor-loan': '供應商貸貨',
+    'vendor-loan': '業界同行貸貨',
     'no-products-found': '未找到產品。',
-    'no-vendors-found': '未找到供應商。',
+    'no-vendors-found': '未找到業界同行。',
     'no-loan-records-found': '未找到貸貨記錄。',
     'unknown-product': '未知產品',
     'no-customer-sales-found': '未找到客戶銷售記錄。',
@@ -114,12 +114,12 @@ const translations = {
     'start-date': '開始日期',
     'end-date': '結束日期',
     'product-report': '產品報告',
-    'vendor-loan-report': '供應商貸貨報告',
+    'vendor-loan-report': '業界同行貸貨報告',
     'customer-sales-report': '客戶銷售報告',
     'original-stock-in': '原始入庫數量',
     'all-customers': '-- 所有客戶 --',
-    'all-vendors': '-- 所有供應商 --',
-    'unknown-vendor': '未知供應商'
+    'all-vendors': '-- 所有業界同行 --',
+    'unknown-vendor': '未知業界同行'
   }
 };
 
@@ -391,7 +391,7 @@ async function populateVendorDropdown() {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商下拉選單：${error.message}` : `Failed to populate vendor dropdown: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入業界同行下拉選單：${error.message}` : `Failed to populate vendor dropdown: ${error.message}`}`;
       clearMessage('error');
     }
   }
@@ -673,7 +673,7 @@ async function loadLoanRecords() {
       loansBody.innerHTML = loans.length
         ? loans.map(l => `
             <tr>
-              <td class="border p-2">${l.vendors?.name || (isChinese ? '未知供應商' : 'Unknown Vendor')}</td>
+              <td class="border p-2">${l.vendors?.name || (isChinese ? '未知業界同行' : 'Unknown Vendor')}</td>
               <td class="border p-2">${l.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
               <td class="border p-2">${l.batch_no || (isChinese ? '無' : 'N/A')}</td>
               <td class="border p-2">${l.quantity || (isChinese ? '無' : 'N/A')}</td>
@@ -1259,7 +1259,7 @@ if (vendorName) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `生成供應商貸貨報告失敗：${error.message}` : `Failed to generate vendor loan report: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `生成業界同行貸貨報告失敗：${error.message}` : `Failed to generate vendor loan report: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1580,7 +1580,7 @@ async function loadVendors() {
               </td>
             </tr>
           `).join('')
-        : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到供應商。' : 'No vendors found.'}</td></tr>`;
+        : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到業界同行。' : 'No vendors found.'}</td></tr>`;
       applyTranslations();
       document.querySelectorAll('.delete-vendor').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -1594,7 +1594,7 @@ async function loadVendors() {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入供應商：${error.message}` : `Failed to load vendors: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入業界同行：${error.message}` : `Failed to load vendors: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
@@ -1618,7 +1618,7 @@ async function addVendor(vendor) {
     }
     console.log('Vendor added:', data, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商添加成功' : 'Vendor added successfully'}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '業界同行添加成功' : 'Vendor added successfully'}`;
     clearMessage('message');
     loadVendors();
     populateVendorDropdown();
@@ -1627,7 +1627,7 @@ async function addVendor(vendor) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加供應商失敗：${error.message}` : `Failed to add vendor: ${error.message}`}${error.details ? ` - ${error.details}` : ''}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加業界同行失敗：${error.message}` : `Failed to add vendor: ${error.message}`}${error.details ? ` - ${error.details}` : ''}`;
       clearMessage('error');
     }
   } finally {
@@ -1656,7 +1656,7 @@ async function deleteVendor(vendorId) {
 
     console.log('Vendor deleted:', vendorId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '供應商刪除成功' : 'Vendor deleted successfully'}`;
+    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '業界同行刪除成功' : 'Vendor deleted successfully'}`;
     clearMessage('message');
     loadVendors();
   } catch (error) {
@@ -1664,7 +1664,7 @@ async function deleteVendor(vendorId) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除供應商失敗：${error.message}` : `Failed to delete vendor: ${error.message}`}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除業界同行失敗：${error.message}` : `Failed to delete vendor: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
