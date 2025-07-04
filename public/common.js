@@ -1366,7 +1366,7 @@ async function loadProducts() {
       productsBody.innerHTML = products.length
         ? products.map(p => {
             const inventoryValue = p.stock * (p.price || 0);
-            const unitDisplay = p.units ? translations[lang][`unit-${p.units}`] : (isChinese ? '無' : 'N/A');
+            const unitDisplay = p.units ? translations[lang][`unit-${p.units.toLowerCase()}`] || (isChinese ? '無' : 'N/A') : (isChinese ? '無' : 'N/A');
             return `
               <tr>
                 <td class="border p-2">${p.barcode}</td>
