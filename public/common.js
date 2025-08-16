@@ -1717,3 +1717,81 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAnalytics();
   }
 });
+
+
+let cart = [];
+
+function addToCart(product, barcode, batch, customer, qty, price, date) {
+  const total = qty * price;
+  cart.push({ product, barcode, batch, customer, qty, price, total, date });
+  renderCart();
+}
+
+function renderCart() {
+  const tbody = document.querySelector('#cart-table tbody');
+  tbody.innerHTML = '';
+  cart.forEach((item, index) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="border p-2">${item.product}</td>
+      <td class="border p-2">${item.qty}</td>
+      <td class="border p-2">${item.price.toFixed(2)}</td>
+      <td class="border p-2">${item.total.toFixed(2)}</td>
+      <td class="border p-2">
+        <button onclick="removeFromCart(${index})" class="text-red-500">X</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+function removeFromCart(index) {
+  cart.splice(index, 1);
+  renderCart();
+}
+
+async function checkout() {
+  if (cart.length === 0) {
+    alert("Cart is empty!");
+    return;
+  }
+
+  const { error } = await supabase.from('customer_sales').insert(cart.map(item => ({
+    product_name: item.product,
+    product_barcode: item.barcode,
+    batch_no: item.batch,
+    customer_name: item.customer,
+    quantity: item.qty,
+    selling_price: item.price,
+    sub_total: item.total,
+    sale_date: item.date,
+  })));
+
+  if (error) {
+    console.error("Checkout error:", error);
+    alert("Failed to save sales.");
+  } else {
+    alert("Checkout successful!");
+    cart = [];
+    renderCart();
+    loadCustomerSales(); // refresh table
+  }
+}
+
+// Modify existing form submit to add to cart instead of DB
+function handleAddCustomerSale(e) {
+  e.preventDefault();
+
+  const product = document.getElementById('product-select').value;
+  const barcode = document.getElementById('product-barcode').value;
+  const batch = document.getElementById('batch-no').value;
+  const customer = document.getElementById('customer-name').value;
+  const qty = parseInt(document.getElementById('quantity').value);
+  const price = parseFloat(document.getElementById('selling-price').value);
+  const date = document.getElementById('sale-date').value;
+
+  addToCart(product, barcode, batch, customer, qty, price, date);
+  e.target.reset();
+}
+
+document.getElementById('checkout-btn').addEventListener('click', checkout);
