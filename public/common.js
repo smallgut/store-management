@@ -151,6 +151,21 @@ function applyTranslations() {
   console.log('Applied translations for:', lang, new Date().toISOString());
 }
 
+function toggleLanguage() {
+  console.log('Toggling language...', new Date().toISOString());
+  const langBody = document.getElementById('lang-body');
+  if (langBody) {
+    langBody.classList.toggle('lang-zh');
+    applyTranslations();
+    if (document.getElementById('product-select')) {
+      populateProductDropdown();
+    }
+    if (document.getElementById('customer-sales-table')) {
+      loadCustomerSales();
+    }
+  }
+}
+
 async function ensureSupabaseClient() {
   console.log('Ensuring Supabase client...', new Date().toISOString());
   if (!supabaseClient) {
@@ -194,15 +209,22 @@ async function populateProductDropdown() {
     const productSelect = document.getElementById('product-select');
     if (productSelect) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      productSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇產品 --' : '-- Select a Product --'}</option>` +
-        products.map(p => `<option value="${p.id}" data-barcode="${p.barcode}" data-stock="${p.stock}" data-units="${p.units}" data-batch-no="${p.batch_no}">${p.name} (${p.barcode}, ${p.units}, Stock: ${p.stock})</option>`).join('');
+      const lang = isChinese ? 'zh' : 'en';
+      productSelect.innerHTML = `<option value="">${translations[lang]['select-product']}</option>` +
+        products.map(p => `<option value="${p.id}" data-barcode="${p.barcode}" data-stock="${p.stock}" data-units="${p.units}" data-batch-no="${p.batch_no}">${p.name} (${p.barcode}, ${translations[lang][`unit-${p.units.toLowerCase()}`] || p.units}, Stock: ${p.stock})</option>`).join('');
     }
     const batchNoSelect = document.getElementById('batch-no');
     if (batchNoSelect) {
-      batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+      batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
     }
   } catch (error) {
     console.error('Error populating product dropdown:', error.message, new Date().toISOString());
+    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+    const errorEl = document.getElementById('error');
+    if (errorEl) {
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入產品下拉列表：${error.message}` : `Failed to populate product dropdown: ${error.message}`}`;
+      clearMessage('error', 10000);
+    }
   }
 }
 
@@ -217,9 +239,10 @@ async function handleProductSelection(event) {
   const batchNoSelect = document.getElementById('batch-no');
   const stockDisplay = document.getElementById('stock-display');
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+  const lang = isChinese ? 'zh' : 'en';
 
   productBarcodeInput.value = barcode || '';
-  stockDisplay.textContent = isChinese ? `現有庫存: ${stock}` : `On-hand stock: ${stock}`;
+  stockDisplay.textContent = stock >= 0 ? (isChinese ? `現有庫存: ${stock}` : `On-hand stock: ${stock}`) : '';
 
   if (productId) {
     try {
@@ -229,16 +252,21 @@ async function handleProductSelection(event) {
         .select('batch_no, stock')
         .eq('id', productId);
       if (error) throw error;
-      batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>` +
+      batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>` +
         products.map(p => `<option value="${p.batch_no}">${p.batch_no} (Stock: ${p.stock})</option>`).join('');
       if (batchNo) {
         batchNoSelect.value = batchNo;
       }
     } catch (error) {
       console.error('Error fetching batch numbers:', error.message, new Date().toISOString());
+      const errorEl = document.getElementById('error');
+      if (errorEl) {
+        errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入批號：${error.message}` : `Failed to fetch batch numbers: ${error.message}`}`;
+        clearMessage('error', 10000);
+      }
     }
   } else {
-    batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+    batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
   }
 }
 
@@ -248,6 +276,7 @@ async function handleBarcodeInput(event) {
   const batchNoSelect = document.getElementById('batch-no');
   const stockDisplay = document.getElementById('stock-display');
   const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+  const lang = isChinese ? 'zh' : 'en';
 
   if (barcode) {
     try {
@@ -260,20 +289,25 @@ async function handleBarcodeInput(event) {
       if (products.length > 0) {
         const product = products[0];
         productSelect.value = product.id;
-        stockDisplay.textContent = isChinese ? `現有庫存: ${product.stock}` : `On-hand stock: ${product.stock}`;
-        batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>` +
+        stockDisplay.textContent = product.stock >= 0 ? (isChinese ? `現有庫存: ${product.stock}` : `On-hand stock: ${product.stock}`) : '';
+        batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>` +
           products.map(p => `<option value="${p.batch_no}">${p.batch_no} (Stock: ${p.stock})</option>`).join('');
       } else {
         productSelect.value = '';
-        batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+        batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
         stockDisplay.textContent = isChinese ? '無庫存信息' : 'No stock information';
       }
     } catch (error) {
       console.error('Error fetching product by barcode:', error.message, new Date().toISOString());
+      const errorEl = document.getElementById('error');
+      if (errorEl) {
+        errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法通過條碼查找產品：${error.message}` : `Failed to fetch product by barcode: ${error.message}`}`;
+        clearMessage('error', 10000);
+      }
     }
   } else {
     productSelect.value = '';
-    batchNoSelect.innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+    batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
     stockDisplay.textContent = '';
   }
 }
@@ -318,7 +352,7 @@ function addItemToCart() {
   // Clear product-related fields
   document.getElementById('product-select').value = '';
   document.getElementById('product-barcode').value = '';
-  document.getElementById('batch-no').innerHTML = `<option value="">${isChinese ? '-- 選擇批號 --' : '-- Select Batch No. --'}</option>`;
+  document.getElementById('batch-no').innerHTML = `<option value="">${translations[isChinese ? 'zh' : 'en']['batch-no']}</option>`;
   document.getElementById('quantity').value = '';
   document.getElementById('selling-price').value = '';
   stockDisplay.textContent = '';
@@ -339,7 +373,7 @@ function updateCartTable() {
         <td class="border p-2">${item.sellingPrice.toFixed(2)}</td>
         <td class="border p-2">${subTotal}</td>
         <td class="border p-2">
-          <button data-index="${index}" class="remove-item bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '移除' : 'Remove'}</button>
+          <button data-index="${index}" class="remove-item bg-red-500 text-white p-1 rounded hover:bg-red-600">${translations[lang]['delete'] || 'Remove'}</button>
         </td>
       </tr>
     `;
@@ -410,7 +444,6 @@ async function checkoutOrder() {
         selling_price: item.sellingPrice,
         sale_date: saleDate,
         customer_name: customerName,
-        barcode: item.barcode,
         batch_no: item.batchNo
       };
       const { error: saleError } = await client
@@ -458,21 +491,22 @@ async function loadCustomerSales() {
     setLoading(true);
     const { data: sales, error } = await client
       .from('customer_sales')
-      .select('id, product_id, quantity, selling_price, sale_date, customer_name, barcode, batch_no, products(name, price)')
+      .select('id, product_id, quantity, selling_price, sale_date, customer_name, batch_no, products(name, price, barcode)')
       .order('sale_date', { ascending: false });
     if (error) throw error;
     console.log('Customer sales:', sales, new Date().toISOString());
     const salesTableBody = document.querySelector('#customer-sales-table tbody');
     if (salesTableBody) {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      const lang = isChinese ? 'zh' : 'en';
       salesTableBody.innerHTML = sales.length
         ? sales.map(s => {
             const subTotal = (s.quantity * s.selling_price).toFixed(2);
             const profit = ((s.selling_price - (s.products?.price || 0)) * s.quantity).toFixed(2);
             return `
               <tr>
-                <td class="border p-2">${s.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
-                <td class="border p-2">${s.barcode}</td>
+                <td class="border p-2">${s.products?.name || translations[lang]['unknown-product']}</td>
+                <td class="border p-2">${s.products?.barcode || 'N/A'}</td>
                 <td class="border p-2">${s.batch_no || 'N/A'}</td>
                 <td class="border p-2">${s.customer_name}</td>
                 <td class="border p-2">${s.quantity}</td>
@@ -481,12 +515,12 @@ async function loadCustomerSales() {
                 <td class="border p-2">${profit}</td>
                 <td class="border p-2">${s.sale_date}</td>
                 <td class="border p-2">
-                  <button data-sale-id="${s.id}" class="delete-sale bg-red-500 text-white p-1 rounded hover:bg-red-600">${isChinese ? '刪除' : 'Delete'}</button>
+                  <button data-sale-id="${s.id}" class="delete-sale bg-red-500 text-white p-1 rounded hover:bg-red-600">${translations[lang]['delete'] || 'Delete'}</button>
                 </td>
               </tr>
             `;
           }).join('')
-        : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
+        : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${translations[lang]['no-customer-sales-found']}</td></tr>`;
       applyTranslations();
       document.querySelectorAll('.delete-sale').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -539,7 +573,7 @@ async function handleDeleteCustomerSale(saleId) {
   }
 }
 
-// ... (other functions like handleAddProduct, loadProducts, etc., remain unchanged)
+// ... (other functions like handleAddProduct, loadProducts, handleAddVendor, etc., remain unchanged)
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM fully loaded and parsed', new Date().toISOString());
