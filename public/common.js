@@ -499,6 +499,8 @@ async function loadCustomerSales() {
         ? sales.map(s => {
             const subTotal = (s.quantity * s.selling_price).toFixed(2);
             const profit = ((s.selling_price - (s.products?.price || 0)) * s.quantity).toFixed(2);
+            // Format date as YYYY-MM-DD
+            const saleDate = new Date(s.sale_date).toISOString().split('T')[0];
             return `
               <tr>
                 <td class="border p-2">${s.products?.name || translations[lang]['unknown-product']}</td>
@@ -509,7 +511,7 @@ async function loadCustomerSales() {
                 <td class="border p-2">${s.selling_price.toFixed(2)}</td>
                 <td class="border p-2">${subTotal}</td>
                 <td class="border p-2">${profit}</td>
-                <td class="border p-2">${new Date(s.sale_date).toLocaleString('en-US', { timeZone: 'Asia/Shanghai' })}</td>
+                <td class="border p-2">${saleDate}</td>
                 <td class="border p-2">
                   <button data-sale-id="${s.id}" class="delete-sale bg-red-500 text-white p-1 rounded hover:bg-red-600">${translations[lang]['delete']}</button>
                 </td>
@@ -982,21 +984,25 @@ async function loadLoanRecords() {
       const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
       const lang = isChinese ? 'zh' : 'en';
       loanRecordsTableBody.innerHTML = loans.length
-        ? loans.map(l => `
-            <tr>
-              <td class="border p-2">${l.products?.name || translations[lang]['unknown-product']}</td>
-              <td class="border p-2">${l.products?.barcode || 'N/A'}</td>
-              <td class="border p-2">${l.batch_no}</td>
-              <td class="border p-2">${l.vendors?.name || translations[lang]['unknown-vendor']}</td>
-              <td class="border p-2">${l.quantity}</td>
-              <td class="border p-2">${l.selling_price.toFixed(2)}</td>
-              <td class="border p-2">${new Date(l.date).toLocaleString('en-US', { timeZone: 'Asia/Shanghai' })}</td>
-              <td class="border p-2">
-                <button data-loan-id="${l.id}" class="delete-loan bg-red-500 text-white p-1 rounded hover:bg-red-600">${translations[lang]['delete']}</button>
-              </td>
-            </tr>
-          `).join('')
-        : `<tr><td colspan="8" data-lang-key="no-loan-records-found" class="border p-2">${translations[lang]['no-loan-records-found']}</td></tr>`;
+        ? loans.map(l => {
+            // Format date as YYYY-MM-DD
+            const loanDate = new Date(l.date).toISOString().split('T')[0];
+            return `
+              <tr>
+                <td class="border p-2">${l.products?.name || translations[lang]['unknown-product']}</td>
+                <td class="border p-2">${l.products?.barcode || 'N/A'}</td>
+                <td class="border p-2">${l.batch_no}</td>
+                <td class="border p-2">${l.vendors?.name || translations[lang]['unknown-vendor']}</td>
+                <td class="border p-2">${l.quantity}</td>
+                <td class="border p-2">${l.selling_price.toFixed(2)}</td>
+                <td class="border p-2">${loanDate}</td>
+                <td class="border p-2">
+                  <button data-loan-id="${l.id}" class="delete-loan bg-red-500 text-white p-1 rounded hover:bg-red-600">${translations[lang]['delete']}</button>
+                </td>
+              </tr>
+            `;
+          }).join('')
+        : `<tr><td colspan="8" data-lang-key="no-loan-records-found" class="border p-2">${translations[lang]['no-loan-records']}</td></tr>`;
       applyTranslations();
       document.querySelectorAll('.delete-loan').forEach(button => {
         button.addEventListener('click', (e) => {
