@@ -46,6 +46,7 @@
         <div>
           <label for="product-barcode" data-lang-key="product-barcode">Product Barcode</label>
           <input id="product-barcode" type="text" class="border p-2 w-full">
+          <div id="stock-display" class="text-sm text-gray-600"></div>
         </div>
         <div>
           <label for="batch-no" data-lang-key="batch-no">Batch No.</label>
@@ -108,10 +109,11 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('DOM fully loaded and parsed', new Date().toISOString());
+      console.log('Customer Sales DOM fully loaded and parsed', new Date().toISOString());
       applyTranslations();
       loadCustomerSales();
       populateProductDropdown();
+      document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
       document.getElementById('add-item').addEventListener('click', addItemToCart);
       document.getElementById('checkout').addEventListener('click', checkoutOrder);
       document.getElementById('product-select').addEventListener('change', handleProductSelection);
