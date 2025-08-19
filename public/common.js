@@ -194,17 +194,13 @@ async function populateProductDropdown() {
       .select('id, barcode, name, stock, units');
     if (error) throw error;
     console.log('Products for dropdown:', products, new Date().toISOString());
-
-    // ✅ Define language once, at the top
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const lang = isChinese ? 'zh' : 'en';
-
     const productSelect = document.getElementById('product-select');
     if (productSelect) {
+      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
+      const lang = isChinese ? 'zh' : 'en';
       productSelect.innerHTML = `<option value="">${translations[lang]['select-product']}</option>` +
         products.map(p => `<option value="${p.id}" data-barcode="${p.barcode}" data-stock="${p.stock}" data-units="${p.units}">${p.name} (${p.barcode}, ${translations[lang][`unit-${p.units.toLowerCase()}`] || p.units}, Stock: ${p.stock})</option>`).join('');
     }
-
     const batchNoSelect = document.getElementById('batch-no');
     if (batchNoSelect) {
       batchNoSelect.innerHTML = `<option value="">${translations[lang]['batch-no']}</option>`;
