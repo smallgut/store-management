@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="lang-body" class="lang-en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,90 +8,99 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
-<body id="lang-body" class="bg-gray-100">
-  <nav class="bg-blue-500 text-white p-4">
+<body class="bg-gray-100 p-4">
+  <nav class="bg-blue-500 text-white p-4 mb-4">
     <ul class="flex space-x-4">
       <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
       <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
       <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
       <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
       <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
+      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record" class="font-bold">Vendor Loan Record</a></li>
+      <li><button id="toggle-language" data-lang-key="toggle-language" class="bg-blue-700 px-2 py-1 rounded">Toggle Language</button></li>
     </ul>
   </nav>
 
-  <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-4" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</h1>
+  <h1 data-lang-key="vendor-loan-record" class="text-2xl font-bold mb-4">Vendor Loan Record</h1>
+  <div id="error" class="text-red-500 mb-4 font-bold text-lg"></div>
+  <div id="message" class="text-green-500 mb-4 font-bold text-lg"></div>
+  <div id="loading" class="text-blue-500 mb-4" style="display: none;">Loading...</div>
 
-    <div id="loading" class="hidden text-center text-blue-500">Loading...</div>
-    <div id="message" class="text-green-500"></div>
-    <div id="error" class="text-red-500"></div>
-
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold" data-lang-key="add-loan-record">Add Loan Record</h2>
-      <form id="add-loan-record-form" class="space-y-4">
-        <div>
-          <label for="product-select" data-lang-key="select-product">Select Product (or input barcode)</label>
-          <select id="product-select" class="border p-2 w-full"></select>
-        </div>
-        <div>
-          <label for="product-barcode" data-lang-key="product-barcode">Product Barcode</label>
-          <input id="product-barcode" type="text" class="border p-2 w-full">
-          <div id="stock-display" class="text-sm text-gray-600"></div>
-        </div>
-        <div>
-          <label for="batch-no" data-lang-key="batch-no">Batch No.</label>
-          <select id="batch-no" class="border p-2 w-full"></select>
-        </div>
-        <div>
-          <label for="vendor-select" data-lang-key="vendor-name">Vendor Name</label>
-          <select id="vendor-select" class="border p-2 w-full" required></select>
-        </div>
-        <div>
-          <label for="quantity" data-lang-key="quantity">Quantity</label>
-          <input id="quantity" type="number" class="border p-2 w-full" min="1" required>
-        </div>
-        <div>
-          <label for="selling-price" data-lang-key="selling-price">Selling Price</label>
-          <input id="selling-price" type="number" step="0.01" class="border p-2 w-full" min="0" required>
-        </div>
-        <div>
-          <label for="loan-date" data-lang-key="loan-date">Loan Date</label>
-          <input id="loan-date" type="date" class="border p-2 w-full" required>
-        </div>
-        <button type="submit" data-lang-key="add-loan" class="bg-green-500 text-white p-2 rounded hover:bg-green-600">Add Loan</button>
-      </form>
+  <form id="add-loan-record-form" class="mb-4 bg-white p-4 rounded shadow">
+    <h2 data-lang-key="add-loan-record" class="text-xl font-semibold mb-4">Add Loan Record</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="vendor-name" data-lang-key="vendor-name" class="block">Vendor Name</label>
+        <select id="vendor-name" class="border p-2 w-full" required>
+          <option value="" disabled selected data-lang-key="vendor-name">Select a vendor</option>
+        </select>
+      </div>
+      <div>
+        <label for="product-select" data-lang-key="select-product" class="block">Select Product (or input barcode)</label>
+        <select id="product-select" class="border p-2 w-full" required>
+          <option value="" data-lang-key="select-product">-- Select a Product --</option>
+        </select>
+      </div>
+      <div>
+        <label for="product-barcode" data-lang-key="product-barcode" class="block">Product Barcode</label>
+        <input type="text" id="product-barcode" class="border p-2 w-full" />
+        <div id="stock-display" class="text-sm text-gray-600"></div>
+      </div>
+      <div>
+        <label for="batch-no" data-lang-key="batch-no" class="block">Batch No.</label>
+        <select id="batch-no" class="border p-2 w-full" required>
+          <option value="" data-lang-key="batch-no">-- Select Batch No. --</option>
+        </select>
+      </div>
+      <div>
+        <label for="quantity" data-lang-key="quantity" class="block">Quantity</label>
+        <input type="number" id="quantity" min="1" pattern="[0-9]*" class="border p-2 w-full" required />
+      </div>
+      <div>
+        <label for="selling-price" data-lang-key="selling-price" class="block">Selling Price</label>
+        <input type="number" id="selling-price" step="0.01" pattern="[0-9]*\\.?[0-9]*" class="border p-2 w-full" required />
+      </div>
+      <div>
+        <label for="loan-date" data-lang-key="loan-date" class="block">Loan Date</label>
+        <input type="date" id="loan-date" class="border p-2 w-full" required />
+      </div>
     </div>
+    <button type="submit" data-lang-key="add-loan" class="bg-blue-500 text-white p-2 rounded mt-4 hover:bg-blue-600">Add Loan</button>
+  </form>
 
-    <h2 class="text-xl font-semibold" data-lang-key="vendor-loan">Vendor Loan</h2>
-    <table id="loan-records-table" class="w-full border-collapse border">
-      <thead>
-        <tr class="bg-gray-200">
-          <th class="border p-2" data-lang-key="product-name">Product Name</th>
-          <th class="border p-2" data-lang-key="product-barcode">Product Barcode</th>
-          <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
-          <th class="border p-2" data-lang-key="vendor-name">Vendor Name</th>
-          <th class="border p-2" data-lang-key="quantity">Quantity</th>
-          <th class="border p-2" data-lang-key="selling-price">Selling Price</th>
-          <th class="border p-2" data-lang-key="loan-date">Loan Date</th>
-          <th class="border p-2" data-lang-key="actions">Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <table id="loan-records-table" class="w-full bg-white rounded shadow">
+    <thead>
+      <tr class="bg-gray-200">
+        <th class="border p-2" data-lang-key="vendor-name">Vendor Name</th>
+        <th class="border p-2" data-lang-key="product-name">Product Name</th>
+        <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
+        <th class="border p-2" data-lang-key="quantity">Quantity</th>
+        <th class="border p-2" data-lang-key="selling-price">Selling Price</th>
+        <th class="border p-2" data-lang-key="loan-date">Loan Date</th>
+        <th class="border p-2" data-lang-key="actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('Vendor Loan Record DOM fully loaded and parsed', new Date().toISOString());
+      console.log('DOM fully loaded and parsed', new Date().toISOString());
       applyTranslations();
       loadLoanRecords();
       populateProductDropdown();
       populateVendorDropdown();
+      document.getElementById('add-loan-record-form').addEventListener('submit', addLoanRecord);
       document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
-      document.getElementById('product-select').addEventListener('change', handleProductSelection);
-      document.getElementById('product-barcode').addEventListener('input', handleBarcodeInput);
+
+      // Add input validation to strip commas
+      const quantityInput = document.getElementById('quantity');
+      const sellingPriceInput = document.getElementById('selling-price');
+      [quantityInput, sellingPriceInput].forEach(input => {
+        input.addEventListener('input', () => {
+          input.value = input.value.replace(/[^0-9.]/g, '');
+        });
+      });
     });
   </script>
 </body>
