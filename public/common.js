@@ -1838,32 +1838,47 @@ async function checkoutOrder() {
     const client = await ensureSupabaseClient();
 
     for (const item of cart) {
-      // 1. Insert into customer_sales
-const { error: saleError } = await client
-  .from('customer_sales')
-  .insert({
-    customer_name: item.customerName,
-    product_id: item.productId,
-    quantity: item.quantity,
-    selling_price: item.selling_price,
-    sale_date: saleDate
-  });
-if (saleError) throw saleError;
+      // Insert into customer_sales
+      const { error: saleError } = await client.from('customer_sales').insert({
+        product_id: item.productId,
+        customer_name: item.customerName,
+        quantity: item.quantity,
+        selling_price: item.selling_price,
+        sale_date: item.saleDate
+      });
+      if (saleError) throw saleError;
 
-// 2. Update product_batches.remaining_quantity
-const { error: batchError } = await client
-  .from('product_batches')
-  .update({ remaining_quantity: supabase.sql`remaining_quantity - ${item.quantity}` })
-  .eq('batch_number', item.batchNumber)
-  .eq('product_id', item.productId);
-if (batchError) throw batchError;
+      // Update product_batches.remaining_quantity
+      const { error: batchError } = await client.rpc('decrement_batch_quantity', {
+        p_product_id: item.productId,
+        p_batch_number: item.batchNumber,
+        p_quantity: item.quantity
+      });
+      if (batchError) {
+        console.warn('No RPC found, falling back to manual update', batchError.message);
+        // Fallback: manual update if you don’t have the RPC function
+        await client.from('product_batches')
+          .update({ remaining_quantity: supabase.sql`remaining_quantity - ${item.quantity}` })
+          .eq('product_id', item.productId)
+          .eq('batch_number', item.batchNumber);
+      }
 
-// 3. Update products.stock
-const { error: productError } = await client
-  .from('products')
-  .update({ stock: supabase.sql`stock - ${item.quantity}` })
-  .eq('id', item.productId);
-if (productError) throw productError;
+      // Update products.stock
+      await client.from('products')
+        .update({ stock: supabase.sql`stock - ${item.quantity}` })
+        .eq('id', item.productId);
+    }
+
+    cart = [];
+    renderCart();
+    loadCustomerSales();
+    alert('Checkout successful!');
+  } catch (err) {
+    console.error('Checkout error:', err.message);
+    alert('Checkout failed: ' + err.message);
+  }
+}
+
 // -------------------------------------------------------------
 // Keep all your existing functions below (translations, loadCustomerSales,
 // populateProductDropdown, loadLoanRecords, etc.) untouched.
