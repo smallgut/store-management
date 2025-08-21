@@ -1696,6 +1696,10 @@ async function handleProductSelection() {
   try {
     const client = await ensureSupabaseClient();
     const productId = parseInt(productSelect.value);
+if (isNaN(productId)) {
+  console.warn("No valid product selected");
+  return;
+}
 
     console.log('Fetching batches for product:', productId, new Date().toISOString());
 
