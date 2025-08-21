@@ -1839,14 +1839,16 @@ async function checkoutOrder() {
 
     for (const item of cart) {
       // Insert into customer_sales
-      const { error: saleError } = await client.from('customer_sales').insert({
-        product_id: item.productId,
-        customer_name: item.customerName,
-        quantity: item.quantity,
-        selling_price: item.selling_price,
-        sale_date: item.saleDate
-      });
-      if (saleError) throw saleError;
+      const { error: saleError } = await client
+  .from('customer_sales')
+  .insert({
+    customer_name: item.customerName,
+    product_id: item.productId,
+    quantity: item.quantity,
+    selling_price: item.selling_price,
+    sale_date: saleDate
+  });
+if (saleError) throw saleError;
 
       // Update product_batches.remaining_quantity
       const { error: batchError } = await client.rpc('decrement_batch_quantity', {
