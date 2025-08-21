@@ -1687,6 +1687,37 @@ async function deleteVendor(vendorId) {
 }
 
 
+// === Handle Product Selection ===
+async function handleProductSelection() {
+  const productSelect = document.getElementById('product-select');
+  const batchSelect = document.getElementById('batch-no');
+  if (!productSelect.value || !batchSelect) return;
+
+  try {
+    const client = await ensureSupabaseClient();
+    const productId = parseInt(productSelect.value);
+
+    console.log('Fetching batches for product:', productId, new Date().toISOString());
+
+    const { data: batches, error } = await client
+      .from('product_batches')
+      .select('batch_number, remaining_quantity, buy_in_price, created_at')
+      .eq('product_id', productId)
+      .gt('remaining_quantity', 0);
+
+    if (error) throw error;
+
+    batchSelect.innerHTML = `<option value="">Select batch</option>` +
+      batches.map(b => 
+        `<option value="${b.batch_number}">Batch ${b.batch_number} (Remaining: ${b.remaining_quantity}, Buy-in: ${b.buy_in_price})</option>`
+      ).join('');
+
+  } catch (err) {
+    console.error('Error fetching product batches:', err.message);
+  }
+}
+
+
 /* =========================================================
    COMMON.JS - with Cart + Checkout Enhancements for Customer Sales
    ========================================================= */
