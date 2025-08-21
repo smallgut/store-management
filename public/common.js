@@ -1866,11 +1866,19 @@ if (saleError) throw saleError;
       }
 
       // Update products.stock
-     const { error: productError } = await client
-  .from('products')
-  .update({ stock: supabase.sql`stock - ${item.quantity}` })
-  .eq('id', item.productId);
-if (productError) throw productError;
+      await client.from('products')
+        .update({ stock: supabase.sql`stock - ${item.quantity}` })
+        .eq('id', item.productId);
+    }
+
+    cart = [];
+    renderCart();
+    loadCustomerSales();
+    alert('Checkout successful!');
+  } catch (err) {
+    console.error('Checkout error:', err.message);
+    alert('Checkout failed: ' + err.message);
+  }
 }
 
 // -------------------------------------------------------------
