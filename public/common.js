@@ -1880,6 +1880,33 @@ async function checkoutOrder() {
 // populateProductDropdown, loadLoanRecords, etc.) untouched.
 // -------------------------------------------------------------
 
+// === Handle Barcode Input ===
+function handleBarcodeInput() {
+  const barcodeInput = document.getElementById('product-barcode');
+  const productSelect = document.getElementById('product-select');
+  const stockDisplay = document.getElementById('stock-display');
+
+  const enteredBarcode = barcodeInput.value.trim();
+  if (!enteredBarcode) return;
+
+  console.log('Updating selection with barcode:', enteredBarcode, new Date().toISOString());
+
+  // Find product option by barcode
+  const matchingOption = Array.from(productSelect.options).find(opt =>
+    opt.getAttribute('data-barcode') === enteredBarcode
+  );
+
+  if (matchingOption) {
+    productSelect.value = matchingOption.value;
+    stockDisplay.textContent = `Stock: ${matchingOption.getAttribute('data-stock') || 0}`;
+
+    // Trigger batch loading
+    handleProductSelection();
+  } else {
+    stockDisplay.textContent = 'Product not found';
+    document.getElementById('batch-no').innerHTML = '';
+  }
+}
 
 
 document.addEventListener('DOMContentLoaded', () => {
