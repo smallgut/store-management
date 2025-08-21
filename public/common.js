@@ -1717,3 +1717,92 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAnalytics();
   }
 });
+
+
+// === Global cart for customer sales ===
+let cart = [];
+
+
+// === Render the cart table ===
+function renderCart() {
+const cartTableBody = document.querySelector('#cart-table tbody');
+const totalCostEl = document.getElementById('total-cost');
+if (!cartTableBody) return;
+
+
+cartTableBody.innerHTML = '';
+let total = 0;
+
+
+cart.forEach((item, index) => {
+const subTotal = item.quantity * item.selling_price;
+total += subTotal;
+
+
+const row = document.createElement('tr');
+row.innerHTML = `
+<td class="border p-2">${item.productName}</td>
+<td class="border p-2">${item.barcode}</td>
+<td class="border p-2">${item.batchNumber}</td>
+<td class="border p-2">
+<input type="number" min="1" value="${item.quantity}"
+onchange="editCartItem(${index}, 'quantity', this.value)" class="w-20 border p-1">
+</td>
+<td class="border p-2">
+<input type="number" min="0" step="0.01" value="${item.selling_price}"
+onchange="editCartItem(${index}, 'selling_price', this.value)" class="w-24 border p-1">
+</td>
+<td class="border p-2">${subTotal.toFixed(2)}</td>
+<td class="border p-2 text-center">
+<button onclick="removeItemFromCart(${index})" class="bg-red-500 text-white px-2 py-1 rounded">X</button>
+</td>
+`;
+cartTableBody.appendChild(row);
+});
+
+
+totalCostEl.textContent = total.toFixed(2);
+}
+
+
+// === Add item to cart ===
+function addItemToCart() {
+const productSelect = document.getElementById('product-select');
+const batchSelect = document.getElementById('batch-no');
+const quantityInput = document.getElementById('quantity');
+const priceInput = document.getElementById('selling-price');
+const customerNameInput = document.getElementById('customer-name');
+
+
+if (!productSelect.value || !batchSelect.value) {
+alert('Please select a product and batch number.');
+return;
+}
+
+
+const selectedOption = productSelect.options[productSelect.selectedIndex];
+const batchOption = batchSelect.options[batchSelect.selectedIndex];
+
+
+const productId = parseInt(productSelect.value);
+const productName = selectedOption.textContent;
+const barcode = selectedOption.getAttribute('data-barcode') || '';
+const batchNumber = batchOption.value;
+const quantity = parseInt(quantityInput.value);
+const selling_price = parseFloat(priceInput.value);
+const customerName = customerNameInput.value;
+
+
+if (!quantity || quantity <= 0 || !selling_price || selling_price < 0) {
+alert('Please enter valid quantity and selling price.');
+return;
+}
+
+
+cart.push({
+productId,
+productName,
+barcode,
+batchNumber,
+quantity,
+}
