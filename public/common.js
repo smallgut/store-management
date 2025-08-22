@@ -1828,39 +1828,67 @@ function removeItemFromCart(index) {
 }
 
 // === Checkout order ===
+// === Checkout order ===
 async function checkoutOrder() {
   if (cart.length === 0) {
     alert('Cart is empty.');
     return;
   }
 
-  try {
-    const client = await ensureSupabaseClient();
+  const client = await ensureSupabaseClient();
 
+  // ✅ Get customer name and sale date from the form
+  const customerName = document.getElementById('customer-name').value.trim();
+  const saleDate = document.getElementById('sale-date').value;
+
+  if (!customerName || !saleDate) {
+    alert('Please enter customer name and sale date before checkout.');
+    return;
+  }
+
+  try {
     for (const item of cart) {
       // Insert into customer_sales
       const { error: saleError } = await client
-  .from('customer_sales')
-  .insert({
-    customer_name: item.customerName,
-    product_id: item.productId,
-    quantity: item.quantity,
-    selling_price: item.selling_price,
-    sale_date: saleDate
-  });
-if (saleError) throw saleError;
+        .from('customer_sales')
+        .insert({
+          customer_name: customerName, // ✅ take from form, not from item
+          product_id: item.productId,
+          quantity: item.quantity,
+          selling_price: item.selling_price,
+          sale_date: saleDate // ✅ now defined
+        });
 
-      // Update product_batches.remaining_quantity
-     const { error: batchError } = await client
-  .from('product_batches')
-  .update({ remaining_quantity: supabase.sql`remaining_quantity - ${item.quantity}` })
-  .eq('batch_number', item.batchNumber)
-  .eq('product_id', item.productId);
-if (batchError) throw batchError;
+      if (saleError) throw saleError;
 
-      // Update products.stock
-      await client.from('products')
-        .update({ stock: supabase.sql`stock - ${item.quantity}` })
+      // Try RPC for batch decrement
+      const { error: rpcError } = await client.rpc('decrement_batch_quantity', {
+        p_batch_number: item.batchNumber,
+        p_product_id: item.productId,
+        p_quantity: item.quantity
+      });
+
+      if (rpcError) {
+        console.warn("RPC not found, falling back to manual update", rpcError);
+
+        // Fallback: manual update product_batches
+        const { error: batchError } = await client
+          .from('product_batches')
+          .update({
+            remaining_quantity: (item.remaining_quantity || 0) - item.quantity
+          })
+          .eq('batch_number', item.batchNumber)
+          .eq('product_id', item.productId);
+
+        if (batchError) throw batchError;
+      }
+
+      // Update products.stock (optional)
+      await client
+        .from('products')
+        .update({
+          stock: (item.stock || 0) - item.quantity
+        })
         .eq('id', item.productId);
     }
 
@@ -1868,11 +1896,13 @@ if (batchError) throw batchError;
     renderCart();
     loadCustomerSales();
     alert('Checkout successful!');
+
   } catch (err) {
-    console.error('Checkout error:', err.message);
-    alert('Checkout failed: ' + err.message);
+    console.error('Checkout error:', err.message || err);
+    alert('Checkout failed: ' + (err.message || err));
   }
 }
+
 
 // -------------------------------------------------------------
 // Keep all your existing functions below (translations, loadCustomerSales,
