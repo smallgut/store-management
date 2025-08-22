@@ -1851,19 +1851,12 @@ async function checkoutOrder() {
 if (saleError) throw saleError;
 
       // Update product_batches.remaining_quantity
-      const { error: batchError } = await client.rpc('decrement_batch_quantity', {
-        p_product_id: item.productId,
-        p_batch_number: item.batchNumber,
-        p_quantity: item.quantity
-      });
-      if (batchError) {
-        console.warn('No RPC found, falling back to manual update', batchError.message);
-        // Fallback: manual update if you don’t have the RPC function
-        await client.from('product_batches')
-          .update({ remaining_quantity: supabase.sql`remaining_quantity - ${item.quantity}` })
-          .eq('product_id', item.productId)
-          .eq('batch_number', item.batchNumber);
-      }
+     const { error: batchError } = await client
+  .from('product_batches')
+  .update({ remaining_quantity: supabase.sql`remaining_quantity - ${item.quantity}` })
+  .eq('batch_number', item.batchNumber)
+  .eq('product_id', item.productId);
+if (batchError) throw batchError;
 
       // Update products.stock
       await client.from('products')
