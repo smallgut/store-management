@@ -1733,84 +1733,100 @@ if (isNaN(productId)) {
 // === Global cart for customer sales ===
 let cart = [];
 
+
 // === Render the cart table ===
 function renderCart() {
-  const cartTableBody = document.querySelector('#cart-table tbody');
-  const totalCostEl = document.getElementById('total-cost');
-  if (!cartTableBody) return;
+const cartTableBody = document.querySelector('#cart-table tbody');
+const totalCostEl = document.getElementById('total-cost');
+if (!cartTableBody) return;
 
-  cartTableBody.innerHTML = '';
-  let total = 0;
 
-  cart.forEach((item, index) => {
-    const subTotal = item.quantity * item.selling_price;
-    total += subTotal;
+cartTableBody.innerHTML = '';
+let total = 0;
 
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td class="border p-2">${item.productName}</td>
-      <td class="border p-2">${item.barcode}</td>
-      <td class="border p-2">${item.batchNumber}</td>
-      <td class="border p-2">
-        <input type="number" min="1" value="${item.quantity}" 
-               onchange="editCartItem(${index}, 'quantity', this.value)" class="w-20 border p-1">
-      </td>
-      <td class="border p-2">
-        <input type="number" min="0" step="0.01" value="${item.selling_price}" 
-               onchange="editCartItem(${index}, 'selling_price', this.value)" class="w-24 border p-1">
-      </td>
-      <td class="border p-2">${subTotal.toFixed(2)}</td>
-      <td class="border p-2 text-center">
-        <button onclick="removeItemFromCart(${index})" class="bg-red-500 text-white px-2 py-1 rounded">X</button>
-      </td>
-    `;
-    cartTableBody.appendChild(row);
-  });
 
-  totalCostEl.textContent = total.toFixed(2);
+cart.forEach((item, index) => {
+const subTotal = item.quantity * item.selling_price;
+total += subTotal;
+
+
+const row = document.createElement('tr');
+row.innerHTML = `
+<td class="border p-2">${item.productName}</td>
+<td class="border p-2">${item.barcode}</td>
+<td class="border p-2">${item.batchNumber}</td>
+<td class="border p-2">
+<input type="number" min="1" value="${item.quantity}"
+onchange="editCartItem(${index}, 'quantity', this.value)" class="w-20 border p-1">
+</td>
+<td class="border p-2">
+<input type="number" min="0" step="0.01" value="${item.selling_price}"
+onchange="editCartItem(${index}, 'selling_price', this.value)" class="w-24 border p-1">
+</td>
+<td class="border p-2">${subTotal.toFixed(2)}</td>
+<td class="border p-2 text-center">
+<button onclick="removeItemFromCart(${index})" class="bg-red-500 text-white px-2 py-1 rounded">X</button>
+</td>
+`;
+cartTableBody.appendChild(row);
+});
+
+
+totalCostEl.textContent = total.toFixed(2);
 }
 
 // === Add item to cart ===
 function addItemToCart() {
-  const productSelect = document.getElementById('product-select');
-  const batchSelect = document.getElementById('batch-no');
-  const quantityInput = document.getElementById('quantity');
-  const priceInput = document.getElementById('selling-price');
-  const customerNameInput = document.getElementById('customer-name');
+const productSelect = document.getElementById('product-select');
+const batchSelect = document.getElementById('batch-no');
+const quantityInput = document.getElementById('quantity');
+const priceInput = document.getElementById('selling-price');
+const customerNameInput = document.getElementById('customer-name');
 
-  if (!productSelect.value || !batchSelect.value) {
-    alert('Please select a product and batch number.');
-    return;
-  }
 
-  const selectedOption = productSelect.options[productSelect.selectedIndex];
-  const batchOption = batchSelect.options[batchSelect.selectedIndex];
+if (!productSelect.value || !batchSelect.value) {
+alert('Please select a product and batch number.');
+return;
+}
 
-  const productId = parseInt(productSelect.value);
-  const productName = selectedOption.textContent;
-  const barcode = selectedOption.getAttribute('data-barcode') || '';
-  const batchNumber = batchOption.value;
-  const quantity = parseInt(quantityInput.value);
-  const selling_price = parseFloat(priceInput.value);
-  const customerName = customerNameInput.value;
 
-  if (!quantity || quantity <= 0 || !selling_price || selling_price < 0) {
-    alert('Please enter valid quantity and selling price.');
-    return;
-  }
+const selectedOption = productSelect.options[productSelect.selectedIndex];
+const batchOption = batchSelect.options[batchSelect.selectedIndex];
 
-  cart.push({
-    productId,
-    productName,
-    barcode,
-    batchNumber,
-    quantity,
-    selling_price,
-    customerName,
-    saleDate: new Date().toISOString()
-  });
 
-  renderCart();
+const productId = Number(productSelect.value);
+if (!productId || isNaN(productId)) {
+alert('Invalid product selected.');
+return;
+}
+
+
+const productName = selectedOption.textContent;
+const barcode = selectedOption.getAttribute('data-barcode') || '';
+const batchNumber = batchOption.value;
+const quantity = parseInt(quantityInput.value);
+const selling_price = parseFloat(priceInput.value);
+const customerName = customerNameInput.value;
+
+
+if (!quantity || quantity <= 0 || !selling_price || selling_price < 0) {
+alert('Please enter valid quantity and selling price.');
+return;
+}
+
+
+cart.push({
+productId,
+productName,
+barcode,
+batchNumber,
+quantity,
+selling_price,
+customerName
+});
+
+
+renderCart();
 }
 
 // === Edit cart item ===
@@ -1828,15 +1844,28 @@ function removeItemFromCart(index) {
 }
 
 // === Checkout order ===
-// === Checkout order ===
 async function checkoutOrder() {
-  if (cart.length === 0) {
-    alert('Cart is empty.');
-    return;
-  }
+const customerName = document.getElementById('customer-name').value.trim();
+const saleDate = document.getElementById('sale-date').value;
 
-  const client = await ensureSupabaseClient();
 
+if (!customerName || !saleDate) {
+alert('Please enter customer name and sale date before checkout.');
+return;
+}
+
+
+if (cart.length === 0) {
+alert('Cart is empty.');
+return;
+}
+
+
+try {
+const client = await ensureSupabaseClient();
+
+
+for (const item of cart) {
   // ✅ Get customer name and sale date from the form
   const customerName = document.getElementById('customer-name').value.trim();
   const saleDate = document.getElementById('sale-date').value;
@@ -1849,58 +1878,47 @@ async function checkoutOrder() {
   try {
     for (const item of cart) {
       // Insert into customer_sales
-      const { error: saleError } = await client
-        .from('customer_sales')
-        .insert({
-          customer_name: customerName, // ✅ take from form, not from item
-          product_id: item.productId,
-          quantity: item.quantity,
-          selling_price: item.selling_price,
-          sale_date: saleDate // ✅ now defined
-        });
-
-      if (saleError) throw saleError;
+     const { error: saleError } = await client.from('customer_sales').insert([{
+customer_name: customerName,
+sale_date: saleDate,
+product_id: item.productId,
+quantity: item.quantity,
+selling_price: item.selling_price
+}]);
+if (saleError) throw saleError;
 
       // Try RPC for batch decrement
-      const { error: rpcError } = await client.rpc('decrement_batch_quantity', {
-        p_batch_number: item.batchNumber,
-        p_product_id: item.productId,
-        p_quantity: item.quantity
-      });
-
-      if (rpcError) {
-        console.warn("RPC not found, falling back to manual update", rpcError);
-
-        // Fallback: manual update product_batches
-        const { error: batchError } = await client
-          .from('product_batches')
-          .update({
-            remaining_quantity: (item.remaining_quantity || 0) - item.quantity
-          })
-          .eq('batch_number', item.batchNumber)
-          .eq('product_id', item.productId);
-
-        if (batchError) throw batchError;
-      }
+      try {
+await client.rpc('decrement_batch_quantity', {
+p_batch_number: item.batchNumber,
+p_product_id: item.productId,
+p_quantity: item.quantity
+});
+} catch (rpcErr) {
+console.warn('RPC not found, falling back to manual update', rpcErr);
+await client
+.from('product_batches')
+.update({ remaining_quantity: supabase.sql`remaining_quantity - ${item.quantity}` })
+.eq('batch_number', item.batchNumber)
+.eq('product_id', item.productId);
+}
 
       // Update products.stock (optional)
-      await client
-        .from('products')
-        .update({
-          stock: (item.stock || 0) - item.quantity
-        })
-        .eq('id', item.productId);
-    }
+     await client
+.from('products')
+.update({ stock: supabase.sql`stock - ${item.quantity}` })
+.eq('id', item.productId);
+}
 
-    cart = [];
-    renderCart();
-    loadCustomerSales();
-    alert('Checkout successful!');
 
-  } catch (err) {
-    console.error('Checkout error:', err.message || err);
-    alert('Checkout failed: ' + (err.message || err));
-  }
+alert('Checkout successful!');
+cart = [];
+renderCart();
+loadCustomerSales();
+} catch (err) {
+console.error('Checkout error:', err);
+alert('Checkout failed: ' + err.message);
+}
 }
 
 
