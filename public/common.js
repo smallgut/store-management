@@ -1787,14 +1787,18 @@ function addItemToCart() {
   const selectedOption = productSelect.options[productSelect.selectedIndex];
   const batchOption = batchSelect.options[batchSelect.selectedIndex];
 
-  const productId = parseInt(productSelect.value);
-  if (isNaN(productId)) {
-    alert("Invalid product selected.");
-    return;
+  // Support numeric IDs or string barcodes
+  let productId = selectedOption.getAttribute("data-id");   // numeric DB id
+  const barcode = selectedOption.getAttribute("data-barcode") || productSelect.value;
+
+  if (!productId) {
+    console.warn("⚠️ Product missing numeric id, fallback to barcode only:", barcode);
+    productId = null; // allow barcode-only flow
+  } else {
+    productId = parseInt(productId, 10);
   }
 
   const productName = selectedOption.textContent;
-  const barcode = selectedOption.getAttribute('data-barcode') || '';
   const batchNumber = batchOption.value;
   const quantity = parseInt(quantityInput.value);
   const selling_price = parseFloat(priceInput.value);
@@ -1806,7 +1810,7 @@ function addItemToCart() {
   }
 
   cart.push({
-    productId,
+    productId,      // might be null if only barcode is present
     productName,
     barcode,
     batchNumber,
