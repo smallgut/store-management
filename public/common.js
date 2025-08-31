@@ -1863,6 +1863,7 @@ async function checkoutOrder() {
         customer_name: customerName,
         sale_date: saleDate,
         product_id: item.productId,
+        barcode: item.barcode || null,   // ✅ store barcode if no productId
         quantity: item.quantity,
         selling_price: item.selling_price
       }]);
