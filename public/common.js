@@ -1839,7 +1839,7 @@ function removeItemFromCart(index) {
   renderCart();
 }
 
-// Checkout order
+// === Checkout order (patched) ===
 async function checkoutOrder() {
   const supabase = await ensureSupabaseClient();
 
@@ -1869,26 +1869,49 @@ async function checkoutOrder() {
       }]);
       if (saleError) throw saleError;
 
-      // Update stock via RPC if available
-      const { error: rpcError } = await supabase.rpc('decrement_batch_quantity', {
-        p_batch_number: item.batchNumber,
-        p_product_id: item.productId,
-        p_quantity: item.quantity
-      });
+      // --- Update product_batches.remaining_quantity ---
+      if (item.productId) {
+        // 1. Get current remaining_quantity
+        const { data: batchRows, error: fetchBatchErr } = await supabase
+          .from('product_batches')
+          .select('remaining_quantity')
+          .eq('batch_number', item.batchNumber)
+          .eq('product_id', item.productId)
+          .single();
 
-      if (rpcError) {
-        console.warn("RPC not found, falling back to manual update", rpcError);
-        // Manual fallback
-        await supabase.from('product_batches')
-          .update({ remaining_quantity: supabase.sql`remaining_quantity - ${item.quantity}` })
+        if (fetchBatchErr) throw fetchBatchErr;
+
+        const newRemaining = (batchRows?.remaining_quantity || 0) - item.quantity;
+
+        // 2. Update with new value
+        const { error: batchError } = await supabase
+          .from('product_batches')
+          .update({ remaining_quantity: newRemaining })
           .eq('batch_number', item.batchNumber)
           .eq('product_id', item.productId);
+
+        if (batchError) throw batchError;
       }
 
-      // Update products stock
-      await supabase.from('products')
-        .update({ stock: supabase.sql`stock - ${item.quantity}` })
-        .eq('id', item.productId);
+      // --- Update products.stock ---
+      if (item.productId) {
+        const { data: productRow, error: fetchProductErr } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.productId)
+          .single();
+
+        if (fetchProductErr) throw fetchProductErr;
+
+        const newStock = (productRow?.stock || 0) - item.quantity;
+
+        const { error: prodError } = await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', item.productId);
+
+        if (prodError) throw prodError;
+      }
     }
 
     alert('Checkout successful!');
