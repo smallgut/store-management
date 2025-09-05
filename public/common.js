@@ -455,79 +455,118 @@ async function populateCustomerDropdown() {
 }
 
 async function loadCustomerSales() {
-  console.log('Loading customer sales...', new Date().toISOString());
-  try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
-    const { data: sales, error } = await client
-      .from('customer_sales')
-      .select(`
-        id,
-        product_id,
-        customer_name,
+  console.log("Loading orders...");
+
+  const supabase = await ensureSupabaseClient();
+
+  const { data: orders, error } = await supabase
+    .from('orders')
+    .select(`
+      order_id,
+      customer_name,
+      sale_date,
+      total_cost,
+      order_items (id)
+    `)
+    .order('order_id', { ascending: false });
+
+  if (error) {
+    console.error("Error loading orders:", error);
+    return;
+  }
+
+  console.log("Orders:", orders);
+
+  const tableBody = document.querySelector('#customer-sales-table tbody');
+  if (!tableBody) return;
+
+  tableBody.innerHTML = '';
+
+  orders.forEach(order => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="border p-2">${order.order_id}</td>
+      <td class="border p-2">${order.customer_name}</td>
+      <td class="border p-2">${new Date(order.sale_date).toLocaleString()}</td>
+      <td class="border p-2">${order.order_items.length}</td>
+      <td class="border p-2">${order.total_cost.toFixed(2)}</td>
+      <td class="border p-2 text-center">
+        <button onclick="printReceipt(${order.order_id})" 
+          class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">🖨 Print</button>
+      </td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
+
+async function printReceipt(orderId) {
+  const supabase = await ensureSupabaseClient();
+
+  // fetch order + its items
+  const { data: order, error } = await supabase
+    .from('orders')
+    .select(`
+      order_id,
+      customer_name,
+      sale_date,
+      total_cost,
+      order_items (
         quantity,
         selling_price,
-        sale_date,
-        products (
-          name,
-          price,
-          barcode,
-          batch_no
-        )
-      `)
-      .order('sale_date', { ascending: false });
-    if (error) throw error;
+        barcode,
+        product_id,
+        products (name)
+      )
+    `)
+    .eq('order_id', orderId)
+    .single();
 
-    console.log('Customer Sales:', sales, new Date().toISOString());
-    const salesBody = document.querySelector('#customer-sales tbody');
-    if (salesBody) {
-      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      salesBody.innerHTML = sales.length
-        ? sales.map(s => {
-            const sellingPrice = s.selling_price !== null ? s.selling_price : (isChinese ? '無' : 'N/A');
-            const buyInPrice = s.products?.price || 0;
-            const subTotal = s.selling_price !== null ? s.quantity * s.selling_price : (isChinese ? '無' : 'N/A');
-            const profit = s.selling_price !== null ? (s.selling_price - buyInPrice) * s.quantity : 'N/A';
-            return `
-              <tr>
-                <td class="border p-2">${s.products?.name || (isChinese ? '未知產品' : 'Unknown Product')}</td>
-                <td class="border p-2">${s.products?.barcode || (isChinese ? '無' : 'N/A')}</td>
-                <td class="border p-2">${s.products?.batch_no || (isChinese ? '無' : 'N/A')}</td>
-                <td class="border p-2">${s.customer_name || (isChinese ? '無' : 'N/A')}</td>
-                <td class="border p-2">${s.quantity}</td>
-                <td class="border p-2">${typeof sellingPrice === 'number' ? sellingPrice.toFixed(2) : sellingPrice}</td>
-                <td class="border p-2">${typeof subTotal === 'number' ? subTotal.toFixed(2) : subTotal}</td>
-                <td class="border p-2">${typeof profit === 'number' ? profit.toFixed(2) : profit}</td>
-                <td class="border p-2">${new Date(s.sale_date).toLocaleString('en-GB', { timeZone: 'Asia/Singapore' })}</td>
-                <td class="border p-2">
-                  <button data-sale-id="${s.id}" data-product-barcode="${s.products?.barcode || ''}" data-quantity="${s.quantity}" class="delete-sale bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
-                </td>
-              </tr>
-            `;
-          }).join('')
-        : `<tr><td colspan="10" data-lang-key="no-customer-sales-found" class="border p-2">${isChinese ? '未找到客戶銷售記錄。' : 'No customer sales found.'}</td></tr>`;
-      applyTranslations();
-      populateProductDropdown();
-      document.querySelectorAll('.delete-sale').forEach(button => {
-        button.addEventListener('click', (e) => {
-          const saleId = e.target.getAttribute('data-sale-id');
-          const productBarcode = e.target.getAttribute('data-product-barcode');
-          const quantity = parseInt(e.target.getAttribute('data-quantity'));
-          handleDeleteSale(saleId, productBarcode, quantity);
-        });
-      });
-    }
-  } catch (error) {
-    console.error('Error loading customer sales:', error.message, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入客戶銷售：${error.message}` : `Failed to load customer sales: ${error.message}`}`;
-      clearMessage('error');
-    }
-  } finally {
-    setLoading(false);
+  if (error) {
+    console.error("Error fetching order for receipt:", error);
+    alert("Failed to load receipt");
+    return;
   }
+
+  // build receipt HTML
+  let receiptHtml = `
+    <h2>Receipt - Order #${order.order_id}</h2>
+    <p><strong>Customer:</strong> ${order.customer_name}</p>
+    <p><strong>Date:</strong> ${new Date(order.sale_date).toLocaleString()}</p>
+    <hr>
+    <table border="1" cellspacing="0" cellpadding="5">
+      <tr>
+        <th>Product</th>
+        <th>Barcode</th>
+        <th>Qty</th>
+        <th>Price</th>
+        <th>Subtotal</th>
+      </tr>
+  `;
+
+  order.order_items.forEach(item => {
+    const productName = item.products?.name || "Unknown";
+    const subtotal = item.quantity * item.selling_price;
+    receiptHtml += `
+      <tr>
+        <td>${productName}</td>
+        <td>${item.barcode || ""}</td>
+        <td>${item.quantity}</td>
+        <td>${item.selling_price.toFixed(2)}</td>
+        <td>${subtotal.toFixed(2)}</td>
+      </tr>
+    `;
+  });
+
+  receiptHtml += `
+    </table>
+    <h3>Total: ${order.total_cost.toFixed(2)}</h3>
+  `;
+
+  // open in new window for printing
+  const receiptWindow = window.open('', 'PrintReceipt');
+  receiptWindow.document.write(receiptHtml);
+  receiptWindow.document.close();
+  receiptWindow.print();
 }
 
 async function addCustomerSale(sale) {
