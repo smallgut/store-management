@@ -1839,7 +1839,11 @@ function removeItemFromCart(index) {
   renderCart();
 }
 
-// === Checkout order (patched) ===
+/* =========================================================
+   POS Checkout + Order Management
+   ========================================================= */
+
+// === Checkout order ===
 async function checkoutOrder() {
   const supabase = await ensureSupabaseClient();
 
@@ -1857,64 +1861,73 @@ async function checkoutOrder() {
   }
 
   try {
-    for (const item of cart) {
-      // Insert into customer_sales
-      const { error: saleError } = await supabase.from('customer_sales').insert([{
+    // --- 1. Insert master order ---
+    const totalCost = cart.reduce((sum, item) => sum + (item.quantity * item.selling_price), 0);
+
+    const { data: order, error: orderErr } = await supabase
+      .from('orders')
+      .insert([{
         customer_name: customerName,
         sale_date: saleDate,
-        product_id: item.productId,
-        barcode: item.barcode || null,   // ✅ store barcode if no productId
-        quantity: item.quantity,
-        selling_price: item.selling_price
-      }]);
-      if (saleError) throw saleError;
+        total_cost: totalCost
+      }])
+      .select()
+      .single();
 
-      // --- Update product_batches.remaining_quantity ---
-      if (item.productId) {
-        // 1. Get current remaining_quantity
-        const { data: batchRows, error: fetchBatchErr } = await supabase
-          .from('product_batches')
-          .select('remaining_quantity')
-          .eq('batch_number', item.batchNumber)
-          .eq('product_id', item.productId)
-          .single();
+    if (orderErr) throw orderErr;
 
-        if (fetchBatchErr) throw fetchBatchErr;
+    // --- 2. Insert order items ---
+    const items = cart.map(item => ({
+      order_id: order.order_id,
+      product_id: item.productId || null,
+      barcode: item.barcode || null,
+      quantity: item.quantity,
+      selling_price: item.selling_price
+    }));
 
-        const newRemaining = (batchRows?.remaining_quantity || 0) - item.quantity;
+    const { error: itemsErr } = await supabase.from('order_items').insert(items);
+    if (itemsErr) throw itemsErr;
 
-        // 2. Update with new value
-        const { error: batchError } = await supabase
-          .from('product_batches')
-          .update({ remaining_quantity: newRemaining })
-          .eq('batch_number', item.batchNumber)
-          .eq('product_id', item.productId);
+    // --- 3. Decrement stock ---
+    for (const item of cart) {
+      if (!item.productId) continue; // skip if no numeric ID
 
-        if (batchError) throw batchError;
-      }
+      // Fetch current stock
+      const { data: productRow, error: fetchProductErr } = await supabase
+        .from('products')
+        .select('stock')
+        .eq('id', item.productId)
+        .single();
+      if (fetchProductErr) throw fetchProductErr;
 
-      // --- Update products.stock ---
-      if (item.productId) {
-        const { data: productRow, error: fetchProductErr } = await supabase
-          .from('products')
-          .select('stock')
-          .eq('id', item.productId)
-          .single();
+      const newStock = (productRow?.stock || 0) - item.quantity;
 
-        if (fetchProductErr) throw fetchProductErr;
+      const { error: prodError } = await supabase
+        .from('products')
+        .update({ stock: newStock })
+        .eq('id', item.productId);
+      if (prodError) throw prodError;
 
-        const newStock = (productRow?.stock || 0) - item.quantity;
+      // Update product_batches
+      const { data: batchRow, error: fetchBatchErr } = await supabase
+        .from('product_batches')
+        .select('remaining_quantity')
+        .eq('batch_number', item.batchNumber)
+        .eq('product_id', item.productId)
+        .single();
+      if (fetchBatchErr) throw fetchBatchErr;
 
-        const { error: prodError } = await supabase
-          .from('products')
-          .update({ stock: newStock })
-          .eq('id', item.productId);
+      const newRemaining = (batchRow?.remaining_quantity || 0) - item.quantity;
 
-        if (prodError) throw prodError;
-      }
+      const { error: batchError } = await supabase
+        .from('product_batches')
+        .update({ remaining_quantity: newRemaining })
+        .eq('batch_number', item.batchNumber)
+        .eq('product_id', item.productId);
+      if (batchError) throw batchError;
     }
 
-    alert('Checkout successful!');
+    alert(`Checkout successful! Order #${order.order_id}`);
     cart = [];
     renderCart();
     loadCustomerSales();
@@ -1925,6 +1938,47 @@ async function checkoutOrder() {
   }
 }
 
+// === Load Customer Sales (now loads orders) ===
+async function loadCustomerSales() {
+  console.log("Loading orders...");
+
+  const supabase = await ensureSupabaseClient();
+
+  const { data: orders, error } = await supabase
+    .from('orders')
+    .select(`
+      order_id,
+      customer_name,
+      sale_date,
+      total_cost,
+      order_items (id)  -- just count items
+    `)
+    .order('order_id', { ascending: false });
+
+  if (error) {
+    console.error("Error loading orders:", error);
+    return;
+  }
+
+  console.log("Orders:", orders);
+
+  const tableBody = document.querySelector('#customer-sales-table tbody');
+  if (!tableBody) return;
+
+  tableBody.innerHTML = '';
+
+  orders.forEach(order => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="border p-2">${order.order_id}</td>
+      <td class="border p-2">${order.customer_name}</td>
+      <td class="border p-2">${new Date(order.sale_date).toLocaleString()}</td>
+      <td class="border p-2">${order.order_items.length}</td>
+      <td class="border p-2">${order.total_cost.toFixed(2)}</td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
 // -------------------------------------------------------------
 // Keep all your existing functions below (translations, loadCustomerSales,
 // populateProductDropdown, loadLoanRecords, etc.) untouched.
