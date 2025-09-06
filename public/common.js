@@ -521,24 +521,19 @@ async function printReceipt(orderId) {
     return;
   }
 
-  let receiptText = `
-Receipt 
-Order #: ${order.order_number}
-Customer: ${order.customer_name}
-Date: ${new Date(order.sale_date).toLocaleString()}
+ let receipt = `Receipt\nOrder #: ${order.order_id}\nCustomer: ${order.customer_name}\nDate: ${new Date(order.sale_date).toLocaleString()}\n\nItems:\n`;
 
-Items:
-`;
+  order.order_items.forEach(item => {
+    receipt += `- ${item.products?.name || "Unknown"} (${item.products?.barcode || "-"}) x${item.quantity} @ ${item.selling_price} = ${(item.quantity * item.selling_price).toFixed(2)}\n`;
+  });
 
-order.order_items.forEach(item => {
-  const productName = item.products?.name || "Unknown";
-  const productBarcode = item.products?.barcode || "-";
-  const subTotal = item.quantity * item.selling_price;
+  receipt += `\nTotal: ${order.total_cost.toFixed(2)}\n`;
 
-  receiptText += `- ${productName} (${productBarcode}) x${item.quantity} @ ${item.selling_price} = ${subTotal.toFixed(2)}\n`;
-});
-
-receiptText += `\nTotal: ${order.total_cost.toFixed(2)}`;
+  const printWindow = window.open('', '', 'width=400,height=600');
+  printWindow.document.write(`<pre>${receipt}</pre>`);
+  printWindow.document.close();
+  printWindow.print();
+}
 
 async function addCustomerSale(sale) {
   console.log('Adding customer sale...', sale, new Date().toISOString());
