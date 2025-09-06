@@ -1785,7 +1785,7 @@ function renderCart() {
 // Add item to cart
 function addItemToCart() {
   const productSelect = document.getElementById("product-select");
-  const productId = parseInt(productSelect.value);
+  const productIdRaw = productSelect.value;
   const productOption = productSelect.options[productSelect.selectedIndex];
 
   const customerName = document.getElementById("customer-name").value.trim();
@@ -1795,12 +1795,15 @@ function addItemToCart() {
   const quantity = parseInt(document.getElementById("quantity").value);
   const sellingPrice = parseFloat(document.getElementById("selling-price").value);
 
-  if (!productId || isNaN(quantity) || isNaN(sellingPrice)) {
-    console.warn("⚠️ No valid product selected or invalid qty/price");
+  // ✅ only block if quantity/price are invalid
+  if (!quantity || isNaN(quantity) || !sellingPrice || isNaN(sellingPrice)) {
+    console.warn("⚠️ Invalid quantity or price");
     return;
   }
 
-  // ✅ clean normalized cart item
+  // allow string IDs (barcode fallback), but prefer numeric
+  const productId = isNaN(parseInt(productIdRaw)) ? null : parseInt(productIdRaw);
+
   const cartItem = {
     productId: productId,
     productName: productOption?.text || "Unknown",
