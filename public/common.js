@@ -1751,40 +1751,35 @@ let cart = [];
 
 // Render the cart table
 function renderCart() {
-  const cartTableBody = document.querySelector('#cart-table tbody');
-  const totalCostEl = document.getElementById('total-cost');
-  if (!cartTableBody) return;
+  const tbody = document.querySelector("#cart-table tbody");
+  tbody.innerHTML = "";
 
-  cartTableBody.innerHTML = '';
   let total = 0;
 
   cart.forEach((item, index) => {
+    const row = document.createElement("tr");
+
     const subTotal = item.quantity * item.selling_price;
     total += subTotal;
 
-    const row = document.createElement('tr');
     row.innerHTML = `
-      <td class="border p-2">${item.productName}</td>
-      <td class="border p-2">${item.barcode}</td>
-      <td class="border p-2">${item.batchNumber}</td>
-      <td class="border p-2">
-        <input type="number" min="1" value="${item.quantity}"
-          onchange="editCartItem(${index}, 'quantity', this.value)" class="w-20 border p-1">
-      </td>
-      <td class="border p-2">
-        <input type="number" min="0" step="0.01" value="${item.selling_price}"
-          onchange="editCartItem(${index}, 'selling_price', this.value)" class="w-24 border p-1">
-      </td>
+      <td class="border p-2">${item.productName || "Unknown"}</td>
+      <td class="border p-2">${item.barcode || "-"}</td>
+      <td class="border p-2">${item.batchNumber || "-"}</td>
+      <td class="border p-2">${item.quantity}</td>
+      <td class="border p-2">${item.selling_price.toFixed(2)}</td>
       <td class="border p-2">${subTotal.toFixed(2)}</td>
-      <td class="border p-2 text-center">
-        <button onclick="removeItemFromCart(${index})"
-          class="bg-red-500 text-white px-2 py-1 rounded">X</button>
+      <td class="border p-2">
+        <button onclick="removeFromCart(${index})"
+          class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
+          Remove
+        </button>
       </td>
     `;
-    cartTableBody.appendChild(row);
+    tbody.appendChild(row);
   });
 
-  totalCostEl.textContent = total.toFixed(2);
+  document.getElementById("total-cost").textContent = total.toFixed(2);
 }
 
 // Add item to cart
@@ -1964,44 +1959,58 @@ async function checkoutOrder() {
 // === Load Customer Sales (now loads orders) ===
 async function loadCustomerSales() {
   console.log("Loading orders...");
-  const supabase = await ensureSupabaseClient();
+  const supabase = ensureSupabaseClient();
 
   try {
-    const { data, error } = await supabase
-      .from('orders')
+    // fetch orders + item count
+    const { data: orders, error } = await supabase
+      .from("orders")
       .select(`
         order_id,
         order_number,
         customer_name,
         sale_date,
         total_cost,
-        order_items (id)
+        order_items (product_id)
       `)
-      .order('order_id', { ascending: false });
+      .order("order_id", { ascending: false });
 
     if (error) throw error;
-    console.log("Orders:", data);
+    console.log("Orders:", orders);
 
-    const tableBody = document.querySelector('#customer-sales-table tbody');
-    tableBody.innerHTML = '';
+    const tbody = document.querySelector("#customer-sales-table tbody");
+    tbody.innerHTML = "";
 
-    data.forEach(order => {
-      const row = document.createElement('tr');
+    orders.forEach((order) => {
+      const row = document.createElement("tr");
+
+      // count distinct product_ids in this order
+      const uniqueProducts = new Set(order.order_items.map(i => i.product_id));
+      const itemsCount = uniqueProducts.size;
+
       row.innerHTML = `
         <td class="border p-2">${order.order_number}</td>
-        <td class="border p-2">${order.order_items.length}</td>
+        <td class="border p-2">${itemsCount}</td>
         <td class="border p-2">${order.total_cost.toFixed(2)}</td>
-        <td class="border p-2">${new Date(order.sale_date).toLocaleDateString()}</td>
+        <td class="border p-2">${new Date(order.sale_date).toLocaleString()}</td>
         <td class="border p-2">${order.customer_name}</td>
-        <td class="border p-2 flex gap-2">
-          <button onclick="viewOrderDetails(${order.order_id})" class="bg-gray-500 text-white px-2 py-1 rounded">Details</button>
-          <button onclick="deleteOrder(${order.order_id})" class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
-          <button onclick="printReceipt(${order.order_id})" class="bg-blue-500 text-white px-2 py-1 rounded">Print</button>
+        <td class="border p-2 space-x-2">
+          <button onclick="viewOrderDetails(${order.order_id})"
+            class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">
+            Details
+          </button>
+          <button onclick="removeOrder(${order.order_id})"
+            class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
+            Remove
+          </button>
+          <button onclick="printReceipt(${order.order_id})"
+            class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">
+            Print
+          </button>
         </td>
       `;
-      tableBody.appendChild(row);
+      tbody.appendChild(row);
     });
-
   } catch (err) {
     console.error("Error loading orders:", err);
   }
