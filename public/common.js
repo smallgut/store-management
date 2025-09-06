@@ -456,53 +456,50 @@ async function populateCustomerDropdown() {
 
 async function loadCustomerSales() {
   console.log("Loading orders...");
-
   const supabase = await ensureSupabaseClient();
 
-  const { data: orders, error } = await supabase
-    .from('orders')
-    .select(`
-      order_id,
-      customer_name,
-      sale_date,
-      total_cost,
-      order_items (id)
-    `)
-    .order('order_id', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        order_id,
+        customer_name,
+        sale_date,
+        total_cost,
+        order_items (id)
+      `)
+      .order('order_id', { ascending: false });
 
-  if (error) {
-    console.error("Error loading orders:", error);
-    return;
+    if (error) throw error;
+
+    console.log("Orders:", data);
+
+    const tableBody = document.querySelector('#customer-sales-table tbody');
+    tableBody.innerHTML = '';
+
+    data.forEach(order => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="border p-2">${order.order_id}</td>
+        <td class="border p-2">${order.order_items.length}</td>
+        <td class="border p-2">${order.total_cost.toFixed(2)}</td>
+        <td class="border p-2">${new Date(order.sale_date).toLocaleDateString()}</td>
+        <td class="border p-2">${order.customer_name}</td>
+        <td class="border p-2">
+          <button onclick="printReceipt(${order.order_id})" class="bg-blue-500 text-white px-2 py-1 rounded">Print Receipt</button>
+        </td>
+      `;
+      tableBody.appendChild(row);
+    });
+
+  } catch (err) {
+    console.error("Error loading orders:", err);
   }
-
-  console.log("Orders:", orders);
-
-  const tableBody = document.querySelector('#customer-sales-table tbody');
-  if (!tableBody) return;
-
-  tableBody.innerHTML = '';
-
-  orders.forEach(order => {
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td class="border p-2">${order.order_id}</td>
-      <td class="border p-2">${order.customer_name}</td>
-      <td class="border p-2">${new Date(order.sale_date).toLocaleString()}</td>
-      <td class="border p-2">${order.order_items.length}</td>
-      <td class="border p-2">${order.total_cost.toFixed(2)}</td>
-      <td class="border p-2 text-center">
-        <button onclick="printReceipt(${order.order_id})" 
-          class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">🖨 Print</button>
-      </td>
-    `;
-    tableBody.appendChild(row);
-  });
 }
 
 async function printReceipt(orderId) {
   const supabase = await ensureSupabaseClient();
 
-  // fetch order + its items
   const { data: order, error } = await supabase
     .from('orders')
     .select(`
@@ -513,60 +510,29 @@ async function printReceipt(orderId) {
       order_items (
         quantity,
         selling_price,
-        barcode,
-        product_id,
-        products (name)
+        products (name, barcode)
       )
     `)
     .eq('order_id', orderId)
     .single();
 
   if (error) {
-    console.error("Error fetching order for receipt:", error);
-    alert("Failed to load receipt");
+    console.error("Error fetching order:", error);
     return;
   }
 
-  // build receipt HTML
-  let receiptHtml = `
-    <h2>Receipt - Order #${order.order_id}</h2>
-    <p><strong>Customer:</strong> ${order.customer_name}</p>
-    <p><strong>Date:</strong> ${new Date(order.sale_date).toLocaleString()}</p>
-    <hr>
-    <table border="1" cellspacing="0" cellpadding="5">
-      <tr>
-        <th>Product</th>
-        <th>Barcode</th>
-        <th>Qty</th>
-        <th>Price</th>
-        <th>Subtotal</th>
-      </tr>
-  `;
+  let receipt = `Receipt\nOrder #: ${order.order_id}\nCustomer: ${order.customer_name}\nDate: ${new Date(order.sale_date).toLocaleString()}\n\nItems:\n`;
 
   order.order_items.forEach(item => {
-    const productName = item.products?.name || "Unknown";
-    const subtotal = item.quantity * item.selling_price;
-    receiptHtml += `
-      <tr>
-        <td>${productName}</td>
-        <td>${item.barcode || ""}</td>
-        <td>${item.quantity}</td>
-        <td>${item.selling_price.toFixed(2)}</td>
-        <td>${subtotal.toFixed(2)}</td>
-      </tr>
-    `;
+    receipt += `- ${item.products?.name || "Unknown"} (${item.products?.barcode || "-"}) x${item.quantity} @ ${item.selling_price} = ${(item.quantity * item.selling_price).toFixed(2)}\n`;
   });
 
-  receiptHtml += `
-    </table>
-    <h3>Total: ${order.total_cost.toFixed(2)}</h3>
-  `;
+  receipt += `\nTotal: ${order.total_cost.toFixed(2)}\n`;
 
-  // open in new window for printing
-  const receiptWindow = window.open('', 'PrintReceipt');
-  receiptWindow.document.write(receiptHtml);
-  receiptWindow.document.close();
-  receiptWindow.print();
+  const printWindow = window.open('', '', 'width=400,height=600');
+  printWindow.document.write(`<pre>${receipt}</pre>`);
+  printWindow.document.close();
+  printWindow.print();
 }
 
 async function addCustomerSale(sale) {
