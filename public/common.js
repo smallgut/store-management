@@ -1862,6 +1862,7 @@ function removeItemFromCart(index) {
 // === Checkout order ===
 async function checkoutOrder() {
   const supabase = await ensureSupabaseClient();
+
   const customerName = document.getElementById('customer-name')?.value.trim();
   const saleDate = document.getElementById('sale-date')?.value;
 
@@ -1869,30 +1870,30 @@ async function checkoutOrder() {
     alert('Please enter customer name and sale date before checkout.');
     return;
   }
+
   if (cart.length === 0) {
     alert('Cart is empty.');
     return;
   }
 
+  // === Block items without valid productId ===
+  const invalidItems = cart.filter(item => !item.productId || isNaN(item.productId));
+  if (invalidItems.length > 0) {
+    alert(
+      "One or more items are missing valid product IDs:\n" +
+      invalidItems.map(i => `- ${i.productName || i.barcode}`).join("\n") +
+      "\n\nPlease fix before checkout."
+    );
+    return;
+  }
+
   try {
-    // --- Generate order_number ---
-    const todayStr = new Date(saleDate).toISOString().slice(0,10); // YYYY-MM-DD
-    const ddmmyy = todayStr.slice(8,10) + todayStr.slice(5,7) + todayStr.slice(2,4);
+    // --- Insert order header ---
+    const totalCost = cart.reduce((sum, item) => sum + (item.quantity * item.selling_price), 0);
 
-    const { data: existingOrders } = await supabase
-      .from('orders')
-      .select('order_number')
-      .like('order_number', ddmmyy + '%');
-
-    const seq = existingOrders?.length ? existingOrders.length + 1 : 1;
-    const orderNumber = ddmmyy + String(seq).padStart(3,'0');
-
-    // --- Insert into orders ---
-    const totalCost = cart.reduce((sum,i)=> sum + i.quantity * i.selling_price, 0);
-    const { data: newOrder, error: orderErr } = await supabase
+    const { data: orderRow, error: orderError } = await supabase
       .from('orders')
       .insert([{
-        order_number: orderNumber,
         customer_name: customerName,
         sale_date: saleDate,
         total_cost: totalCost
@@ -1900,22 +1901,57 @@ async function checkoutOrder() {
       .select()
       .single();
 
-    if (orderErr) throw orderErr;
+    if (orderError) throw orderError;
+    const orderId = orderRow.order_id;
 
-    // --- Insert order_items ---
+    // --- Insert order items ---
     for (const item of cart) {
-      await supabase.from('order_items').insert([{
-        order_id: newOrder.order_id,
-        product_id: item.productId,
-        barcode: item.barcode,
+      const { error: itemError } = await supabase.from('order_items').insert([{
+        order_id: orderId,
+        product_id: item.productId,     // ✅ guaranteed valid now
         quantity: item.quantity,
         selling_price: item.selling_price
       }]);
+      if (itemError) throw itemError;
 
-      // ✅ You can keep your stock decrement logic here
+      // --- Update product_batches.remaining_quantity ---
+      const { data: batchRow, error: fetchBatchErr } = await supabase
+        .from('product_batches')
+        .select('remaining_quantity')
+        .eq('batch_number', item.batchNumber)
+        .eq('product_id', item.productId)
+        .single();
+
+      if (fetchBatchErr) throw fetchBatchErr;
+      const newRemaining = (batchRow?.remaining_quantity || 0) - item.quantity;
+
+      const { error: batchError } = await supabase
+        .from('product_batches')
+        .update({ remaining_quantity: newRemaining })
+        .eq('batch_number', item.batchNumber)
+        .eq('product_id', item.productId);
+
+      if (batchError) throw batchError;
+
+      // --- Update products.stock ---
+      const { data: productRow, error: fetchProductErr } = await supabase
+        .from('products')
+        .select('stock')
+        .eq('id', item.productId)
+        .single();
+
+      if (fetchProductErr) throw fetchProductErr;
+      const newStock = (productRow?.stock || 0) - item.quantity;
+
+      const { error: prodError } = await supabase
+        .from('products')
+        .update({ stock: newStock })
+        .eq('id', item.productId);
+
+      if (prodError) throw prodError;
     }
 
-    alert(`Checkout successful! Order#: ${orderNumber}`);
+    alert(`Checkout successful! Order #${orderId} created.`);
     cart = [];
     renderCart();
     loadCustomerSales();
@@ -1925,7 +1961,6 @@ async function checkoutOrder() {
     alert('Checkout failed: ' + err.message);
   }
 }
-
 // === Load Customer Sales (now loads orders) ===
 async function loadCustomerSales() {
   console.log("Loading orders...");
