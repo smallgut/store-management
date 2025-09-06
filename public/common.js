@@ -499,11 +499,10 @@ async function loadCustomerSales() {
 
 async function printReceipt(orderId) {
   const supabase = await ensureSupabaseClient();
-
   const { data: order, error } = await supabase
     .from('orders')
     .select(`
-      order_id,
+      order_number,
       customer_name,
       sale_date,
       total_cost,
@@ -517,20 +516,32 @@ async function printReceipt(orderId) {
     .single();
 
   if (error) {
-    console.error("Error fetching order:", error);
+    console.error("Error fetching order for print:", error);
+    alert("Failed to print receipt.");
     return;
   }
 
- let receipt = `Receipt\nOrder #: ${order.order_id}\nCustomer: ${order.customer_name}\nDate: ${new Date(order.sale_date).toLocaleString()}\n\nItems:\n`;
+  let receiptText = `
+Receipt 
+Order #: ${order.order_number}
+Customer: ${order.customer_name}
+Date: ${new Date(order.sale_date).toLocaleString()}
+
+Items:
+`;
 
   order.order_items.forEach(item => {
-    receipt += `- ${item.products?.name || "Unknown"} (${item.products?.barcode || "-"}) x${item.quantity} @ ${item.selling_price} = ${(item.quantity * item.selling_price).toFixed(2)}\n`;
+    const productName = item.products?.name || "Unknown";
+    const productBarcode = item.products?.barcode || "-";
+    const subTotal = item.quantity * item.selling_price;
+
+    receiptText += `- ${productName} (${productBarcode}) x${item.quantity} @ ${item.selling_price} = ${subTotal.toFixed(2)}\n`;
   });
 
-  receipt += `\nTotal: ${order.total_cost.toFixed(2)}\n`;
+  receiptText += `\nTotal: ${order.total_cost.toFixed(2)}`;
 
-  const printWindow = window.open('', '', 'width=400,height=600');
-  printWindow.document.write(`<pre>${receipt}</pre>`);
+  const printWindow = window.open('', '', 'width=600,height=400');
+  printWindow.document.write(`<pre>${receiptText}</pre>`);
   printWindow.document.close();
   printWindow.print();
 }
@@ -1964,31 +1975,39 @@ async function loadCustomerSales() {
 
 async function viewOrderDetails(orderId) {
   const supabase = await ensureSupabaseClient();
-  const { data, error } = await supabase
-  .from('orders')
-  .select(`
-    order_number,
-    customer_name,
-    sale_date,
-    total_cost,
-    order_items (
-      quantity,
-      selling_price,
-      products (name, barcode)
-    )
-  `)
-  .eq('order_id', orderId)
-  .single();
+  const { data: order, error } = await supabase
+    .from('orders')
+    .select(`
+      order_number,
+      customer_name,
+      sale_date,
+      total_cost,
+      order_items (
+        quantity,
+        selling_price,
+        products (name, barcode)
+      )
+    `)
+    .eq('order_id', orderId)
+    .single();
 
-  if (error) return console.error("Error fetching order:", error);
+  if (error) {
+    console.error("Error fetching order:", error);
+    alert("Failed to load order details.");
+    return;
+  }
 
-  let details = `Order#: ${order.order_number}\nCustomer: ${order.customer_name}\nDate: ${new Date(order.sale_date).toLocaleString()}\n\nItems:\n`;
+  let details = `Order #: ${order.order_number}\nCustomer: ${order.customer_name}\nDate: ${new Date(order.sale_date).toLocaleString()}\n\nItems:\n`;
+
   order.order_items.forEach(item => {
-    details += `- ${item.products?.name || "Unknown"} (${item.products?.barcode || "-"}) x${item.quantity} @ ${item.selling_price}\n`;
+    const productName = item.products?.name || "Unknown";
+    const productBarcode = item.products?.barcode || "-";
+    const subTotal = item.quantity * item.selling_price;
+    details += `- ${productName} (${productBarcode}) x${item.quantity} @ ${item.selling_price} = ${subTotal.toFixed(2)}\n`;
   });
-  details += `\nTotal: ${order.total_cost.toFixed(2)}`;
 
-  alert(details);
+  details += `\nTotal: ${order.total_cost.toFixed(2)}`;
+  alert(details); // or show in modal
 }
 
 async function deleteOrder(orderId) {
