@@ -1964,21 +1964,21 @@ async function loadCustomerSales() {
 
 async function viewOrderDetails(orderId) {
   const supabase = await ensureSupabaseClient();
-  const { data: order, error } = await supabase
-    .from('orders')
-    .select(`
-      order_number,
-      customer_name,
-      sale_date,
-      total_cost,
-      order_items (
-        quantity,
-        selling_price,
-        products (name, barcode)
-      )
-    `)
-    .eq('order_id', orderId)
-    .single();
+  const { data, error } = await supabase
+  .from('orders')
+  .select(`
+    order_number,
+    customer_name,
+    sale_date,
+    total_cost,
+    order_items (
+      quantity,
+      selling_price,
+      products (name, barcode)
+    )
+  `)
+  .eq('order_id', orderId)
+  .single();
 
   if (error) return console.error("Error fetching order:", error);
 
