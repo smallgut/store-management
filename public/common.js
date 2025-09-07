@@ -1799,16 +1799,22 @@ function addItemToCart() {
   const batchOption = batchSelect.options[batchSelect.selectedIndex];
 
   let productId = selectedOption.getAttribute("data-id");
-  const barcode = selectedOption.getAttribute("data-barcode") || productSelect.value;
+  let barcode = selectedOption.getAttribute("data-barcode") || productSelect.value;
 
   if (!productId) {
     console.warn("⚠️ Product missing numeric id, fallback to barcode only:", barcode);
+
+    // ✅ FIX: keep barcode clean (remove "|batch")
+    if (barcode.includes("|")) {
+      barcode = barcode.split("|")[0];
+    }
+
     productId = null;
   } else {
     productId = parseInt(productId, 10);
   }
 
-  // ✅ Only clean product name
+  // ✅ Clean product name
   const rawName = selectedOption.textContent.trim();
   const productName = rawName.includes("(")
     ? rawName.split("(")[0].trim()
@@ -1827,7 +1833,7 @@ function addItemToCart() {
   cart.push({
     productId,
     productName,
-    barcode,
+    barcode,        // ✅ now clean (just "k223" / "As 22" / "D1267")
     batchNumber,
     quantity,
     selling_price,
