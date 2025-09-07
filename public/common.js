@@ -1784,41 +1784,58 @@ function renderCart() {
 
 // Add item to cart
 function addItemToCart() {
-  const productSelect = document.getElementById("product-select");
-  const productIdRaw = productSelect.value;
-  const productOption = productSelect.options[productSelect.selectedIndex];
+  const productSelect = document.getElementById('product-select');
+  const batchSelect = document.getElementById('batch-no');
+  const quantityInput = document.getElementById('quantity');
+  const priceInput = document.getElementById('selling-price');
+  const customerNameInput = document.getElementById('customer-name');
 
-  const customerName = document.getElementById("customer-name").value.trim();
-  const saleDate = document.getElementById("sale-date").value;
-  const barcode = document.getElementById("product-barcode").value.trim();
-  const batchNo = document.getElementById("batch-no").value;
-  const quantity = parseInt(document.getElementById("quantity").value);
-  const sellingPrice = parseFloat(document.getElementById("selling-price").value);
-
-  // ✅ only block if quantity/price are invalid
-  if (!quantity || isNaN(quantity) || !sellingPrice || isNaN(sellingPrice)) {
-    console.warn("⚠️ Invalid quantity or price");
+  if (!productSelect.value || !batchSelect.value) {
+    alert('Please select a product and batch number.');
     return;
   }
 
-  // allow string IDs (barcode fallback), but prefer numeric
-  const productId = isNaN(parseInt(productIdRaw)) ? null : parseInt(productIdRaw);
+  const selectedOption = productSelect.options[productSelect.selectedIndex];
+  const batchOption = batchSelect.options[batchSelect.selectedIndex];
 
-  const cartItem = {
-    productId: productId,
-    productName: productOption?.text || "Unknown",
-    barcode: barcode || null,
-    batchNumber: batchNo || null,
-    quantity: quantity,
-    selling_price: sellingPrice,
-    customerName: customerName,
-    saleDate: saleDate
-  };
+  let productId = selectedOption.getAttribute("data-id");
+  const barcode = selectedOption.getAttribute("data-barcode") || productSelect.value;
 
-  cart.push(cartItem);
+  if (!productId) {
+    console.warn("⚠️ Product missing numeric id, fallback to barcode only:", barcode);
+    productId = null;
+  } else {
+    productId = parseInt(productId, 10);
+  }
+
+  // ✅ Only clean product name
+  const rawName = selectedOption.textContent.trim();
+  const productName = rawName.includes("(")
+    ? rawName.split("(")[0].trim()
+    : rawName;
+
+  const batchNumber = batchOption.value;
+  const quantity = parseInt(quantityInput.value);
+  const selling_price = parseFloat(priceInput.value);
+  const customerName = customerNameInput.value;
+
+  if (!quantity || quantity <= 0 || !selling_price || selling_price < 0) {
+    alert('Please enter valid quantity and selling price.');
+    return;
+  }
+
+  cart.push({
+    productId,
+    productName,
+    barcode,
+    batchNumber,
+    quantity,
+    selling_price,
+    customerName
+  });
+
+  console.log("🛒 Added to cart:", cart[cart.length - 1]);
   renderCart();
-
-  console.log("🛒 Added to cart:", cartItem);
 }
 
 // Edit item in cart
