@@ -249,10 +249,11 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
 }
 
 
+// --- FIX populateProductDropdown ---
 async function populateProductDropdown() {
   console.log("Populating product dropdown...");
 
-  const client = ensureSupabaseClient(); // ✅ always use the ensured client
+  const client = await ensureSupabaseClient(); // ✅ await the client
   const { data: products, error } = await client
     .from("products")
     .select("id, name, barcode, batch_no, stock, price");
@@ -386,10 +387,11 @@ async function populateCustomerDropdown() {
   }
 }
 
+// --- FIX loadCustomerSales ---
 async function loadCustomerSales() {
   console.log("Loading orders...");
 
-  const client = ensureSupabaseClient(); // ✅ always use the ensured client
+  const client = await ensureSupabaseClient(); // ✅ await the client
   const { data: orders, error } = await client
     .from("orders")
     .select("id, order_number, customer_name, order_date, total_amount, order_items(*, products(name, barcode))")
