@@ -248,11 +248,12 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
   }
 }
 
+
 async function populateProductDropdown() {
   console.log("Populating product dropdown...");
 
-  const supabase = ensureSupabaseClient();
-  const { data: products, error } = await supabase
+  const client = ensureSupabaseClient(); // ✅ always use the ensured client
+  const { data: products, error } = await client
     .from("products")
     .select("id, name, barcode, batch_no, stock, price");
 
@@ -267,14 +268,14 @@ async function populateProductDropdown() {
     return;
   }
 
-  dropdown.innerHTML = ""; // clear old options
+  dropdown.innerHTML = "";
 
   products.forEach(p => {
     const opt = document.createElement("option");
 
-    // ✅ set both value & attributes properly
-    opt.value = p.barcode;      // keep barcode as value (if you use it elsewhere)
-    opt.dataset.id = p.id;      // numeric DB id (FK in order_items)
+    // ✅ keep barcode for convenience, but store DB id too
+    opt.value = p.barcode;
+    opt.dataset.id = p.id;
     opt.dataset.barcode = p.barcode;
     opt.dataset.batch = p.batch_no;
     opt.dataset.stock = p.stock;
@@ -287,6 +288,7 @@ async function populateProductDropdown() {
 
   console.log("✅ Products for dropdown:", products);
 }
+
 async function populateVendorDropdown() {
   console.log('Populating vendor dropdown...');
   try {
@@ -386,45 +388,20 @@ async function populateCustomerDropdown() {
 
 async function loadCustomerSales() {
   console.log("Loading orders...");
-  const supabase = await ensureSupabaseClient();
 
-  try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        order_id,
-        customer_name,
-        sale_date,
-        total_cost,
-        order_items (id)
-      `)
-      .order('order_id', { ascending: false });
+  const client = ensureSupabaseClient(); // ✅ always use the ensured client
+  const { data: orders, error } = await client
+    .from("orders")
+    .select("id, order_number, customer_name, order_date, total_amount, order_items(*, products(name, barcode))")
+    .order("order_date", { ascending: false });
 
-    if (error) throw error;
-
-    console.log("Orders:", data);
-
-    const tableBody = document.querySelector('#customer-sales-table tbody');
-    tableBody.innerHTML = '';
-
-    data.forEach(order => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td class="border p-2">${order.order_id}</td>
-        <td class="border p-2">${order.order_items.length}</td>
-        <td class="border p-2">${order.total_cost.toFixed(2)}</td>
-        <td class="border p-2">${new Date(order.sale_date).toLocaleDateString()}</td>
-        <td class="border p-2">${order.customer_name}</td>
-        <td class="border p-2">
-          <button onclick="printReceipt(${order.order_id})" class="bg-blue-500 text-white px-2 py-1 rounded">Print Receipt</button>
-        </td>
-      `;
-      tableBody.appendChild(row);
-    });
-
-  } catch (err) {
-    console.error("Error loading orders:", err);
+  if (error) {
+    console.error("❌ Error loading orders:", error);
+    return;
   }
+
+  console.log("✅ Orders:", orders);
+  renderCustomerSales(orders);
 }
 
 async function printReceipt(orderId) {
