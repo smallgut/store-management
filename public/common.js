@@ -178,25 +178,50 @@ function getGMT8Date() {
   return `${today[2]}${today[1]}${today[0].slice(-2)}`;
 }
 
+/* ===============================
+   🌐 GLOBAL PATCH FOR common.js
+   - Fixes Supabase client usage
+   - Ensures applyTranslations runs safely
+   =============================== */
+
+// -----------------------------
+// 1. Unified Supabase Client
+// -----------------------------
+let supabaseClient = null;
+
 async function ensureSupabaseClient() {
-  try {
-    console.log('Ensuring Supabase client...', new Date().toISOString());
-    if (!('supabase' in window)) {
-      throw new Error('Supabase library not loaded');
+  if (!supabaseClient) {
+    if (!window.supabase || !window.supabase.createClient) {
+      throw new Error("❌ Supabase client library not loaded before common.js");
     }
-    if (!supabaseClient) {
-      supabaseClient = supabase.createClient(
-        'https://aouduygmcspiqauhrabx.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k'
-      );
-      console.log('Supabase Client Initialized in common.js:', Object.keys(supabaseClient), new Date().toISOString());
-    }
-    return supabaseClient;
-  } catch (error) {
-    console.error('Error initializing Supabase client:', error.message, new Date().toISOString());
-    throw error;
+    supabaseClient = window.supabase.createClient(
+      window.supabaseUrl,
+      window.supabaseKey
+    );
+    console.log("✅ Supabase Client Initialized in common.js:", Object.keys(supabaseClient));
   }
+  return supabaseClient;
 }
+
+// Usage example anywhere in code:
+// const client = await ensureSupabaseClient();
+// const { data, error } = await client.from("products").select("*");
+
+// -----------------------------
+// 2. Safe Translation Loader
+// -----------------------------
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    if (typeof applyTranslations === "function") {
+      applyTranslations();
+      console.log("🌐 Translations applied on DOM ready");
+    } else {
+      console.warn("⚠️ applyTranslations is not defined when DOM loaded");
+    }
+  } catch (err) {
+    console.error("❌ Error applying translations:", err);
+  }
+});
 
 function setLoading(isLoading) {
   const loadingEl = document.getElementById('loading');
