@@ -141,6 +141,7 @@ function applyTranslations() {
   });
   console.log('Applied translations for:', lang, new Date().toISOString());
 }
+
 function initLanguage() {
   console.log('Initializing language to Traditional Chinese...', new Date().toISOString());
   const body = document.getElementById('lang-body');
@@ -252,7 +253,7 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
 // --- FIX populateProductDropdown ---
 async function populateProductDropdown() {
   console.log("Populating product dropdown...");
-  const client = await getSupabaseClient(); // FIX
+  const client = await getSupabaseClient();
 
   const { data: products, error } = await client
     .from("products")
