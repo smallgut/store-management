@@ -413,8 +413,7 @@ async function populateCustomerDropdown() {
 async function loadCustomerSales() {
   console.log("Loading orders...");
 
-  const client = await ensureSupabaseClient(); // ✅ await the client
-  const { data: orders, error } = await client
+const client = await ensureSupabaseClient();
     .from("orders")
     .select("id, order_number, customer_name, order_date, total_amount, order_items(*, products(name, barcode))")
     .order("order_date", { ascending: false });
@@ -1723,126 +1722,130 @@ function removeItemFromCart(index) {
    POS Checkout + Order Management
    ========================================================= */
 
-// === Checkout order ===
-async function checkoutOrder(customerName, cart) {
-  console.log("Checking out order...");
-  const client = await getSupabaseClient(); // FIX
+// ===============================================
+// ✅ PATCH: checkoutOrder
+// ===============================================
+async function checkoutOrder() {
+  console.log("🛒 Checking out order...", new Date().toISOString());
 
-  const customerName = document.getElementById('customer-name')?.value.trim();
-  const saleDate = document.getElementById('sale-date')?.value;
-
-  if (!customerName || !saleDate) {
-    alert('Please enter customer name and sale date before checkout.');
-    return;
-  }
-
-  if (cart.length === 0) {
-    alert('Cart is empty.');
-    return;
-  }
-
-  // === Block items without valid productId ===
-  const invalidItems = cart.filter(item => !item.productId || isNaN(item.productId));
-  if (invalidItems.length > 0) {
-    alert(
-      "One or more items are missing valid product IDs:\n" +
-      invalidItems.map(i => `- ${i.productName || i.barcode}`).join("\n") +
-      "\n\nPlease fix before checkout."
-    );
+  if (!cart.length) {
+    alert("Cart is empty. Please add items before checkout.");
     return;
   }
 
   try {
-    // --- Insert order header ---
-    const totalCost = cart.reduce((sum, item) => sum + (item.quantity * item.selling_price), 0);
+    const client = await ensureSupabaseClient(); // ✅ unified client
 
-    const { data: orderRow, error: orderError } = await supabase
-      .from('orders')
-      .insert([{
-        customer_name: customerName,
-        sale_date: saleDate,
-        total_cost: totalCost
-      }])
+    // Create new order
+    const { data: newOrder, error: orderError } = await client
+      .from("orders")
+      .insert({
+        customer_name: cart[0].customerName || null,
+        sale_date: new Date().toISOString().replace("Z", "+08:00"),
+      })
       .select()
       .single();
 
     if (orderError) throw orderError;
-    const orderId = orderRow.order_id;
 
-    // --- Insert order items ---
+    // Insert order items
     for (const item of cart) {
-      const { error: itemError } = await supabase.from('order_items').insert([{
-        order_id: orderId,
-        product_id: item.productId,     // ✅ guaranteed valid now
+      if (!item.productId) {
+        throw new Error(`Missing valid product ID for ${item.productName}`);
+      }
+
+      const { error: itemError } = await client.from("order_items").insert({
+        order_id: newOrder.id,
+        product_id: item.productId,
         quantity: item.quantity,
-        selling_price: item.selling_price
-      }]);
+        selling_price: item.selling_price,
+        batch_no: item.batchNumber || null,
+      });
+
       if (itemError) throw itemError;
 
-      // --- Update product_batches.remaining_quantity ---
-      const { data: batchRow, error: fetchBatchErr } = await supabase
-        .from('product_batches')
-        .select('remaining_quantity')
-        .eq('batch_number', item.batchNumber)
-        .eq('product_id', item.productId)
-        .single();
+      // Decrement batch quantity
+      const { data: batchRow, error: fetchBatchErr } = await client
+        .from("product_batches")
+        .select("id, quantity")
+        .eq("product_id", item.productId)
+        .eq("batch_no", item.batchNumber || null)
+        .maybeSingle();
 
       if (fetchBatchErr) throw fetchBatchErr;
-      const newRemaining = (batchRow?.remaining_quantity || 0) - item.quantity;
+      if (batchRow) {
+        const { error: batchError } = await client
+          .from("product_batches")
+          .update({ quantity: batchRow.quantity - item.quantity })
+          .eq("id", batchRow.id);
+        if (batchError) throw batchError;
+      }
 
-      const { error: batchError } = await supabase
-        .from('product_batches')
-        .update({ remaining_quantity: newRemaining })
-        .eq('batch_number', item.batchNumber)
-        .eq('product_id', item.productId);
-
-      if (batchError) throw batchError;
-
-      // --- Update products.stock ---
-      const { data: productRow, error: fetchProductErr } = await supabase
-        .from('products')
-        .select('stock')
-        .eq('id', item.productId)
-        .single();
+      // Decrement product stock
+      const { data: productRow, error: fetchProductErr } = await client
+        .from("products")
+        .select("id, stock")
+        .eq("id", item.productId)
+        .maybeSingle();
 
       if (fetchProductErr) throw fetchProductErr;
-      const newStock = (productRow?.stock || 0) - item.quantity;
-
-      const { error: prodError } = await supabase
-        .from('products')
-        .update({ stock: newStock })
-        .eq('id', item.productId);
-
-      if (prodError) throw prodError;
+      if (productRow) {
+        const { error: prodError } = await client
+          .from("products")
+          .update({ stock: productRow.stock - item.quantity })
+          .eq("id", productRow.id);
+        if (prodError) throw prodError;
+      }
     }
 
-    alert(`Checkout successful! Order #${orderId} created.`);
+    console.log("✅ Checkout complete, clearing cart");
     cart = [];
     renderCart();
-    loadCustomerSales();
-
-  } catch (err) {
-    console.error("Checkout error:", err);
-    alert('Checkout failed: ' + err.message);
+    if (typeof loadCustomerSales === "function") loadCustomerSales();
+    alert("Order placed successfully!");
+  } catch (error) {
+    console.error("❌ Error during checkout:", error.message, new Date().toISOString());
+    alert(`Checkout failed: ${error.message}`);
   }
 }
-// === Load Customer Sales (now loads orders) ===
+
+// ===============================================
+// ✅ PATCH: loadCustomerSales
+// ===============================================
 async function loadCustomerSales() {
-  console.log("Loading orders...");
-  const client = await getSupabaseClient(); // FIX
+  console.log("📦 Loading orders...", new Date().toISOString());
+  try {
+    const client = await ensureSupabaseClient(); // ✅ unified client
+    const { data, error } = await client
+      .from("orders")
+      .select(
+        `
+        id,
+        customer_name,
+        sale_date,
+        order_items (
+          id,
+          quantity,
+          selling_price,
+          batch_no,
+          products ( id, product_name, barcode )
+        )
+      `
+      )
+      .order("sale_date", { ascending: false });
 
-  const { data, error } = await client
-    .from("orders")
-    .select("order_id, order_number, customer_name, sale_date, total_cost, order_items (id)")
-    .order("order_id", { ascending: false });
+    if (error) throw error;
 
-  if (error) {
-    console.error("Error loading orders:", error);
-    return;
+    console.log("📊 Orders:", data);
+    renderCustomerSales(data || []);
+  } catch (error) {
+    console.error("❌ Error loading orders:", error, new Date().toISOString());
+    const errorEl = document.getElementById("error");
+    if (errorEl) {
+      errorEl.textContent = `Failed to load customer sales: ${error.message}`;
+      clearMessage("error", 10000);
+    }
   }
-
-  console.log("Orders:", data);
-  renderOrders(data || []);
 }
 
 
