@@ -1,5 +1,13 @@
 let supabaseClient = null;
 
+async function ensureSupabaseClient() {
+  if (!supabaseClient) {
+    console.log("Initializing Supabase Client...");
+    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+  }
+  return supabaseClient;
+}
+
 const translations = {
   en: {
     'nav-home': 'Home',
@@ -187,21 +195,21 @@ function getGMT8Date() {
 // -----------------------------
 // 1. Unified Supabase Client
 // -----------------------------
-let supabaseClient = null;
+//let supabaseClient = null;
 
-async function ensureSupabaseClient() {
-  if (!supabaseClient) {
-    if (!window.supabase || !window.supabase.createClient) {
-      throw new Error("❌ Supabase client library not loaded before common.js");
-    }
-    supabaseClient = window.supabase.createClient(
-      window.supabaseUrl,
-      window.supabaseKey
-    );
-    console.log("✅ Supabase Client Initialized in common.js:", Object.keys(supabaseClient));
-  }
-  return supabaseClient;
-}
+//async function ensureSupabaseClient() {
+//  if (!supabaseClient) {
+//    if (!window.supabase || !window.supabase.createClient) {
+//      throw new Error("❌ Supabase client library not loaded before common.js");
+//    }
+//    supabaseClient = window.supabase.createClient(
+//      window.supabaseUrl,
+//      window.supabaseKey
+//    );
+//    console.log("✅ Supabase Client Initialized in common.js:", Object.keys(supabaseClient));
+//  }
+//  return supabaseClient;
+//}
 
 // Usage example anywhere in code:
 // const client = await ensureSupabaseClient();
