@@ -1145,10 +1145,7 @@ if (vendorName) {
   }
 }
 
-// ✅ Always resolve the Supabase client before using it
-async function getSupabaseClient() {
-  return await ensureSupabaseClient();
-}
+
 
 async function generateCustomerSalesReport(startDate, endDate, customerName) {
   console.log('Generating customer sales report...', { startDate, endDate, customerName }, new Date().toISOString());
