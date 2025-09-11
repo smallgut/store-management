@@ -278,7 +278,7 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
 // --- FIX populateProductDropdown ---
 async function populateProductDropdown() {
   console.log("Populating product dropdown...");
-  const client = await getSupabaseClient();
+  const client = await ensureSupabaseClient();
 
   const { data: products, error } = await client
     .from("products")
@@ -412,8 +412,9 @@ async function populateCustomerDropdown() {
 // --- FIX loadCustomerSales ---
 async function loadCustomerSales() {
   console.log("Loading orders...");
+  const client = await ensureSupabaseClient();
 
-const client = await ensureSupabaseClient();
+  const { data: orders, error } = await client
     .from("orders")
     .select("id, order_number, customer_name, order_date, total_amount, order_items(*, products(name, barcode))")
     .order("order_date", { ascending: false });
@@ -427,10 +428,12 @@ const client = await ensureSupabaseClient();
   renderCustomerSales(orders);
 }
 
+// --- FIX printReceipt ---
 async function printReceipt(orderId) {
   console.log("Printing receipt...");
-  const client = await getSupabaseClient(); // FIX
-  const { data: order, error } = await supabase
+  const client = await ensureSupabaseClient();
+
+  const { data: order, error } = await client
     .from('orders')
     .select(`
       order_number,
@@ -476,7 +479,6 @@ Items:
   printWindow.document.close();
   printWindow.print();
 }
-
 async function addCustomerSale(sale) {
   console.log('Adding customer sale...', sale, new Date().toISOString());
   try {
