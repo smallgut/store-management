@@ -1,12 +1,12 @@
 let supabaseClient = null;
 
-async function ensureSupabaseClient() {
-  if (!supabaseClient) {
-    console.log("Initializing Supabase Client...");
-    supabaseClient = window.supabase.createClient(https://aouduygmcspiqauhrabx.supabase.co, eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k);
-  }
-  return supabaseClient;
-}
+//async function ensureSupabaseClient() {
+//  if (!supabaseClient) {
+//    console.log("Initializing Supabase Client...");
+//    supabaseClient = window.supabase.createClient(https://aouduygmcspiqauhrabx.supabase.co, eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k);
+//  }
+//  return supabaseClient;
+//}
 
 const translations = {
   en: {
@@ -197,19 +197,19 @@ function getGMT8Date() {
 // -----------------------------
 //let supabaseClient = null;
 
-//async function ensureSupabaseClient() {
-//  if (!supabaseClient) {
-//    if (!window.supabase || !window.supabase.createClient) {
-//      throw new Error("❌ Supabase client library not loaded before common.js");
-//    }
-//    supabaseClient = window.supabase.createClient(
-//      window.supabaseUrl,
-//      window.supabaseKey
-//    );
-//    console.log("✅ Supabase Client Initialized in common.js:", Object.keys(supabaseClient));
-//  }
-//  return supabaseClient;
-//}
+async function ensureSupabaseClient() {
+  if (!supabaseClient) {
+    if (!window.supabase || !window.supabase.createClient) {
+      throw new Error("❌ Supabase client library not loaded before common.js");
+    }
+    supabaseClient = window.supabase.createClient(
+      window.supabaseUrl,
+      window.supabaseKey
+    );
+    console.log("✅ Supabase Client Initialized in common.js:", Object.keys(supabaseClient));
+  }
+  return supabaseClient;
+}
 
 // Usage example anywhere in code:
 // const client = await ensureSupabaseClient();
