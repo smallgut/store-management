@@ -1,13 +1,21 @@
 let supabaseClient = null;
-const supabaseUrl = window?.ENV_SUPABASE_URL || "https://aouduygmcspiqauhrabx.supabase.co";
-const supabaseKey = window?.ENV_SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k";
-// Always resolve a single Supabase client
 async function ensureSupabaseClient() {
-  if (!supabaseClient) {
+  if (!window._supabaseClient) {
     console.log("Initializing Supabase Client...");
-    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+    window._supabaseClient = window.supabase.createClient(https://aouduygmcspiqauhrabx.supabase.co, eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k);
   }
-  return supabaseClient;
+  return window._supabaseClient;
+}
+
+// ⬇️ Add here
+/* ------------------------------------------------------------------
+   🔧 Global Patch: Fix wrong column names in Supabase queries
+   ------------------------------------------------------------------ */
+console.log("⚡ Applying global Supabase query patch...");
+
+// ✅ Helper: always get client
+async function getClient() {
+  return await ensureSupabaseClient();
 }
 
 const translations = {
