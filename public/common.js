@@ -419,23 +419,42 @@ async function populateCustomerDropdown() {
   }
 }
 
-// --- FIX loadCustomerSales ---
+// ✅ Fixed loadCustomerSales()
+// ==============================
 async function loadCustomerSales() {
-  console.log("Loading orders...");
-  const client = await ensureSupabaseClient();
+  try {
+    console.log("📦 Loading orders...", new Date().toISOString());
+    const client = await ensureSupabaseClient();
 
-  const { data: orders, error } = await client
-    .from("orders")
-    .select("id, order_number, customer_name, order_date, total_amount, order_items(*, products(name, barcode))")
-    .order("order_date", { ascending: false });
+    const { data, error } = await client
+      .from('orders')
+      .select(`
+        order_id,
+        customer_name,
+        sale_date,
+        total_cost,
+        order_number,
+        order_items (
+          id,
+          quantity,
+          selling_price,
+          batch_number,   -- ✅ fixed column name
+          products (
+            id,
+            name,          -- ✅ fixed column name
+            barcode
+          )
+        )
+      `)
+      .order('sale_date', { ascending: false });
 
-  if (error) {
-    console.error("❌ Error loading orders:", error);
-    return;
+    if (error) throw error;
+    console.log("✅ Orders loaded:", data);
+
+    renderCustomerSales(data);
+  } catch (err) {
+    console.error("❌ Error loading orders:", err, new Date().toISOString());
   }
-
-  console.log("✅ Orders:", orders);
-  renderCustomerSales(orders);
 }
 
 // --- FIX printReceipt ---
