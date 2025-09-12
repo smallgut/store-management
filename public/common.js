@@ -437,23 +437,23 @@ async function populateCustomerDropdown() {
  * - order_items.batch_number instead of batch_no
  */
 async function loadCustomerSales() {
-  console.log("📦 Loading orders...", new Date().toISOString());
   try {
     const client = await getClient();
+    console.log("📦 Loading orders...", new Date().toISOString());
+
     const { data, error } = await client
       .from("orders")
       .select(`
         order_id,
-        order_number,
         customer_name,
         sale_date,
         total_cost,
-        order_items(
+        order_items (
           id,
           quantity,
           selling_price,
           batch_number,
-          products(
+          products (
             id,
             name,
             barcode
@@ -462,12 +462,17 @@ async function loadCustomerSales() {
       `)
       .order("sale_date", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error("❌ Error loading orders:", error, new Date().toISOString());
+      return;
+    }
 
     console.log("✅ Orders loaded:", data);
-    renderCustomerSales(data);
+
+    // TODO: render into your UI (replace existing render logic if needed)
+    renderOrders(data);
   } catch (err) {
-    console.error("❌ Error loading orders:", err, new Date().toISOString());
+    console.error("❌ loadCustomerSales failed:", err.message, new Date().toISOString());
   }
 }
 
