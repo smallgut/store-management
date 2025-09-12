@@ -419,6 +419,7 @@ async function populateCustomerDropdown() {
   }
 }
 
+// ==============================
 // ✅ Fixed loadCustomerSales()
 // ==============================
 async function loadCustomerSales() {
@@ -438,10 +439,10 @@ async function loadCustomerSales() {
           id,
           quantity,
           selling_price,
-          batch_number,   -- ✅ fixed column name
+          batch_number,   -- ✅ fixed
           products (
             id,
-            name,          -- ✅ fixed column name
+            name,          -- ✅ fixed
             barcode
           )
         )
@@ -456,6 +457,7 @@ async function loadCustomerSales() {
     console.error("❌ Error loading orders:", err, new Date().toISOString());
   }
 }
+
 
 // --- FIX printReceipt ---
 async function printReceipt(orderId) {
