@@ -437,17 +437,15 @@ async function populateCustomerDropdown() {
  * - order_items.batch_number instead of batch_no
  */
 async function loadCustomerSales() {
+  console.log("📦 Loading orders...", new Date().toISOString());
   try {
-    const client = await getClient();
-    console.log("📦 Loading orders...", new Date().toISOString());
-
+    const client = await ensureSupabaseClient();
     const { data, error } = await client
       .from("orders")
       .select(`
         order_id,
         customer_name,
         sale_date,
-        total_cost,
         order_items (
           id,
           quantity,
@@ -462,17 +460,11 @@ async function loadCustomerSales() {
       `)
       .order("sale_date", { ascending: false });
 
-    if (error) {
-      console.error("❌ Error loading orders:", error, new Date().toISOString());
-      return;
-    }
-
+    if (error) throw error;
     console.log("✅ Orders loaded:", data);
-
-    // TODO: render into your UI (replace existing render logic if needed)
-    renderOrders(data);
+    // TODO: render orders into UI
   } catch (err) {
-    console.error("❌ loadCustomerSales failed:", err.message, new Date().toISOString());
+    console.error("❌ Error loading orders:", err, new Date().toISOString());
   }
 }
 
@@ -1256,72 +1248,26 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
   }
 }
 
+/* ------------------------------------------------------------------
+   ✅ Fix loadProducts
+   ------------------------------------------------------------------ */
 async function loadProducts() {
-  console.log('Loading products...', new Date().toISOString());
+  console.log("📦 Loading products...");
   try {
     const client = await ensureSupabaseClient();
-    setLoading(true);
-    const { data: products, error } = await client
-      .from('products')
-      .select('id, barcode, name, stock, units, batch_no, price')
-      .order('name');
+    const { data, error } = await client
+      .from("products")
+      .select("id, barcode, name, stock, price, batch_no, units, vendor_id");
     if (error) throw error;
-    console.log('Products:', products, new Date().toISOString());
-    const productsBody = document.querySelector('#products-table tbody');
-    if (productsBody) {
-      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      const lang = isChinese ? 'zh' : 'en';
-      productsBody.innerHTML = products.length
-        ? products.map(p => {
-            const inventoryValue = p.stock * (p.price || 0);
-            const unitDisplay = p.units ? translations[lang][`unit-${p.units.toLowerCase()}`] || (isChinese ? '無' : 'N/A') : (isChinese ? '無' : 'N/A');
-            return `
-              <tr>
-                <td class="border p-2">${p.barcode}</td>
-                <td class="border p-2">${p.name}</td>
-                <td class="border p-2">${p.stock}</td>
-                <td class="border p-2">${unitDisplay}</td>
-                <td class="border p-2">${p.batch_no || 'N/A'}</td>
-                <td class="border p-2">${p.price ? p.price.toFixed(2) : 'N/A'}</td>
-                <td class="border p-2">${inventoryValue.toFixed(2)}</td>
-                <td class="border p-2">
-                  <button data-product-id="${p.id}" data-stock="${p.stock}" data-price="${p.price || 0}" data-batch-no="${p.batch_no || ''}" data-units="${p.units || ''}" class="update-product bg-blue-500 text-white p-1 rounded hover:bg-blue-600 mr-2">Update</button>
-                  <button data-product-id="${p.id}" class="delete-product bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
-                </td>
-              </tr>
-            `;
-          }).join('')
-        : `<tr><td colspan="8" data-lang-key="no-products-found" class="border p-2">${isChinese ? '未找到產品。' : 'No products found.'}</td></tr>`;
-      applyTranslations();
-      document.querySelectorAll('.update-product').forEach(button => {
-        button.addEventListener('click', (e) => {
-          const productId = e.target.getAttribute('data-product-id');
-          const currentStock = parseInt(e.target.getAttribute('data-stock'));
-          const currentPrice = parseFloat(e.target.getAttribute('data-price'));
-          const currentBatchNo = e.target.getAttribute('data-batch-no');
-          const currentUnits = e.target.getAttribute('data-units');
-          handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo, currentUnits);
-        });
-      });
-      document.querySelectorAll('.delete-product').forEach(button => {
-        button.addEventListener('click', (e) => {
-          const productId = e.target.getAttribute('data-product-id');
-          handleDeleteProduct(productId);
-        });
-      });
-    }
-  } catch (error) {
-    console.error('Error loading products:', error.message, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入產品：${error.message}` : `Failed to load products: ${error.message}`}`;
-      clearMessage('error', 10000);
-    }
-  } finally {
-    setLoading(false);
+    console.log("✅ Products:", data);
+    return data;
+  } catch (err) {
+    console.error("❌ Error loading products:", err.message);
+    return [];
   }
 }
+
+
 function handleAddProduct(event) {
   event.preventDefault();
   console.log('Handling add product...', new Date().toISOString());
@@ -1478,49 +1424,22 @@ function handleAddVendor(event) {
   addVendor(vendor);
 }
 
+/* ------------------------------------------------------------------
+   ✅ Fix loadVendors
+   ------------------------------------------------------------------ */
 async function loadVendors() {
-  console.log('Loading vendors...', new Date().toISOString());
+  console.log("🏭 Loading vendors...");
   try {
     const client = await ensureSupabaseClient();
-    setLoading(true);
-    const { data: vendors, error } = await client
-      .from('vendors')
-      .select('*')
-      .order('name');
+    const { data, error } = await client
+      .from("vendors")
+      .select("id, name, address, contact_email, phone_number, contact");
     if (error) throw error;
-    console.log('Vendors:', vendors, new Date().toISOString());
-    const vendorsBody = document.querySelector('#vendors-table tbody');
-    if (vendorsBody) {
-      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      vendorsBody.innerHTML = vendors.length
-        ? vendors.map(v => `
-            <tr>
-              <td class="border p-2">${v.name || (isChinese ? '無' : 'N/A')}</td>
-              <td class="border p-2">${v.contact_email || (isChinese ? '無' : 'N/A')}</td>
-              <td class="border p-2">
-                <button data-vendor-id="${v.id}" class="delete-vendor bg-red-500 text-white p-1 rounded hover:bg-red-600">Delete</button>
-              </td>
-            </tr>
-          `).join('')
-        : `<tr><td colspan="3" data-lang-key="no-vendors-found" class="border p-2">${isChinese ? '未找到業界同行。' : 'No vendors found.'}</td></tr>`;
-      applyTranslations();
-      document.querySelectorAll('.delete-vendor').forEach(button => {
-        button.addEventListener('click', (e) => {
-          const vendorId = e.target.getAttribute('data-vendor-id');
-          handleDeleteVendor(vendorId);
-        });
-      });
-    }
-  } catch (error) {
-    console.error('Error loading vendors:', error.message, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `無法載入業界同行：${error.message}` : `Failed to load vendors: ${error.message}`}`;
-      clearMessage('error');
-    }
-  } finally {
-    setLoading(false);
+    console.log("✅ Vendors:", data);
+    return data;
+  } catch (err) {
+    console.error("❌ Error loading vendors:", err.message);
+    return [];
   }
 }
 
@@ -1762,57 +1681,57 @@ function removeItemFromCart(index) {
  * - use order_id, not id
  * - order_items.batch_number instead of batch_no
  */
-async function checkoutOrder() {
-  if (!cart.length) {
-    alert("Cart is empty.");
-    return;
-  }
-
-  const client = await getClient();
-  const customerName = document.getElementById("customer-name")?.value || "Guest";
-  const saleDate = new Date().toISOString();
-
-  // total cost
-  const totalCost = cart.reduce((sum, item) => sum + (item.selling_price * item.quantity), 0);
-
+ ✅ Fix checkoutOrder
+   ------------------------------------------------------------------ */
+async function checkoutOrder(cart, customerName) {
+  console.log("💳 Checking out order...", new Date().toISOString());
   try {
-    // Insert into orders
-    const { data: order, error: orderErr } = await client
+    const client = await ensureSupabaseClient();
+    if (!cart || cart.length === 0) {
+      alert("Cart is empty.");
+      return;
+    }
+
+    // create order
+    const { data: newOrder, error: orderError } = await client
       .from("orders")
       .insert({
-        customer_name: customerName,
-        sale_date: saleDate,
-        total_cost: totalCost,
-        order_number: generateOrderNumber()
+        customer_name: customerName || null,
+        sale_date: new Date().toISOString(),
+        total_cost: cart.reduce(
+          (sum, item) => sum + item.selling_price * item.quantity,
+          0
+        ),
       })
-      .select()
+      .select("order_id")
       .single();
 
-    if (orderErr) throw orderErr;
+    if (orderError) throw orderError;
 
-    // Insert order items
-    const itemsPayload = cart.map(item => ({
-      order_id: order.order_id,
-      product_id: item.productId,
-      barcode: item.barcode,
-      batch_number: item.batchNumber,
-      quantity: item.quantity,
-      selling_price: item.selling_price
-    }));
+    // prepare items
+    const items = cart
+      .filter((item) => item.productId) // block null productId
+      .map((item) => ({
+        order_id: newOrder.order_id,
+        product_id: item.productId,
+        barcode: item.barcode,
+        batch_number: item.batchNumber,
+        quantity: item.quantity,
+        selling_price: item.selling_price,
+      }));
 
-    const { error: itemErr } = await client
-      .from("order_items")
-      .insert(itemsPayload);
+    if (items.length === 0) {
+      throw new Error("No valid items to insert (all missing product_id).");
+    }
 
-    if (itemErr) throw itemErr;
+    // insert order_items
+    const { error: itemsError } = await client.from("order_items").insert(items);
+    if (itemsError) throw itemsError;
 
-    console.log("✅ Checkout complete:", order);
-    alert("Order saved successfully!");
-    cart = [];
-    renderCart();
-    loadCustomerSales();
+    console.log("✅ Checkout complete:", newOrder.order_id);
+    return newOrder.order_id;
   } catch (err) {
-    console.error("❌ Checkout failed:", err);
+    console.error("❌ Checkout failed:", err, new Date().toISOString());
     alert("Checkout failed: " + err.message);
   }
 }
