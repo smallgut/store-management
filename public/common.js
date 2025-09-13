@@ -1691,7 +1691,7 @@ async function checkoutOrder(cart, customerName) {
       alert("Cart is empty.");
       return;
     }
-
+}
     // create order
     const { data: newOrder, error: orderError } = await client
       .from("orders")
