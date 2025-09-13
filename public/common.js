@@ -1584,21 +1584,27 @@ async function deleteVendor(vendorId) {
 
 
 /* =========================================================
-   Handle Product Selection → Load Batches
+   Handle Product Selection (fixed)
    ========================================================= */
-async function handleProductSelection(productId) {
-  console.log("🔍 Handling product selection:", productId);
-
-  if (!productId) {
-    console.warn("⚠️ No valid product selected");
-    return;
-  }
-
+async function handleProductSelection(eventOrId) {
   try {
     const client = await ensureSupabaseClient();
 
-    console.log("📦 Fetching batches for product:", productId);
+    // Normalize input: it might be an event or a direct ID
+    let productId =
+      typeof eventOrId === "object" && eventOrId.target
+        ? eventOrId.target.value
+        : eventOrId;
 
+    console.log("🔍 Handling product selection, productId:", productId);
+
+    if (!productId) {
+      console.warn("⚠️ No valid product selected");
+      return;
+    }
+
+    // Fetch batches for this product
+    console.log("📦 Fetching batches for product:", productId);
     const { data: batches, error } = await client
       .from("product_batches")
       .select("id, batch_number, remaining_quantity, buy_in_price, created_at")
@@ -1606,31 +1612,20 @@ async function handleProductSelection(productId) {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
+    console.log("✅ Batches fetched:", batches);
 
+    // Populate the batch dropdown
     const batchSelect = document.getElementById("batch-select");
-    if (!batchSelect) {
-      console.warn("⚠️ No #batch-select element found in DOM");
-      return;
+    if (batchSelect) {
+      batchSelect.innerHTML = batches
+        .map(
+          (b) =>
+            `<option value="${b.batch_number}">${b.batch_number} (Qty: ${b.remaining_quantity})</option>`
+        )
+        .join("");
     }
-
-    // clear & repopulate options
-    batchSelect.innerHTML = "";
-    if (!batches || batches.length === 0) {
-      batchSelect.innerHTML = `<option value="">No batches available</option>`;
-      return;
-    }
-
-    batches.forEach(batch => {
-      const opt = document.createElement("option");
-      opt.value = batch.batch_number;
-      opt.textContent = `${batch.batch_number} (Qty: ${batch.remaining_quantity})`;
-      batchSelect.appendChild(opt);
-    });
-
-    console.log("✅ Batches populated:", batches.length);
   } catch (err) {
     console.error("❌ Failed to fetch batches:", err);
-    alert("Failed to fetch batches: " + err.message);
   }
 }
 
