@@ -1636,10 +1636,7 @@ async function handleProductSelection(eventOrId) {
 async function handleBarcodeInput(barcode) {
   console.log("📟 Handling barcode input:", barcode);
 
-  if (!barcode) {
-    console.warn("⚠️ No valid barcode entered");
-    return;
-  }
+  if (!barcode) return;
 
   try {
     const client = await ensureSupabaseClient();
@@ -1655,8 +1652,8 @@ async function handleBarcodeInput(barcode) {
       return;
     }
 
-    // Call product selection with the actual ID
-    handleProductSelection(product.id);
+    // Pass the numeric id
+    await handleProductSelection(product.id);
   } catch (err) {
     console.error("❌ Barcode handling failed:", err);
   }
