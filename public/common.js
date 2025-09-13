@@ -437,16 +437,22 @@ async function populateCustomerDropdown() {
   }
 }
 
+/* =========================================================
+   POS: Load Customer Sales
+   ========================================================= */
+
 /**
  * Fix loadCustomerSales
- * - orders.order_id instead of id
- * - products.name instead of product_name
+ * - orders.order_id not orders.id
  * - order_items.batch_number instead of batch_no
+ * - products.name instead of product_name
+ * ------------------------------------------------------------------
  */
 async function loadCustomerSales() {
   console.log("📦 Loading orders...", new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
+
     const { data, error } = await client
       .from("orders")
       .select(`
@@ -468,10 +474,15 @@ async function loadCustomerSales() {
       .order("sale_date", { ascending: false });
 
     if (error) throw error;
-    console.log("✅ Orders loaded:", data);
-    // TODO: render orders into UI
+
+    console.log("✅ Loaded orders:", data);
+
+    // TODO: render your orders into the UI
+    renderOrders(data);
+
   } catch (err) {
     console.error("❌ Error loading orders:", err, new Date().toISOString());
+    alert("Failed to load customer sales: " + err.message);
   }
 }
 
