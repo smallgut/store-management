@@ -1631,6 +1631,32 @@ async function handleProductSelection(eventOrId) {
 
 
 /* =========================================================
+   Handle Barcode Input (fixed)
+   ========================================================= */
+async function handleBarcodeInput(barcode) {
+  try {
+    const product = products.find((p) => p.barcode === barcode);
+    console.log("Updating selection with barcode:", barcode);
+
+    if (!product) {
+      console.warn("⚠️ No product found for barcode:", barcode);
+      return;
+    }
+
+    // Update product dropdown selection
+    const productSelect = document.getElementById("product-select");
+    if (productSelect) {
+      productSelect.value = product.id;
+    }
+
+    // ✅ Call selection handler with product.id only
+    await handleProductSelection(product.id);
+  } catch (err) {
+    console.error("❌ Failed handling barcode input:", err);
+  }
+}
+
+/* =========================================================
    COMMON.JS - with Cart + Checkout Enhancements for Customer Sales
    ========================================================= */
 
