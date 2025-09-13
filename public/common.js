@@ -1583,37 +1583,54 @@ async function deleteVendor(vendorId) {
 }
 
 
-// === Handle Product Selection ===
-async function handleProductSelection() {
-  const productSelect = document.getElementById('product-select');
-  const batchSelect = document.getElementById('batch-no');
-  if (!productSelect.value || !batchSelect) return;
+/* =========================================================
+   Handle Product Selection → Load Batches
+   ========================================================= */
+async function handleProductSelection(productId) {
+  console.log("🔍 Handling product selection:", productId);
+
+  if (!productId) {
+    console.warn("⚠️ No valid product selected");
+    return;
+  }
 
   try {
     const client = await ensureSupabaseClient();
-    const productId = parseInt(productSelect.value);
-if (isNaN(productId)) {
-  console.warn("No valid product selected");
-  return;
-}
 
-    console.log('Fetching batches for product:', productId, new Date().toISOString());
+    console.log("📦 Fetching batches for product:", productId);
 
     const { data: batches, error } = await client
-      .from('product_batches')
-      .select('batch_number, remaining_quantity, buy_in_price, created_at')
-      .eq('product_id', productId)
-      .gt('remaining_quantity', 0);
+      .from("product_batches")
+      .select("id, batch_number, remaining_quantity, buy_in_price, created_at")
+      .eq("product_id", productId)
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    batchSelect.innerHTML = `<option value="">Select batch</option>` +
-      batches.map(b => 
-        `<option value="${b.batch_number}">Batch ${b.batch_number} (Remaining: ${b.remaining_quantity}, Buy-in: ${b.buy_in_price})</option>`
-      ).join('');
+    const batchSelect = document.getElementById("batch-select");
+    if (!batchSelect) {
+      console.warn("⚠️ No #batch-select element found in DOM");
+      return;
+    }
 
+    // clear & repopulate options
+    batchSelect.innerHTML = "";
+    if (!batches || batches.length === 0) {
+      batchSelect.innerHTML = `<option value="">No batches available</option>`;
+      return;
+    }
+
+    batches.forEach(batch => {
+      const opt = document.createElement("option");
+      opt.value = batch.batch_number;
+      opt.textContent = `${batch.batch_number} (Qty: ${batch.remaining_quantity})`;
+      batchSelect.appendChild(opt);
+    });
+
+    console.log("✅ Batches populated:", batches.length);
   } catch (err) {
-    console.error('Error fetching product batches:', err.message);
+    console.error("❌ Failed to fetch batches:", err);
+    alert("Failed to fetch batches: " + err.message);
   }
 }
 
