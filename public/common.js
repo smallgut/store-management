@@ -1798,42 +1798,27 @@ async function checkoutOrder(cart, customerName) {
 }
 
 
-// ===============================================
-// ✅ PATCH: loadCustomerSales
-// ===============================================
+/* =========================================================
+   Load Customer Sales (final cleaned version)
+   ========================================================= */
 async function loadCustomerSales() {
-  console.log("📦 Loading orders...", new Date().toISOString());
+  console.log("📦 Loading customer sales...", new Date().toISOString());
   try {
-    const client = await ensureSupabaseClient(); // ✅ unified client
+    const client = await ensureSupabaseClient();
+
+    // Query directly from customer_sales
     const { data, error } = await client
-      .from("orders")
-      .select(
-        `
-        id,
-        customer_name,
-        sale_date,
-        order_items (
-          id,
-          quantity,
-          selling_price,
-          batch_no,
-          products ( id, product_name, barcode )
-        )
-      `
-      )
+      .from("customer_sales")
+      .select("id, customer_name, product_id, barcode, quantity, selling_price, sale_date")
       .order("sale_date", { ascending: false });
 
     if (error) throw error;
 
-    console.log("📊 Orders:", data);
-    renderCustomerSales(data || []);
-  } catch (error) {
-    console.error("❌ Error loading orders:", error, new Date().toISOString());
-    const errorEl = document.getElementById("error");
-    if (errorEl) {
-      errorEl.textContent = `Failed to load customer sales: ${error.message}`;
-      clearMessage("error", 10000);
-    }
+    console.log("✅ Customer sales loaded:", data?.length || 0);
+    renderOrders(data); // <-- Now calls your renderOrders(sales) to render the table
+  } catch (err) {
+    console.error("❌ Error loading customer sales:", err);
+    alert("Failed to load customer sales: " + err.message);
   }
 }
 
