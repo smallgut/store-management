@@ -487,6 +487,77 @@ async function loadCustomerSales() {
 }
 
 
+/* =========================================================
+   Render Customer Sales Table
+   ========================================================= */
+
+/**
+ * Render sales into the "Record Customer Sales" page
+ * Expects an array of objects from `customer_sales`
+ * Schema: id, customer_name, quantity, sale_date, selling_price, product_id, barcode
+ */
+function renderOrders(sales) {
+  console.log("🖥️ Rendering customer sales...", sales);
+
+  const tableBody = document.getElementById("customer-sales-body");
+  if (!tableBody) {
+    console.warn("⚠️ No #customer-sales-body element found in DOM");
+    return;
+  }
+
+  // Clear old rows
+  tableBody.innerHTML = "";
+
+  if (!sales || sales.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-gray-500 p-3">
+          No sales found
+        </td>
+      </tr>`;
+    return;
+  }
+
+  // Build new rows
+  sales.forEach((sale) => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td class="border p-2">${sale.customer_name || "-"}</td>
+      <td class="border p-2">${sale.barcode || "-"}</td>
+      <td class="border p-2">${sale.quantity}</td>
+      <td class="border p-2">${Number(sale.selling_price).toFixed(2)}</td>
+      <td class="border p-2">${new Date(sale.sale_date).toLocaleString()}</td>
+      <td class="border p-2">
+        <button class="bg-red-500 text-white px-2 py-1 rounded"
+                onclick="deleteSale(${sale.id})">Delete</button>
+      </td>
+    `;
+
+    tableBody.appendChild(row);
+  });
+}
+
+/* =========================================================
+   Delete Sale Helper
+   ========================================================= */
+async function deleteSale(id) {
+  if (!confirm("Are you sure you want to delete this sale?")) return;
+  try {
+    const client = await ensureSupabaseClient();
+    const { error } = await client.from("customer_sales").delete().eq("id", id);
+    if (error) throw error;
+
+    console.log(`🗑️ Deleted sale ID ${id}`);
+    if (typeof loadCustomerSales === "function") {
+      loadCustomerSales();
+    }
+  } catch (err) {
+    console.error("❌ Failed to delete sale:", err);
+    alert("Failed to delete sale: " + err.message);
+  }
+}
+
 // --- FIX printReceipt ---
 async function printReceipt(orderId) {
   console.log("Printing receipt...");
