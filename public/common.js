@@ -1686,10 +1686,9 @@ function removeItemFromCart(index) {
 /**
  * Fix checkoutOrder
  * - use order_id, not id
- * - order_items.batch_number instead of batch_no
+ * - order_items.batch_number instead of batch_number
+ * ------------------------------------------------------------------
  */
-// ✅ Fix checkoutOrder
-   ------------------------------------------------------------------ */
 async function checkoutOrder(cart, customerName) {
   console.log("💳 Checking out order...", new Date().toISOString());
   try {
