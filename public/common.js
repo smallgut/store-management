@@ -1634,25 +1634,31 @@ async function handleProductSelection(eventOrId) {
    Handle Barcode Input (fixed)
    ========================================================= */
 async function handleBarcodeInput(barcode) {
-  try {
-    const product = products.find((p) => p.barcode === barcode);
-    console.log("Updating selection with barcode:", barcode);
+  console.log("📟 Handling barcode input:", barcode);
 
-    if (!product) {
-      console.warn("⚠️ No product found for barcode:", barcode);
+  if (!barcode) {
+    console.warn("⚠️ No valid barcode entered");
+    return;
+  }
+
+  try {
+    const client = await ensureSupabaseClient();
+    const { data: product, error } = await client
+      .from("products")
+      .select("id, barcode, name")
+      .eq("barcode", barcode)
+      .single();
+
+    if (error || !product) {
+      console.error("❌ No product found for barcode:", barcode, error);
+      alert("No product found for barcode " + barcode);
       return;
     }
 
-    // Update product dropdown selection
-    const productSelect = document.getElementById("product-select");
-    if (productSelect) {
-      productSelect.value = product.id;
-    }
-
-    // ✅ Call selection handler with product.id only
-    await handleProductSelection(product.id);
+    // Call product selection with the actual ID
+    handleProductSelection(product.id);
   } catch (err) {
-    console.error("❌ Failed handling barcode input:", err);
+    console.error("❌ Barcode handling failed:", err);
   }
 }
 
