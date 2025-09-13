@@ -1,6 +1,13 @@
 let supabaseClient = null;
 const supabaseUrl = window?.ENV_SUPABASE_URL || "https://aouduygmcspiqauhrabx.supabase.co";
 const supabaseKey = window?.ENV_SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k";
+
+// ✅ Ensure applyTranslations always exists
+if (typeof applyTranslations !== "function") {
+  function applyTranslations() {
+    console.log("🌐 applyTranslations() placeholder – implement if needed.");
+  }
+}
 // Always resolve a single Supabase client
 async function ensureSupabaseClient() {
   if (!window._supabaseClient) {
