@@ -438,22 +438,29 @@ async function populateCustomerDropdown() {
 }
 
 /* =========================================================
-   Customer Sales Loader (uses customer_sales directly)
+   🔥 Migration Patch: Remove legacy orders/order_items queries
    ========================================================= */
-async function loadCustomerSales() {
-  console.log("📦 Loading customer sales...");
 
+// Remove/replace any old Supabase calls that look like this:
+//   .from("orders").select(`id, customer_name, ..., order_items(...products(product_name))`)
+//   .from("order_items").select("..., products(product_name)")
+//   .from("products").select("product_name")
+
+// ✅ From now on, always load customer sales like this:
+async function loadCustomerSales() {
+  console.log("📦 Loading customer sales...", new Date().toISOString());
   try {
     const client = await ensureSupabaseClient();
+
     const { data, error } = await client
       .from("customer_sales")
-      .select("id, customer_name, barcode, quantity, selling_price, sale_date")
+      .select("id, customer_name, product_id, barcode, quantity, selling_price, sale_date")
       .order("sale_date", { ascending: false });
 
     if (error) throw error;
 
-    console.log("✅ Loaded sales:", data);
-    renderOrders(data);   // <-- render into the Record Customer Sales table
+    console.log("✅ Customer sales loaded:", data?.length || 0);
+    renderOrders(data);
   } catch (err) {
     console.error("❌ Error loading customer sales:", err);
     alert("Failed to load customer sales: " + err.message);
@@ -1798,29 +1805,6 @@ async function checkoutOrder(cart, customerName) {
 }
 
 
-/* =========================================================
-   Load Customer Sales (final cleaned version)
-   ========================================================= */
-async function loadCustomerSales() {
-  console.log("📦 Loading customer sales...", new Date().toISOString());
-  try {
-    const client = await ensureSupabaseClient();
-
-    // Query directly from customer_sales
-    const { data, error } = await client
-      .from("customer_sales")
-      .select("id, customer_name, product_id, barcode, quantity, selling_price, sale_date")
-      .order("sale_date", { ascending: false });
-
-    if (error) throw error;
-
-    console.log("✅ Customer sales loaded:", data?.length || 0);
-    renderOrders(data); // <-- Now calls your renderOrders(sales) to render the table
-  } catch (err) {
-    console.error("❌ Error loading customer sales:", err);
-    alert("Failed to load customer sales: " + err.message);
-  }
-}
 
 
 async function viewOrderDetails(orderId) {
