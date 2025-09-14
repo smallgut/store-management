@@ -1584,11 +1584,14 @@ async function deleteVendor(vendorId) {
 
 
 /* =========================================================
-   Handle Product Selection (fetch batches + populate dropdown)
+   Handle Product Selection + Barcode Input
    ========================================================= */
-async function handleProductSelection(eventOrId) {
-  // allow both event or direct id
-  const productId = typeof eventOrId === "object" ? eventOrId.target.value : eventOrId;
+
+/**
+ * Triggered when a product is selected from dropdown
+ */
+async function handleProductSelection(event) {
+  const productId = parseInt(event.target.value, 10); // get product_id (integer) from <select>
   console.log("🔍 Handling product selection, productId:", productId);
 
   if (!productId || isNaN(productId)) {
@@ -1608,39 +1611,33 @@ async function handleProductSelection(eventOrId) {
 
     console.log("✅ Batches fetched:", batches);
 
-    const batchSelect = document.getElementById("batch-select");
+    const batchSelect = document.getElementById("batch-no");
     if (!batchSelect) {
-      console.warn("⚠️ No #batch-select element found in DOM");
+      console.warn("⚠️ No #batch-no element found in DOM");
       return;
     }
 
-    // Clear old options
+    // Reset dropdown
     batchSelect.innerHTML = `<option value="">Select Batch</option>`;
 
-    if (!batches || batches.length === 0) {
-      batchSelect.innerHTML = `<option value="">No batches available</option>`;
-      return;
-    }
-
-    // Populate new options
+    // Populate batches
     batches.forEach((batch) => {
       const opt = document.createElement("option");
-      opt.value = batch.id;  // safe id
-      opt.textContent = `${batch.batch_number} (Qty: ${batch.remaining_quantity})`;
+      opt.value = batch.batch_number; // you can also use batch.id if needed
+      opt.textContent = `${batch.batch_number} (Remaining: ${batch.remaining_quantity})`;
       batchSelect.appendChild(opt);
     });
-
   } catch (err) {
     console.error("❌ Failed to fetch batches:", err);
-    alert("Failed to fetch batches: " + err.message);
   }
 }
 
-/* =========================================================
-   Handle Barcode Input (fixed)
-   ========================================================= */
-async function handleBarcodeInput(barcode) {
-  console.log("📟 Handling barcode input:", barcode);
+/**
+ * Triggered when user enters a barcode manually
+ */
+async function handleBarcodeInput(event) {
+  const barcode = event.target.value.trim();
+  console.log("📦 Handling barcode input:", barcode);
 
   if (!barcode) return;
 
@@ -1648,23 +1645,30 @@ async function handleBarcodeInput(barcode) {
     const client = await ensureSupabaseClient();
     const { data: product, error } = await client
       .from("products")
-      .select("id, barcode, name")
+      .select("id, name, barcode")
       .eq("barcode", barcode)
       .single();
 
-    if (error || !product) {
-      console.error("❌ No product found for barcode:", barcode, error);
-      alert("No product found for barcode " + barcode);
+    if (error) throw error;
+    if (!product) {
+      console.warn("⚠️ No product found for barcode:", barcode);
       return;
     }
 
-    // Pass the numeric id
-    await handleProductSelection(product.id);
+    console.log("✅ Product resolved from barcode:", product);
+
+    // Set product dropdown to this product_id
+    const productSelect = document.getElementById("product-select");
+    if (productSelect) {
+      productSelect.value = product.id;
+    }
+
+    // Trigger the product selection logic with actual product_id
+    await handleProductSelection({ target: { value: product.id } });
   } catch (err) {
-    console.error("❌ Barcode handling failed:", err);
+    console.error("❌ Failed to resolve barcode:", err);
   }
 }
-
 /* =========================================================
    COMMON.JS - with Cart + Checkout Enhancements for Customer Sales
    ========================================================= */
