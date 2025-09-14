@@ -1586,7 +1586,9 @@ async function deleteVendor(vendorId) {
 /* =========================================================
    Handle Product Selection (fetch batches + populate dropdown)
    ========================================================= */
-async function handleProductSelection(productId) {
+async function handleProductSelection(eventOrId) {
+  // allow both event or direct id
+  const productId = typeof eventOrId === "object" ? eventOrId.target.value : eventOrId;
   console.log("🔍 Handling product selection, productId:", productId);
 
   if (!productId || isNaN(productId)) {
@@ -1623,7 +1625,7 @@ async function handleProductSelection(productId) {
     // Populate new options
     batches.forEach((batch) => {
       const opt = document.createElement("option");
-      opt.value = batch.id;  // keep id as value
+      opt.value = batch.id;  // safe id
       opt.textContent = `${batch.batch_number} (Qty: ${batch.remaining_quantity})`;
       batchSelect.appendChild(opt);
     });
@@ -1633,7 +1635,6 @@ async function handleProductSelection(productId) {
     alert("Failed to fetch batches: " + err.message);
   }
 }
-
 
 /* =========================================================
    Handle Barcode Input (fixed)
