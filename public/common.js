@@ -1648,42 +1648,48 @@ async function handleProductSelection(event) {
   await loadBatches(productId);
 }
 
-
 /**
  * Triggered when user enters a barcode manually
  */
 async function handleBarcodeInput(event) {
   const barcode = event.target.value.trim();
-  console.log("📦 Handling barcode input:", barcode);
+  console.log("📦 Barcode input:", barcode);
 
   if (!barcode) return;
 
   try {
     const client = await ensureSupabaseClient();
-    const { data: product, error } = await client
+    const { data: products, error } = await client
       .from("products")
-      .select("id, name, barcode")
+      .select("id, barcode, name, stock")
       .eq("barcode", barcode)
-      .single();
+      .limit(1);
 
     if (error) throw error;
-    if (!product) {
+
+    if (products && products.length > 0) {
+      const product = products[0];
+      console.log("✅ Found product by barcode:", product);
+
+      // Set dropdown to match
+      const productSelect = document.getElementById("product-select");
+      if (productSelect) {
+        productSelect.value = product.id;
+      }
+
+      // Show stock info
+      const stockDisplay = document.getElementById("stock-display");
+      if (stockDisplay) {
+        stockDisplay.textContent = `Stock: ${product.stock}`;
+      }
+
+      // Load batches directly by product_id
+      await loadBatches(product.id);
+    } else {
       console.warn("⚠️ No product found for barcode:", barcode);
-      return;
     }
-
-    console.log("✅ Product resolved from barcode:", product);
-
-    // Set product dropdown to this product_id
-    const productSelect = document.getElementById("product-select");
-    if (productSelect) {
-      productSelect.value = product.id;
-    }
-
-    // Load batches using product.id directly
-    await loadBatches(product.id);
   } catch (err) {
-    console.error("❌ Failed to resolve barcode:", err);
+    console.error("❌ Error handling barcode input:", err);
   }
 }
 
