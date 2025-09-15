@@ -1594,10 +1594,11 @@ async function loadBatches(productId) {
   try {
     const client = await ensureSupabaseClient();
     const { data: batches, error } = await client
-      .from("product_batches")
-      .select("id, batch_number, remaining_quantity, buy_in_price, created_at")
-      .eq("product_id", productId)
-      .order("created_at", { ascending: false });
+  .from("product_batches")
+  .select("id, batch_number, remaining_quantity, buy_in_price, created_at")
+  .eq("product_id", productId)
+  .gt("remaining_quantity", 0)   // ✅ only batches with stock
+  .order("created_at", { ascending: false });
 
     if (error) throw error;
 
