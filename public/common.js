@@ -1669,6 +1669,7 @@ async function handleBarcodeInput(event) {
     console.error("❌ Failed to resolve barcode:", err);
   }
 }
+
 /* =========================================================
    COMMON.JS - with Cart + Checkout Enhancements for Customer Sales
    ========================================================= */
