@@ -1582,20 +1582,16 @@ async function deleteVendor(vendorId) {
   }
 }
 
-
 /* =========================================================
-   Handle Product Selection + Barcode Input
+   Handle Product Selection + Barcode Input (Final Fixed)
    ========================================================= */
 
 /**
- * Triggered when a product is selected from dropdown
+ * Fetch and populate batch dropdown for a given product_id
  */
-async function handleProductSelection(event) {
-  const productId = parseInt(event.target.value, 10); // get product_id (integer) from <select>
-  console.log("🔍 Handling product selection, productId:", productId);
-
+async function loadBatches(productId) {
   if (!productId || isNaN(productId)) {
-    console.warn("⚠️ No valid product selected");
+    console.warn("⚠️ No valid product id provided to loadBatches()");
     return;
   }
 
@@ -1623,7 +1619,7 @@ async function handleProductSelection(event) {
     // Populate batches
     batches.forEach((batch) => {
       const opt = document.createElement("option");
-      opt.value = batch.batch_number; // you can also use batch.id if needed
+      opt.value = batch.id; // store batch.id for future use
       opt.textContent = `${batch.batch_number} (Remaining: ${batch.remaining_quantity})`;
       batchSelect.appendChild(opt);
     });
@@ -1631,6 +1627,27 @@ async function handleProductSelection(event) {
     console.error("❌ Failed to fetch batches:", err);
   }
 }
+
+
+/* =========================================================
+   Handle Product Selection + Barcode Input
+   ========================================================= */
+
+/**
+ * Triggered when a product is selected from dropdown
+ */
+async function handleProductSelection(event) {
+  const productId = parseInt(event.target.value, 10);
+  console.log("🔍 Handling product selection, productId:", productId);
+
+  if (!productId || isNaN(productId)) {
+    console.warn("⚠️ No valid product selected");
+    return;
+  }
+
+  await loadBatches(productId);
+}
+
 
 /**
  * Triggered when user enters a barcode manually
@@ -1663,8 +1680,8 @@ async function handleBarcodeInput(event) {
       productSelect.value = product.id;
     }
 
-    // Trigger the product selection logic with actual product_id
-    await handleProductSelection({ target: { value: product.id } });
+    // Load batches using product.id directly
+    await loadBatches(product.id);
   } catch (err) {
     console.error("❌ Failed to resolve barcode:", err);
   }
