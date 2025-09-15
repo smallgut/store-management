@@ -305,39 +305,35 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
 
 // --- FIX populateProductDropdown ---
 async function populateProductDropdown() {
-  console.log("Populating product dropdown...");
-  const client = await ensureSupabaseClient();
+  console.log("📦 Populating product dropdown...");
+  try {
+    const client = await ensureSupabaseClient();
+    const { data: products, error } = await client
+      .from("products")
+      .select("id, name, barcode, stock")
+      .order("name");
 
-  const { data: products, error } = await client
-    .from("products")
-    .select("id, name, barcode, batch_no, stock, price");
+    if (error) throw error;
 
-  if (error) {
-    console.error("❌ Error loading products:", error);
-    return;
+    console.log("✅ Products for dropdown:", products);
+
+    const productSelect = document.getElementById("product-select");
+    if (!productSelect) return;
+
+    // Reset options
+    productSelect.innerHTML = '<option value="">Select Product</option>';
+
+    products.forEach((product) => {
+      const option = document.createElement("option");
+      // ✅ always use numeric ID for value
+      option.value = product.id;
+      // ✅ display name + barcode
+      option.textContent = `${product.name} (${product.barcode})`;
+      productSelect.appendChild(option);
+    });
+  } catch (err) {
+    console.error("❌ Error populating product dropdown:", err);
   }
-
-  const dropdown = document.getElementById("product-select");
-  if (!dropdown) {
-    console.warn("⚠️ No #product-select element found.");
-    return;
-  }
-
-  dropdown.innerHTML = "";
-  products.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p.barcode;
-    opt.dataset.id = p.id;
-    opt.dataset.barcode = p.barcode;
-    opt.dataset.batch = p.batch_no;
-    opt.dataset.stock = p.stock;
-    opt.dataset.price = p.price;
-
-    opt.textContent = `${p.name} (Barcode: ${p.barcode}, Batch: ${p.batch_no}, Stock: ${p.stock}, Buy-In Price: ${p.price.toFixed(2)})`;
-    dropdown.appendChild(opt);
-  });
-
-  console.log("✅ Products for dropdown:", products);
 }
 
 async function populateVendorDropdown() {
