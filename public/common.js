@@ -1632,18 +1632,52 @@ async function loadBatches(productId) {
 /**
  * Triggered when a product is selected from dropdown
  */
-async function handleProductSelection(event) {
-  const productId = parseInt(event.target.value, 10);
-  console.log("🔍 Handling product selection, productId:", productId);
+async function handleProductSelection(eventOrProductId) {
+  try {
+    let productId;
 
-  if (!productId || isNaN(productId)) {
-    console.warn("⚠️ No valid product selected");
-    return;
+    // Detect if it's an event or a direct productId call
+    if (typeof eventOrProductId === "object" && eventOrProductId.target) {
+      productId = parseInt(eventOrProductId.target.value, 10);
+    } else {
+      productId = parseInt(eventOrProductId, 10);
+    }
+
+    console.log("🔍 Handling product selection, productId:", productId);
+
+    if (!productId || isNaN(productId)) {
+      console.warn("⚠️ No valid product selected");
+      return;
+    }
+
+    const client = await ensureSupabaseClient();
+    // ✅ fetch product details so we can update barcode + stock
+    const { data: product, error } = await client
+      .from("products")
+      .select("id, barcode, stock")
+      .eq("id", productId)
+      .single();
+
+    if (error) throw error;
+
+    // ✅ update barcode input so it refreshes properly
+    const barcodeInput = document.getElementById("product-barcode");
+    if (barcodeInput) {
+      barcodeInput.value = product.barcode || "";
+    }
+
+    // ✅ update stock display
+    const stockDisplay = document.getElementById("stock-display");
+    if (stockDisplay) {
+      stockDisplay.textContent = `Available stock: ${product.stock ?? 0}`;
+    }
+
+    // ✅ load available batches
+    await loadBatches(productId);
+  } catch (err) {
+    console.error("❌ Failed in handleProductSelection:", err);
   }
-
-  await loadBatches(productId);
 }
-
 /**
  * Triggered when user enters a barcode manually
  */
