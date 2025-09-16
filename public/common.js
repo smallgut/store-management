@@ -1586,43 +1586,37 @@ async function deleteVendor(vendorId) {
  * Fetch and populate batch dropdown for a given product_id
  */
 async function loadBatches(productId) {
-  if (!productId || isNaN(productId)) {
-    console.warn("⚠️ No valid product id provided to loadBatches()");
+  const client = await ensureSupabaseClient();
+  const { data: batches, error } = await client
+    .from("product_batches")
+    .select("id, batch_number, remaining_quantity")
+    .eq("product_id", productId)
+    .gt("remaining_quantity", 0)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("❌ Failed to fetch batches:", error);
     return;
   }
 
-  try {
-    const client = await ensureSupabaseClient();
-    const { data: batches, error } = await client
-  .from("product_batches")
-  .select("id, batch_number, remaining_quantity, buy_in_price, created_at")
-  .eq("product_id", productId)
-  .gt("remaining_quantity", 0)   // ✅ only batches with stock
-  .order("created_at", { ascending: false });
+  console.log("✅ Batches fetched:", batches);
 
-    if (error) throw error;
+  const batchSelect = document.getElementById("batch-no");
+  batchSelect.innerHTML = `<option value="">Select Batch</option>`;
 
-    console.log("✅ Batches fetched:", batches);
+  let totalStock = 0;
 
-    const batchSelect = document.getElementById("batch-no");
-    if (!batchSelect) {
-      console.warn("⚠️ No #batch-no element found in DOM");
-      return;
-    }
+  batches.forEach((batch) => {
+    totalStock += batch.remaining_quantity;
+    const option = document.createElement("option");
+    option.value = batch.batch_number;
+    option.textContent = `${batch.batch_number} (Remaining: ${batch.remaining_quantity})`;
+    batchSelect.appendChild(option);
+  });
 
-    // Reset dropdown
-    batchSelect.innerHTML = `<option value="">Select Batch</option>`;
-
-    // Populate batches
-    batches.forEach((batch) => {
-      const opt = document.createElement("option");
-      opt.value = batch.id; // store batch.id for future use
-      opt.textContent = `${batch.batch_number} (Remaining: ${batch.remaining_quantity})`;
-      batchSelect.appendChild(opt);
-    });
-  } catch (err) {
-    console.error("❌ Failed to fetch batches:", err);
-  }
+  // Update stock display to sum of batch stocks
+  document.getElementById("stock-display").textContent =
+    `Available Stock: ${totalStock}`;
 }
 
 
@@ -1732,103 +1726,104 @@ async function handleBarcodeInput(event) {
 // (translations, ensureSupabaseClient, analytics, vendor management, etc.)
 // -------------------------------------------------------------
 
-// === Global cart for customer sales ===
+/* =========================================================
+   Add Item to Cart
+   ========================================================= */
 let cart = [];
 
-// Render the cart table
+async function addItemToCart() {
+  const customerName = document.getElementById("customer-name").value.trim();
+  const saleDate = document.getElementById("sale-date").value;
+  const productSelect = document.getElementById("product-select");
+  const productId = parseInt(productSelect.value, 10);
+  const barcode = document.getElementById("product-barcode").value.trim();
+  const batchNo = document.getElementById("batch-no").value;
+  const quantity = parseInt(document.getElementById("quantity").value, 10);
+  const sellingPrice = parseFloat(document.getElementById("selling-price").value);
+
+  if (!customerName || !saleDate || isNaN(productId) || !batchNo || isNaN(quantity) || isNaN(sellingPrice)) {
+    alert("⚠️ Please fill in all fields before adding item.");
+    return;
+  }
+
+  // Fetch product info from Supabase
+  const client = await ensureSupabaseClient();
+  const { data: product, error } = await client
+    .from("products")
+    .select("id, name, barcode")
+    .eq("id", productId)
+    .single();
+
+  if (error || !product) {
+    console.error("❌ Failed to fetch product:", error);
+    alert("Failed to fetch product details.");
+    return;
+  }
+
+  // Calculate subtotal
+  const subTotal = quantity * sellingPrice;
+
+  // Add to cart array
+  const item = {
+    productId: product.id,
+    productName: product.name,
+    barcode: product.barcode,
+    batchNumber: batchNo,
+    quantity,
+    sellingPrice,
+    subTotal,
+    customerName,
+    saleDate
+  };
+
+  cart.push(item);
+  console.log("🛒 Added to cart:", item);
+
+  renderCart();
+}
+
+/* =========================================================
+   Render Cart
+   ========================================================= */
 function renderCart() {
   const tbody = document.querySelector("#cart-table tbody");
   tbody.innerHTML = "";
 
   let total = 0;
 
-  cart.forEach((item, index) => {
-    const row = document.createElement("tr");
+  if (cart.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-500">Cart is empty</td></tr>`;
+  } else {
+    cart.forEach((item, index) => {
+      total += item.subTotal;
 
-    const subTotal = item.quantity * item.selling_price;
-    total += subTotal;
-
-    row.innerHTML = `
-      <td class="border p-2">${item.productName || "Unknown"}</td>
-      <td class="border p-2">${item.barcode || "-"}</td>
-      <td class="border p-2">${item.batchNumber || "-"}</td>
-      <td class="border p-2">${item.quantity}</td>
-      <td class="border p-2">${item.selling_price.toFixed(2)}</td>
-      <td class="border p-2">${subTotal.toFixed(2)}</td>
-      <td class="border p-2">
-        <button onclick="removeFromCart(${index})"
-          class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
-          Remove
-        </button>
-      </td>
-    `;
-    tbody.appendChild(row);
-  });
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td class="border p-2">${item.productName}</td>
+        <td class="border p-2">${item.barcode}</td>
+        <td class="border p-2">${item.batchNumber}</td>
+        <td class="border p-2">${item.quantity}</td>
+        <td class="border p-2">${item.sellingPrice.toFixed(2)}</td>
+        <td class="border p-2">${item.subTotal.toFixed(2)}</td>
+        <td class="border p-2">
+          <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="removeFromCart(${index})">Remove</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
 
   document.getElementById("total-cost").textContent = total.toFixed(2);
 }
 
-// Add item to cart
-function addItemToCart() {
-  const productSelect = document.getElementById('product-select');
-  const batchSelect = document.getElementById('batch-no');
-  const quantityInput = document.getElementById('quantity');
-  const priceInput = document.getElementById('selling-price');
-  const customerNameInput = document.getElementById('customer-name');
-
-  if (!productSelect.value || !batchSelect.value) {
-    alert('Please select a product and batch number.');
-    return;
-  }
-
-  const selectedOption = productSelect.options[productSelect.selectedIndex];
-  const batchOption = batchSelect.options[batchSelect.selectedIndex];
-
-  let productId = selectedOption.getAttribute("data-id");
-  let barcode = selectedOption.getAttribute("data-barcode") || productSelect.value;
-
-  if (!productId) {
-    console.warn("⚠️ Product missing numeric id, fallback to barcode only:", barcode);
-
-    // ✅ FIX: keep barcode clean (remove "|batch")
-    if (barcode.includes("|")) {
-      barcode = barcode.split("|")[0];
-    }
-
-    productId = null;
-  } else {
-    productId = parseInt(productId, 10);
-  }
-
-  // ✅ Clean product name
-  const rawName = selectedOption.textContent.trim();
-  const productName = rawName.includes("(")
-    ? rawName.split("(")[0].trim()
-    : rawName;
-
-  const batchNumber = batchOption.value;
-  const quantity = parseInt(quantityInput.value);
-  const selling_price = parseFloat(priceInput.value);
-  const customerName = customerNameInput.value;
-
-  if (!quantity || quantity <= 0 || !selling_price || selling_price < 0) {
-    alert('Please enter valid quantity and selling price.');
-    return;
-  }
-
-  cart.push({
-    productId,
-    productName,
-    barcode,        // ✅ now clean (just "k223" / "As 22" / "D1267")
-    batchNumber,
-    quantity,
-    selling_price,
-    customerName
-  });
-
-  console.log("🛒 Added to cart:", cart[cart.length - 1]);
+/* =========================================================
+   Remove Item from Cart
+   ========================================================= */
+function removeFromCart(index) {
+  cart.splice(index, 1);
   renderCart();
 }
+
 
 // Edit item in cart
 function editCartItem(index, field, value) {
@@ -1857,55 +1852,39 @@ function removeItemFromCart(index) {
  * - order_items.batch_number instead of batch_number
  * ------------------------------------------------------------------
  */
-async function checkoutOrder(cart, customerName) {
+/* =========================================================
+   Checkout Order
+   ========================================================= */
+async function checkoutOrder() {
+  if (cart.length === 0) {
+    alert("⚠️ Cart is empty.");
+    return;
+  }
+
   console.log("💳 Checking out order...", new Date().toISOString());
+
+  const client = await ensureSupabaseClient();
   try {
-    const client = await ensureSupabaseClient();
-    if (!cart || cart.length === 0) {
-      alert("Cart is empty.");
-      return;
-    }
-
-    // create order
-    const { data: newOrder, error: orderError } = await client
-      .from("orders")
-      .insert({
-        customer_name: customerName || null,
-        sale_date: new Date().toISOString(),
-        total_cost: cart.reduce(
-          (sum, item) => sum + item.selling_price * item.quantity,
-          0
-        ),
-      })
-      .select("order_id")
-      .single();
-
-    if (orderError) throw orderError;
-
-    // prepare items
-    const items = cart
-      .filter((item) => item.productId) // block null productId
-      .map((item) => ({
-        order_id: newOrder.order_id,
+    for (const item of cart) {
+      const { error } = await client.from("customer_sales").insert({
+        customer_name: item.customerName,
+        sale_date: item.saleDate,
         product_id: item.productId,
         barcode: item.barcode,
-        batch_number: item.batchNumber,
+        batch_no: item.batchNumber,
         quantity: item.quantity,
-        selling_price: item.selling_price,
-      }));
+        selling_price: item.sellingPrice
+      });
 
-    if (items.length === 0) {
-      throw new Error("No valid items to insert (all missing product_id).");
+      if (error) throw error;
     }
 
-    // insert order_items
-    const { error: itemsError } = await client.from("order_items").insert(items);
-    if (itemsError) throw itemsError;
-
-    console.log("✅ Checkout complete:", newOrder.order_id);
-    return newOrder.order_id;
+    alert("✅ Order successfully checked out!");
+    cart = [];
+    renderCart();
+    loadCustomerSales(); // refresh sales table
   } catch (err) {
-    console.error("❌ Checkout failed:", err, new Date().toISOString());
+    console.error("❌ Checkout failed:", err);
     alert("Checkout failed: " + err.message);
   }
 }
