@@ -1857,49 +1857,41 @@ function removeItemFromCart(index) {
    ========================================================= */
 async function checkoutOrder() {
   console.log("💳 Checking out order...", new Date().toISOString());
-  const customerName = document.getElementById("customer-name").value.trim();
-  const saleDate = document.getElementById("sale-date").value;
 
-  if (!customerName || !saleDate || !cart.length) {
-    alert("Please fill out customer name, sale date, and add items.");
+  if (!cart.length) {
+    alert("⚠️ Cart is empty.");
     return;
   }
 
   try {
-    // 1. Insert into customer_sales (the sale header)
-    const { data: order, error: orderError } = await supabase
-      .from("customer_sales")
-      .insert([{ customer_name: customerName, sale_date: saleDate }])
-      .select("id")
-      .single();
+    const client = await ensureSupabaseClient();
 
-    if (orderError) throw orderError;
-    const orderId = order.id;
-
-    // 2. Insert each item and update stock
+    // Insert each cart item into customer_sales
     for (const item of cart) {
-      // insert sale item
-      const { error: itemError } = await supabase
-        .from("customer_sales_items")
+      const { error: insertError } = await client
+        .from("customer_sales")
         .insert([{
-          sale_id: orderId,
-          product_id: item.productId,
-          batch_id: item.batchId,  // <-- must store batchId, not batchNumber string
+          customer_name: item.customerName,
+          sale_date: item.saleDate,
           quantity: item.quantity,
-          selling_price: item.sellingPrice
+          selling_price: item.sellingPrice,
+          product_id: item.productId,
+          barcode: item.barcode
         }]);
 
-      if (itemError) throw itemError;
+      if (insertError) throw insertError;
 
-      // update stock: decrement by order quantity
-      const { error: stockError } = await supabase
-        .from("product_batches")
-        .update({
-          remaining_quantity: item.remaining_quantity - item.quantity
-        })
-        .eq("id", item.batchId);
+      // Decrement stock in product_batches
+      if (item.batchId) {
+        const { error: stockError } = await client
+          .from("product_batches")
+          .update({
+            remaining_quantity: item.remaining_quantity - item.quantity
+          })
+          .eq("id", item.batchId);
 
-      if (stockError) throw stockError;
+        if (stockError) throw stockError;
+      }
     }
 
     alert("✅ Checkout successful!");
