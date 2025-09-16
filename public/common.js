@@ -1866,7 +1866,7 @@ async function checkoutOrder() {
   }
 
   try {
-    // 1. Insert sale header
+    // 1. Insert into customer_sales (the sale header)
     const { data: order, error: orderError } = await supabase
       .from("customer_sales")
       .insert([{ customer_name: customerName, sale_date: saleDate }])
@@ -1876,28 +1876,30 @@ async function checkoutOrder() {
     if (orderError) throw orderError;
     const orderId = order.id;
 
-    // 2. Loop over cart items
+    // 2. Insert each item and update stock
     for (const item of cart) {
-      // insert line item
+      // insert sale item
       const { error: itemError } = await supabase
         .from("customer_sales_items")
         .insert([{
           sale_id: orderId,
           product_id: item.productId,
-          batch_id: item.batchId,   // must store batchId, not just name
+          batch_id: item.batchId,  // <-- must store batchId, not batchNumber string
           quantity: item.quantity,
           selling_price: item.sellingPrice
         }]);
 
       if (itemError) throw itemError;
 
-      // 3. Update batch stock
-      const { error: updateError } = await supabase
+      // update stock: decrement by order quantity
+      const { error: stockError } = await supabase
         .from("product_batches")
-        .update({ remaining_quantity: item.remaining_quantity - item.quantity })
+        .update({
+          remaining_quantity: item.remaining_quantity - item.quantity
+        })
         .eq("id", item.batchId);
 
-      if (updateError) throw updateError;
+      if (stockError) throw stockError;
     }
 
     alert("✅ Checkout successful!");
@@ -1910,7 +1912,6 @@ async function checkoutOrder() {
     alert("Checkout failed, see console for details.");
   }
 }
-
 
 
 async function viewOrderDetails(orderId) {
