@@ -1857,21 +1857,26 @@ function removeItemFromCart(index) {
    ========================================================= */
 async function checkoutOrder() {
   console.log("💳 Checking out order...", new Date().toISOString());
-  const customerName = document.getElementById("customer-name").value;
+  const customerName = document.getElementById("customer-name").value.trim();
   const saleDate = document.getElementById("sale-date").value;
 
+  if (!customerName || !saleDate || !cart.length) {
+    alert("Please fill out customer name, sale date, and add items.");
+    return;
+  }
+
   try {
-    // 1. Insert order header
-    const { data: orderData, error: orderError } = await supabase
+    // 1. Insert sale header
+    const { data: order, error: orderError } = await supabase
       .from("customer_sales")
       .insert([{ customer_name: customerName, sale_date: saleDate }])
       .select("id")
       .single();
 
     if (orderError) throw orderError;
-    const orderId = orderData.id;
+    const orderId = order.id;
 
-    // 2. Insert items + update stock
+    // 2. Loop over cart items
     for (const item of cart) {
       // insert line item
       const { error: itemError } = await supabase
@@ -1879,34 +1884,30 @@ async function checkoutOrder() {
         .insert([{
           sale_id: orderId,
           product_id: item.productId,
-          batch_id: item.batchId,
+          batch_id: item.batchId,   // must store batchId, not just name
           quantity: item.quantity,
           selling_price: item.sellingPrice
         }]);
 
       if (itemError) throw itemError;
 
-      // decrement batch stock
-      const { error: updateError } = await supabase.rpc("decrement_batch_stock", {
-        batch_id: item.batchId,
-        qty: item.quantity
-      });
-      if (updateError) {
-        // fallback if no RPC defined
-        await supabase
-          .from("product_batches")
-          .update({ remaining_quantity: item.remaining_quantity - item.quantity })
-          .eq("id", item.batchId);
-      }
+      // 3. Update batch stock
+      const { error: updateError } = await supabase
+        .from("product_batches")
+        .update({ remaining_quantity: item.remaining_quantity - item.quantity })
+        .eq("id", item.batchId);
+
+      if (updateError) throw updateError;
     }
 
     alert("✅ Checkout successful!");
     cart = [];
     renderCart();
+    loadCustomerSales();
 
   } catch (err) {
     console.error("❌ Checkout failed:", err);
-    alert("Checkout failed. See console.");
+    alert("Checkout failed, see console for details.");
   }
 }
 
