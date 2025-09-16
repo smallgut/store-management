@@ -1856,39 +1856,59 @@ function removeItemFromCart(index) {
    Checkout Order
    ========================================================= */
 async function checkoutOrder() {
-  if (cart.length === 0) {
-    alert("⚠️ Cart is empty.");
-    return;
-  }
-
   console.log("💳 Checking out order...", new Date().toISOString());
+  const customerName = document.getElementById("customer-name").value;
+  const saleDate = document.getElementById("sale-date").value;
 
-  const client = await ensureSupabaseClient();
   try {
-    for (const item of cart) {
-      const { error } = await client.from("customer_sales").insert({
-        customer_name: item.customerName,
-        sale_date: item.saleDate,
-        product_id: item.productId,
-        barcode: item.barcode,
-        batch_no: item.batchNumber,
-        quantity: item.quantity,
-        selling_price: item.sellingPrice
-      });
+    // 1. Insert order header
+    const { data: orderData, error: orderError } = await supabase
+      .from("customer_sales")
+      .insert([{ customer_name: customerName, sale_date: saleDate }])
+      .select("id")
+      .single();
 
-      if (error) throw error;
+    if (orderError) throw orderError;
+    const orderId = orderData.id;
+
+    // 2. Insert items + update stock
+    for (const item of cart) {
+      // insert line item
+      const { error: itemError } = await supabase
+        .from("customer_sales_items")
+        .insert([{
+          sale_id: orderId,
+          product_id: item.productId,
+          batch_id: item.batchId,
+          quantity: item.quantity,
+          selling_price: item.sellingPrice
+        }]);
+
+      if (itemError) throw itemError;
+
+      // decrement batch stock
+      const { error: updateError } = await supabase.rpc("decrement_batch_stock", {
+        batch_id: item.batchId,
+        qty: item.quantity
+      });
+      if (updateError) {
+        // fallback if no RPC defined
+        await supabase
+          .from("product_batches")
+          .update({ remaining_quantity: item.remaining_quantity - item.quantity })
+          .eq("id", item.batchId);
+      }
     }
 
-    alert("✅ Order successfully checked out!");
+    alert("✅ Checkout successful!");
     cart = [];
     renderCart();
-    loadCustomerSales(); // refresh sales table
+
   } catch (err) {
     console.error("❌ Checkout failed:", err);
-    alert("Checkout failed: " + err.message);
+    alert("Checkout failed. See console.");
   }
 }
-
 
 
 
