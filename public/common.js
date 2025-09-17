@@ -1825,6 +1825,43 @@ function renderCart() {
 }
 
 /* =========================================================
+   Delete Sale
+   ========================================================= */
+async function deleteSale(saleId, batchId, qty) {
+  const client = await ensureSupabaseClient();
+
+  // Delete sale
+  const { error: delError } = await client
+    .from("customer_sales")
+    .delete()
+    .eq("id", saleId);
+
+  if (delError) {
+    console.error("❌ Failed to delete sale:", delError);
+    alert("Failed to delete sale.");
+    return;
+  }
+
+  console.log("🗑️ Deleted sale ID", saleId);
+
+  // Restore stock
+  if (batchId && qty) {
+    const { error: incError } = await client
+      .rpc("increment_batch_stock", { batch_id: batchId, qty });
+
+    if (incError) {
+      console.error("❌ Failed to restore stock:", incError);
+    } else {
+      console.log(`📈 Stock restored for batch ${batchId} by ${qty}`);
+    }
+  }
+
+  // Refresh table
+  loadCustomerSales();
+}
+
+
+/* =========================================================
    Remove Item from Cart
    ========================================================= */
 function removeFromCart(index) {
@@ -1832,21 +1869,24 @@ function removeFromCart(index) {
   renderCart();
 }
 
-
-// Edit item in cart
-function editCartItem(index, field, value) {
+/* =========================================================
+   Adjust Item in Cart
+   ========================================================= */
+function adjustCartItem(index) {
   if (!cart[index]) return;
-  if (field === 'quantity') {
-    cart[index].quantity = parseInt(value) || 1;
-  } else if (field === 'selling_price') {
-    cart[index].selling_price = parseFloat(value) || 0;
-  }
-  renderCart();
-}
 
-// Remove item from cart
-function removeItemFromCart(index) {
-  cart.splice(index, 1);
+  const newQty = parseInt(prompt("Enter new quantity:", cart[index].quantity), 10);
+  const newPrice = parseFloat(prompt("Enter new selling price:", cart[index].sellingPrice));
+
+  if (!isNaN(newQty) && newQty > 0) {
+    cart[index].quantity = newQty;
+  }
+  if (!isNaN(newPrice) && newPrice >= 0) {
+    cart[index].sellingPrice = newPrice;
+  }
+
+  cart[index].subTotal = cart[index].quantity * cart[index].sellingPrice;
+
   renderCart();
 }
 
