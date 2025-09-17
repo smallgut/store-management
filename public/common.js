@@ -472,47 +472,33 @@ async function loadCustomerSales() {
  * Expects an array of objects from `customer_sales`
  * Schema: id, customer_name, quantity, sale_date, selling_price, product_id, barcode
  */
-function renderOrders(sales) {
-  console.log("🖥️ Rendering customer sales...", sales);
+function renderOrders(orders) {
+  const tbody = document.querySelector("#customer-sales-table tbody");
+  tbody.innerHTML = "";
 
-  const tableBody = document.getElementById("customer-sales-body");
-  if (!tableBody) {
-    console.warn("⚠️ No #customer-sales-body element found in DOM");
+  if (!orders || orders.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-gray-500">No sales recorded</td></tr>`;
     return;
   }
 
-  // Clear old rows
-  tableBody.innerHTML = "";
+  orders.forEach(order => {
+    const totalCost = (order.quantity * order.selling_price).toFixed(2);
 
-  if (!sales || sales.length === 0) {
-    tableBody.innerHTML = `
-      <tr>
-        <td colspan="6" class="text-center text-gray-500 p-3">
-          No sales found
-        </td>
-      </tr>`;
-    return;
-  }
-
-  // Build new rows
-  sales.forEach((sale) => {
     const row = document.createElement("tr");
-
     row.innerHTML = `
-  <td class="border p-2">${sale.customer_name}</td>
-  <td class="border p-2">${sale.product_id}</td>
-  <td class="border p-2">${sale.barcode}</td>
-  <td class="border p-2">${sale.quantity}</td>
-  <td class="border p-2">${sale.selling_price.toFixed(2)}</td>
-  <td class="border p-2">
-    <button 
-      class="bg-red-500 text-white px-2 py-1 rounded"
-      onclick="deleteSale(${sale.id}, ${sale.batch_id}, ${sale.quantity})">
-      Delete
-    </button>
-  </td>
-`;
-    tableBody.appendChild(row);
+      <td class="border p-2">${order.id}</td>                <!-- Order # -->
+      <td class="border p-2">${order.barcode}</td>           <!-- Item (barcode or later product name if we join) -->
+      <td class="border p-2">${totalCost}</td>               <!-- Total Cost -->
+      <td class="border p-2">${new Date(order.sale_date).toLocaleDateString()}</td> <!-- Sale Date -->
+      <td class="border p-2">${order.customer_name}</td>     <!-- Customer Name -->
+      <td class="border p-2">
+        <button class="bg-red-500 text-white px-2 py-1 rounded"
+          onclick="deleteSale(${order.id}, ${order.batch_id || 'null'}, ${order.quantity})">
+          Delete
+        </button>
+      </td>
+    `;
+    tbody.appendChild(row);
   });
 }
 
