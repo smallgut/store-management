@@ -1856,52 +1856,69 @@ function removeItemFromCart(index) {
    Checkout Order
    ========================================================= */
 async function checkoutOrder() {
-  console.log("💳 Checking out order...", new Date().toISOString());
-
-  if (!cart.length) {
+  if (!cart || cart.length === 0) {
     alert("⚠️ Cart is empty.");
     return;
   }
 
+  console.log("💳 Checking out order...", new Date().toISOString());
+
+  const client = await ensureSupabaseClient();
+
   try {
-    const client = await ensureSupabaseClient();
+    // Insert all sales rows into customer_sales
+    const salesRows = cart.map(item => ({
+      customer_name: item.customerName,
+      quantity: item.quantity,
+      sale_date: item.saleDate,
+      selling_price: item.sellingPrice,
+      product_id: item.productId,
+      barcode: item.barcode
+    }));
 
-    // Insert each cart item into customer_sales
+    const { data: inserted, error: salesError } = await client
+      .from("customer_sales")
+      .insert(salesRows)
+      .select();
+
+    if (salesError) {
+      console.error("❌ Failed to insert sales:", salesError);
+      alert("Failed to complete checkout.");
+      return;
+    }
+
+    console.log("✅ Customer sales inserted:", inserted);
+
+    // Loop through cart items and decrement stock for their batch
     for (const item of cart) {
-      const { error: insertError } = await client
-        .from("customer_sales")
-        .insert([{
-          customer_name: item.customerName,
-          sale_date: item.saleDate,
-          quantity: item.quantity,
-          selling_price: item.sellingPrice,
-          product_id: item.productId,
-          barcode: item.barcode
-        }]);
+      if (!item.batchId) {
+        console.warn(`⚠️ Skipping stock decrement: no batchId for ${item.productName}`);
+        continue;
+      }
 
-      if (insertError) throw insertError;
+      const { error: rpcError } = await client.rpc("decrement_batch_stock", {
+        batch_id: item.batchId,
+        qty: item.quantity
+      });
 
-      // Decrement stock in product_batches
-      if (item.batchId) {
-        const { error: stockError } = await client
-          .from("product_batches")
-          .update({
-            remaining_quantity: item.remaining_quantity - item.quantity
-          })
-          .eq("id", item.batchId);
-
-        if (stockError) throw stockError;
+      if (rpcError) {
+        console.error(`❌ Failed to decrement stock for batch ${item.batchId}:`, rpcError);
+      } else {
+        console.log(`📉 Stock decremented for batch ${item.batchId} by ${item.quantity}`);
       }
     }
 
     alert("✅ Checkout successful!");
     cart = [];
     renderCart();
-    loadCustomerSales();
 
+    // Reload sales table so user sees new order
+    if (typeof loadCustomerSales === "function") {
+      await loadCustomerSales();
+    }
   } catch (err) {
     console.error("❌ Checkout failed:", err);
-    alert("Checkout failed, see console for details.");
+    alert("Checkout failed. See console for details.");
   }
 }
 
