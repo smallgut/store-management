@@ -499,17 +499,19 @@ function renderOrders(sales) {
     const row = document.createElement("tr");
 
     row.innerHTML = `
-      <td class="border p-2">${sale.customer_name || "-"}</td>
-      <td class="border p-2">${sale.barcode || "-"}</td>
-      <td class="border p-2">${sale.quantity}</td>
-      <td class="border p-2">${Number(sale.selling_price).toFixed(2)}</td>
-      <td class="border p-2">${new Date(sale.sale_date).toLocaleString()}</td>
-      <td class="border p-2">
-        <button class="bg-red-500 text-white px-2 py-1 rounded"
-                onclick="deleteSale(${sale.id})">Delete</button>
-      </td>
-    `;
-
+  <td class="border p-2">${sale.customer_name}</td>
+  <td class="border p-2">${sale.product_id}</td>
+  <td class="border p-2">${sale.barcode}</td>
+  <td class="border p-2">${sale.quantity}</td>
+  <td class="border p-2">${sale.selling_price.toFixed(2)}</td>
+  <td class="border p-2">
+    <button 
+      class="bg-red-500 text-white px-2 py-1 rounded"
+      onclick="deleteSale(${sale.id}, ${sale.batch_id}, ${sale.quantity})">
+      Delete
+    </button>
+  </td>
+`;
     tableBody.appendChild(row);
   });
 }
