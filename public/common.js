@@ -1737,11 +1737,16 @@ async function addItemToCart() {
   const productSelect = document.getElementById("product-select");
   const productId = parseInt(productSelect.value, 10);
   const barcode = document.getElementById("product-barcode").value.trim();
-  const batchNo = document.getElementById("batch-no").value;
+
+  // Batch dropdown should store batchId as value, batchNumber as label
+  const batchSelect = document.getElementById("batch-no");
+  const batchId = parseInt(batchSelect.value, 10);
+  const batchNumber = batchSelect.options[batchSelect.selectedIndex]?.text || null;
+
   const quantity = parseInt(document.getElementById("quantity").value, 10);
   const sellingPrice = parseFloat(document.getElementById("selling-price").value);
 
-  if (!customerName || !saleDate || isNaN(productId) || !batchNo || isNaN(quantity) || isNaN(sellingPrice)) {
+  if (!customerName || !saleDate || isNaN(productId) || isNaN(batchId) || isNaN(quantity) || isNaN(sellingPrice)) {
     alert("⚠️ Please fill in all fields before adding item.");
     return;
   }
@@ -1768,7 +1773,8 @@ async function addItemToCart() {
     productId: product.id,
     productName: product.name,
     barcode: product.barcode,
-    batchNumber: batchNo,
+    batchId,         // 🔑 stored for stock decrement
+    batchNumber,     // 🔑 stored for display
     quantity,
     sellingPrice,
     subTotal,
