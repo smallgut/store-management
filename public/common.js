@@ -1810,7 +1810,8 @@ function renderCart() {
         <td class="border p-2">${item.quantity}</td>
         <td class="border p-2">${item.sellingPrice.toFixed(2)}</td>
         <td class="border p-2">${item.subTotal.toFixed(2)}</td>
-        <td class="border p-2">
+        <td class="border p-2 space-x-2">
+          <button class="bg-yellow-500 text-white px-2 py-1 rounded" onclick="adjustCartItem(${index})">Adjust</button>
           <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="removeFromCart(${index})">Remove</button>
         </td>
       `;
