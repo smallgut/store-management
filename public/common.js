@@ -1582,41 +1582,40 @@ async function deleteVendor(vendorId) {
    Handle Product Selection + Barcode Input (Final Fixed)
    ========================================================= */
 
-/**
- * Fetch and populate batch dropdown for a given product_id
- */
+/* =========================================================
+   Load Batches for a Product
+   ========================================================= */
 async function loadBatches(productId) {
   const client = await ensureSupabaseClient();
   const { data: batches, error } = await client
     .from("product_batches")
     .select("id, batch_number, remaining_quantity")
     .eq("product_id", productId)
-    .gt("remaining_quantity", 0)
-    .order("created_at", { ascending: false });
+    .gt("remaining_quantity", 0); // only show batches with stock
+
+  const batchSelect = document.getElementById("batch-no");
+  batchSelect.innerHTML = "";
 
   if (error) {
     console.error("❌ Failed to fetch batches:", error);
+    batchSelect.innerHTML = `<option value="">Error loading batches</option>`;
     return;
   }
 
-  console.log("✅ Batches fetched:", batches);
+  if (!batches || batches.length === 0) {
+    batchSelect.innerHTML = `<option value="">No batches available</option>`;
+    return;
+  }
 
-  const batchSelect = document.getElementById("batch-no");
-  batchSelect.innerHTML = `<option value="">Select Batch</option>`;
-
-  let totalStock = 0;
-
-  batches.forEach((batch) => {
-    totalStock += batch.remaining_quantity;
-    const option = document.createElement("option");
-    option.value = batch.batch_number;
-    option.textContent = `${batch.batch_number} (Remaining: ${batch.remaining_quantity})`;
-    batchSelect.appendChild(option);
+  // Populate dropdown with id as value
+  batches.forEach(batch => {
+    const opt = document.createElement("option");
+    opt.value = batch.id; // ✅ store batchId
+    opt.textContent = `${batch.batch_number} (Remaining: ${batch.remaining_quantity})`;
+    batchSelect.appendChild(opt);
   });
 
-  // Update stock display to sum of batch stocks
-  document.getElementById("stock-display").textContent =
-    `Available Stock: ${totalStock}`;
+  console.log("✅ Batches loaded:", batches);
 }
 
 
@@ -1738,20 +1737,20 @@ async function addItemToCart() {
   const productId = parseInt(productSelect.value, 10);
   const barcode = document.getElementById("product-barcode").value.trim();
 
-  // Batch dropdown should store batchId as value, batchNumber as label
   const batchSelect = document.getElementById("batch-no");
   const batchId = parseInt(batchSelect.value, 10);
-  const batchNumber = batchSelect.options[batchSelect.selectedIndex]?.text || null;
+  const batchNumber = batchSelect.options[batchSelect.selectedIndex]?.text.split(" ")[0] || null;
 
   const quantity = parseInt(document.getElementById("quantity").value, 10);
   const sellingPrice = parseFloat(document.getElementById("selling-price").value);
 
-  if (!customerName || !saleDate || isNaN(productId) || isNaN(batchId) || isNaN(quantity) || isNaN(sellingPrice)) {
+  // Validate required fields
+  if (!customerName || !saleDate || isNaN(productId) || isNaN(batchId) || !batchNumber || isNaN(quantity) || isNaN(sellingPrice)) {
     alert("⚠️ Please fill in all fields before adding item.");
     return;
   }
 
-  // Fetch product info from Supabase
+  // Fetch product info
   const client = await ensureSupabaseClient();
   const { data: product, error } = await client
     .from("products")
@@ -1768,13 +1767,13 @@ async function addItemToCart() {
   // Calculate subtotal
   const subTotal = quantity * sellingPrice;
 
-  // Add to cart array
+  // Add item to cart
   const item = {
     productId: product.id,
     productName: product.name,
     barcode: product.barcode,
-    batchId,         // 🔑 stored for stock decrement
-    batchNumber,     // 🔑 stored for display
+    batchId,        // ✅ keep batchId for decrement
+    batchNumber,    // ✅ keep batchNumber for display
     quantity,
     sellingPrice,
     subTotal,
