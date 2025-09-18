@@ -482,19 +482,27 @@ function renderOrders(orders) {
   }
 
   orders.forEach(order => {
+    // If you eventually group multiple items per order, use order.items.length.
+    // For now each row = 1 product, so Items = 1.
+    const itemsCount = 1;
+
     const totalCost = (order.quantity * order.selling_price).toFixed(2);
 
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td class="border p-2">${order.id}</td>                <!-- Order # -->
-      <td class="border p-2">${order.barcode}</td>           <!-- Item (barcode or later product name if we join) -->
-      <td class="border p-2">${totalCost}</td>               <!-- Total Cost -->
+      <td class="border p-2">${order.id}</td> <!-- Order # -->
+      <td class="border p-2">${itemsCount}</td> <!-- Items (distinct products in order) -->
+      <td class="border p-2">${totalCost}</td> <!-- Total Cost -->
       <td class="border p-2">${new Date(order.sale_date).toLocaleDateString()}</td> <!-- Sale Date -->
-      <td class="border p-2">${order.customer_name}</td>     <!-- Customer Name -->
-      <td class="border p-2">
+      <td class="border p-2">${order.customer_name}</td> <!-- Customer Name -->
+      <td class="border p-2 flex gap-2">
         <button class="bg-red-500 text-white px-2 py-1 rounded"
           onclick="deleteSale(${order.id}, ${order.batch_id || 'null'}, ${order.quantity})">
           Delete
+        </button>
+        <button class="bg-blue-500 text-white px-2 py-1 rounded"
+          onclick="printReceipt(${order.id})">
+          Print Receipt
         </button>
       </td>
     `;
