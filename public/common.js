@@ -1909,22 +1909,23 @@ async function checkoutOrder() {
   try {
     console.log("💳 Checking out order...", new Date().toISOString());
 
-    // Generate a single order number
-    const orderNumber = Date.now(); // could also use UUID
+    // Generate a single order number (timestamp-based for simplicity)
+    const orderNumber = Date.now();
 
-    // Insert all cart items into customer_sales
+    // Build insert payload
     const payload = cart.map(item => ({
       customer_name: item.customerName,
       sale_date: item.saleDate,
       product_id: item.productId,
-      product_name: item.productName,   // NEW field
+      product_name: item.productName,   // ✅ store product name
       barcode: item.barcode,
       quantity: item.quantity,
       selling_price: item.sellingPrice,
       batch_id: item.batchId,
-      order_number: orderNumber         // NEW field to group rows
+      order_number: orderNumber         // ✅ group items under same order
     }));
 
+    // Insert into customer_sales
     const { data, error } = await client
       .from("customer_sales")
       .insert(payload)
@@ -1933,7 +1934,7 @@ async function checkoutOrder() {
     if (error) throw error;
     console.log("✅ Customer sales inserted:", data);
 
-    // Decrement stock for each item
+    // Decrement stock
     for (const item of cart) {
       const { error: decError } = await client.rpc("decrement_batch_stock", {
         batch_id: item.batchId,
