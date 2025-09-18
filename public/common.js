@@ -524,55 +524,55 @@ async function deleteSale(id) {
 
 // --- FIX printReceipt ---
 async function printReceipt(orderId) {
-  console.log("Printing receipt...");
   const client = await ensureSupabaseClient();
 
   const { data: order, error } = await client
-    .from('orders')
-    .select(`
-      order_number,
-      customer_name,
-      sale_date,
-      total_cost,
-      order_items (
-        quantity,
-        selling_price,
-        products (name, barcode)
-      )
-    `)
-    .eq('order_id', orderId)
+    .from("customer_sales")
+    .select("*")
+    .eq("id", orderId)
     .single();
 
-  if (error) {
-    console.error("Error fetching order for print:", error);
-    alert("Failed to print receipt.");
+  if (error || !order) {
+    console.error("❌ Failed to fetch order:", error);
+    alert("Failed to fetch order for printing.");
     return;
   }
 
-  let receiptText = `
-Receipt 
-Order #: ${order.order_number}
-Customer: ${order.customer_name}
-Date: ${new Date(order.sale_date).toLocaleString()}
-
-Items:
-`;
-
-  order.order_items.forEach(item => {
-    const productName = item.products?.name || "Unknown";
-    const productBarcode = item.products?.barcode || "-";
-    const subTotal = item.quantity * item.selling_price;
-
-    receiptText += `- ${productName} (${productBarcode}) x${item.quantity} @ ${item.selling_price} = ${subTotal.toFixed(2)}\n`;
-  });
-
-  receiptText += `\nTotal: ${order.total_cost.toFixed(2)}`;
-
-  const printWindow = window.open('', '', 'width=600,height=400');
-  printWindow.document.write(`<pre>${receiptText}</pre>`);
-  printWindow.document.close();
-  printWindow.print();
+  // Simple receipt layout (can be styled later)
+  const receiptWindow = window.open("", "_blank", "width=400,height=600");
+  receiptWindow.document.write(`
+    <html>
+      <head>
+        <title>Receipt #${order.id}</title>
+        <style>
+          body { font-family: sans-serif; padding: 20px; }
+          h2 { text-align: center; }
+          .line { margin: 6px 0; }
+          .total { font-weight: bold; margin-top: 12px; }
+        </style>
+      </head>
+      <body>
+        <h2>Receipt</h2>
+        <div class="line">Order #: ${order.id}</div>
+        <div class="line">Customer: ${order.customer_name}</div>
+        <div class="line">Date: ${new Date(order.sale_date).toLocaleString()}</div>
+        <hr/>
+        <div class="line">Barcode: ${order.barcode}</div>
+        <div class="line">Quantity: ${order.quantity}</div>
+        <div class="line">Price: ${order.selling_price.toFixed(2)}</div>
+        <div class="total">Total: ${(order.quantity * order.selling_price).toFixed(2)}</div>
+        <hr/>
+        <p style="text-align:center;">Thank you for your purchase!</p>
+        <script>
+          window.print();
+        </script>
+      </body>
+    </html>
+  `);
+  receiptWindow.document.close();
 }
+
+
 async function addCustomerSale(sale) {
   console.log('Adding customer sale...', sale, new Date().toISOString());
   try {
