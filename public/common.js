@@ -546,7 +546,7 @@ async function printReceipt(orderId) {
     return;
   }
 
-  // Simple receipt layout (can be styled later)
+  // Receipt layout
   const receiptWindow = window.open("", "_blank", "width=400,height=600");
   receiptWindow.document.write(`
     <html>
@@ -565,6 +565,7 @@ async function printReceipt(orderId) {
         <div class="line">Customer: ${order.customer_name}</div>
         <div class="line">Date: ${new Date(order.sale_date).toLocaleString()}</div>
         <hr/>
+        <div class="line">Product: ${order.product_name || "(unknown)"}</div>
         <div class="line">Barcode: ${order.barcode}</div>
         <div class="line">Quantity: ${order.quantity}</div>
         <div class="line">Price: ${order.selling_price.toFixed(2)}</div>
