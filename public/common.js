@@ -1899,53 +1899,48 @@ function adjustCartItem(index) {
    Checkout Order
    ========================================================= */
 async function checkoutOrder() {
-  if (!cart || cart.length === 0) {
+  if (cart.length === 0) {
     alert("⚠️ Cart is empty.");
     return;
   }
 
-  console.log("💳 Checking out order...", new Date().toISOString());
-
   const client = await ensureSupabaseClient();
 
   try {
-    // Insert all sales rows into customer_sales
-    const salesRows = cart.map(item => ({
+    console.log("💳 Checking out order...", new Date().toISOString());
+
+    // Generate a single order number
+    const orderNumber = Date.now(); // could also use UUID
+
+    // Insert all cart items into customer_sales
+    const payload = cart.map(item => ({
       customer_name: item.customerName,
-      quantity: item.quantity,
       sale_date: item.saleDate,
-      selling_price: item.sellingPrice,
       product_id: item.productId,
-      barcode: item.barcode
+      product_name: item.productName,   // NEW field
+      barcode: item.barcode,
+      quantity: item.quantity,
+      selling_price: item.sellingPrice,
+      batch_id: item.batchId,
+      order_number: orderNumber         // NEW field to group rows
     }));
 
-    const { data: inserted, error: salesError } = await client
+    const { data, error } = await client
       .from("customer_sales")
-      .insert(salesRows)
+      .insert(payload)
       .select();
 
-    if (salesError) {
-      console.error("❌ Failed to insert sales:", salesError);
-      alert("Failed to complete checkout.");
-      return;
-    }
+    if (error) throw error;
+    console.log("✅ Customer sales inserted:", data);
 
-    console.log("✅ Customer sales inserted:", inserted);
-
-    // Loop through cart items and decrement stock for their batch
+    // Decrement stock for each item
     for (const item of cart) {
-      if (!item.batchId) {
-        console.warn(`⚠️ Skipping stock decrement: no batchId for ${item.productName}`);
-        continue;
-      }
-
-      const { error: rpcError } = await client.rpc("decrement_batch_stock", {
+      const { error: decError } = await client.rpc("decrement_batch_stock", {
         batch_id: item.batchId,
         qty: item.quantity
       });
-
-      if (rpcError) {
-        console.error(`❌ Failed to decrement stock for batch ${item.batchId}:`, rpcError);
+      if (decError) {
+        console.error("❌ Failed to decrement stock:", decError);
       } else {
         console.log(`📉 Stock decremented for batch ${item.batchId} by ${item.quantity}`);
       }
@@ -1954,14 +1949,11 @@ async function checkoutOrder() {
     alert("✅ Checkout successful!");
     cart = [];
     renderCart();
+    loadCustomerSales();
 
-    // Reload sales table so user sees new order
-    if (typeof loadCustomerSales === "function") {
-      await loadCustomerSales();
-    }
   } catch (err) {
     console.error("❌ Checkout failed:", err);
-    alert("Checkout failed. See console for details.");
+    alert("Checkout failed.");
   }
 }
 
