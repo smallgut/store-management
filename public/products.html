@@ -13,7 +13,7 @@
     <ul class="flex space-x-4">
       <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
       <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
+      <li><a href="products.html" data-lang-key="nav-manage-products" class="font-bold">Manage Products</a></li>
       <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
       <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
       <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
@@ -40,10 +40,6 @@
           <input id="product-name" type="text" class="border p-2 w-full" required>
         </div>
         <div>
-          <label for="stock" data-lang-key="stock">Stock</label>
-          <input id="stock" type="number" class="border p-2 w-full" required min="0">
-        </div>
-        <div>
           <label for="units" data-lang-key="units">Units</label>
           <select id="units" class="border p-2 w-full" required>
             <option value="" data-lang-key="select-unit">-- Select Unit --</option>
@@ -55,6 +51,10 @@
           <label for="buy-in-price" data-lang-key="buy-in-price">Buy-In Price</label>
           <input id="buy-in-price" type="number" step="0.01" class="border p-2 w-full" required min="0">
         </div>
+        <div>
+          <label for="stock" data-lang-key="stock">Initial Stock</label>
+          <input id="stock" type="number" class="border p-2 w-full" required min="0">
+        </div>
         <button type="submit" data-lang-key="add-product" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Add Product</button>
       </form>
     </div>
@@ -65,8 +65,8 @@
         <tr class="bg-gray-200">
           <th class="border p-2" data-lang-key="product-barcode">Product Barcode</th>
           <th class="border p-2" data-lang-key="product-name">Product Name</th>
-          <th class="border p-2" data-lang-key="stock">Stock</th>
           <th class="border p-2" data-lang-key="units">Units</th>
+          <th class="border p-2" data-lang-key="stock">Stock (Sum of Batches)</th>
           <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
           <th class="border p-2" data-lang-key="buy-in-price">Buy-In Price</th>
           <th class="border p-2" data-lang-key="inventory-value">Inventory Value</th>
@@ -76,74 +76,73 @@
       <tbody></tbody>
     </table>
   </div>
-<script>
-  document.getElementById("add-product-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
 
-    const barcode = document.getElementById("product-barcode").value.trim();
-    const name = document.getElementById("product-name").value.trim();
-    const stock = parseInt(document.getElementById("stock").value, 10);
-    const units = document.getElementById("units").value;
-    const buyInPrice = parseFloat(document.getElementById("buy-in-price").value);
-    const vendorId = 31; // ⚠️ TODO: replace with dropdown if you want dynamic vendor selection
+  <script>
+    document.getElementById("add-product-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-    if (!barcode || !name || isNaN(stock) || !units || isNaN(buyInPrice)) {
-      alert("⚠️ Please fill in all product fields");
-      return;
-    }
+      const barcode = document.getElementById("product-barcode").value.trim();
+      const name = document.getElementById("product-name").value.trim();
+      const stock = parseInt(document.getElementById("stock").value, 10);
+      const units = document.getElementById("units").value;
+      const buyInPrice = parseFloat(document.getElementById("buy-in-price").value);
+      const vendorId = 31; // ⚠️ static vendor for now
 
-    const client = await ensureSupabaseClient();
+      if (!barcode || !name || isNaN(stock) || !units || isNaN(buyInPrice)) {
+        alert("⚠️ Please fill in all product fields");
+        return;
+      }
 
-    // 1. Insert product
-    const { data: product, error: productError } = await client
-      .from("products")
-      .insert([{
-        barcode,
-        name,
-        stock,
-        price: buyInPrice,
-        vendor_id: vendorId,
-        units
-      }])
-      .select("id")
-      .single();
+      const client = await ensureSupabaseClient();
 
-    if (productError) {
-      console.error("❌ Failed to insert product:", productError);
-      alert("Failed to add product");
-      return;
-    }
+      // 1. Insert product (no stock column anymore)
+      const { data: product, error: productError } = await client
+        .from("products")
+        .insert([{
+          barcode,
+          name,
+          price: buyInPrice,
+          vendor_id: vendorId,
+          units
+        }])
+        .select("id")
+        .single();
 
-    // 2. Generate batch number from today (DDMMYY)
-    const now = new Date();
-    const dd = String(now.getDate()).padStart(2, "0");
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const yy = String(now.getFullYear()).slice(-2);
-    const batchNumber = `${dd}${mm}${yy}`;
+      if (productError) {
+        console.error("❌ Failed to insert product:", productError);
+        alert("Failed to add product");
+        return;
+      }
 
-    // 3. Insert initial batch
-    const { error: batchError } = await client
-      .from("product_batches")
-      .insert([{
-        product_id: product.id,
-        vendor_id: vendorId,
-        batch_number: batchNumber,
-        quantity: stock,
-        remaining_quantity: stock,
-        buy_in_price: buyInPrice,
-        created_at: new Date().toISOString()
-      }]);
+      // 2. Generate batch number from today (DDMMYY)
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yy = String(now.getFullYear()).slice(-2);
+      const batchNumber = `${dd}${mm}${yy}`;
 
-    if (batchError) {
-      console.error("❌ Failed to insert batch:", batchError);
-      alert("Product added, but batch creation failed.");
-      return;
-    }
+      // 3. Insert initial batch
+      const { error: batchError } = await client
+        .from("product_batches")
+        .insert([{
+          product_id: product.id,
+          vendor_id: vendorId,
+          batch_number: batchNumber,
+          quantity: stock, // original stock-in
+          remaining_quantity: stock, // live stock
+          buy_in_price: buyInPrice,
+          created_at: new Date().toISOString()
+        }]);
 
-    alert("✅ Product and initial batch added successfully");
-    e.target.reset();
-  });
-</script>
-  
+      if (batchError) {
+        console.error("❌ Failed to insert batch:", batchError);
+        alert("Product added, but batch creation failed.");
+        return;
+      }
+
+      alert("✅ Product and initial batch added successfully");
+      e.target.reset();
+    });
+  </script>
 </body>
 </html>
