@@ -647,9 +647,10 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
     const client = await ensureSupabaseClient();
     setLoading(true);
 
+    // ✅ fetch sale with batch_id
     const { data: sale, error: saleError } = await client
       .from('customer_sales')
-      .select('product_id')
+      .select('product_id, batch_id')
       .eq('id', saleId)
       .single();
     if (saleError && saleError.code !== 'PGRST116') throw saleError;
@@ -657,35 +658,36 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
       throw new Error('Sale not found');
     }
 
-    const { data: product, error: productError } = await client
-      .from('products')
-      .select('id, stock, barcode')
-      .eq('id', sale.product_id)
-      .single();
-    if (productError && productError.code !== 'PGRST116') throw productError;
-    if (!product) {
-      throw new Error('Product not found');
+    // ✅ restore stock to batch
+    if (sale.batch_id) {
+      const { data: batch, error: batchError } = await client
+        .from('product_batches')
+        .select('id, remaining_quantity')
+        .eq('id', sale.batch_id)
+        .single();
+      if (batchError) throw batchError;
+      if (!batch) throw new Error('Batch not found for this sale');
+
+      const { error: updateBatchError } = await client
+        .from('product_batches')
+        .update({ remaining_quantity: batch.remaining_quantity + quantity })
+        .eq('id', sale.batch_id);
+      if (updateBatchError) throw updateBatchError;
+
+      console.log(`📈 Restored stock for batch ${sale.batch_id} by ${quantity}`);
     }
 
-    if (productBarcode && product.barcode !== productBarcode) {
-      throw new Error('Barcode mismatch');
-    }
-
+    // ✅ delete sale record
     const { error: deleteError } = await client
       .from('customer_sales')
       .delete()
       .eq('id', saleId);
     if (deleteError) throw deleteError;
 
-    const { error: updateError } = await client
-      .from('products')
-      .update({ stock: product.stock + quantity })
-      .eq('id', product.id);
-    if (updateError) throw updateError;
-
     console.log('Customer sale deleted:', saleId, new Date().toISOString());
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '客戶銷售刪除成功' : 'Customer sale deleted successfully'}`;
+    document.getElementById('message').textContent =
+      `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '客戶銷售刪除成功' : 'Customer sale deleted successfully'}`;
     clearMessage('message');
     loadCustomerSales();
   } catch (error) {
@@ -693,7 +695,8 @@ async function deleteCustomerSale(saleId, productBarcode, quantity) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除客戶銷售失敗：${error.message}` : `Failed to delete customer sale: ${error.message}`}`;
+      errorEl.textContent =
+        `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除客戶銷售失敗：${error.message}` : `Failed to delete customer sale: ${error.message}`}`;
       clearMessage('error');
     }
   } finally {
