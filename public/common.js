@@ -1525,33 +1525,7 @@ function handleDeleteProduct(productId) {
   }
 }
 
-async function deleteProduct(productId) {
-  console.log('Deleting product...', productId, new Date().toISOString());
-  try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
-    const { error } = await client
-      .from('products')
-      .delete()
-      .eq('id', productId);
-    if (error) throw error;
-    console.log('Product deleted:', productId, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品刪除成功' : 'Product deleted successfully'}`;
-    clearMessage('message');
-    loadProducts();
-  } catch (error) {
-    console.error('Error deleting product:', error.message, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `刪除產品失敗：${error.message}` : `Failed to delete product: ${error.message}`}`;
-      clearMessage('error');
-    }
-  } finally {
-    setLoading(false);
-  }
-}
+
 
 function handleAddVendor(event) {
   event.preventDefault();
