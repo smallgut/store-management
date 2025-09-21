@@ -1315,33 +1315,28 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
 /* =========================================================
    Load Products (Manage Products page)
    ========================================================= */
+/* =========================================================
+   Load Products + Batches into Table
+   ========================================================= */
 async function loadProducts() {
   console.log("📦 Loading products...");
-
   const client = await ensureSupabaseClient();
 
-  // Get products with their batches
   const { data, error } = await client
-    .from("products")
+    .from("product_batches")
     .select(`
       id,
-      barcode,
-      name,
-      units,
-      vendor_id,
-      product_batches (
-        id,
-        batch_number,
-        quantity,
-        remaining_quantity,
-        buy_in_price
-      )
+      batch_number,
+      quantity,
+      remaining_quantity,
+      buy_in_price,
+      product:products(id, name, barcode, units)
     `)
-    .order("name", { ascending: true });
+    .order("id", { ascending: true });
 
   if (error) {
-    console.error("❌ Error loading products:", error.message);
-    document.getElementById("error").innerText = "Failed to load products.";
+    console.error("❌ Error loading products:", error);
+    alert("Failed to load products.");
     return;
   }
 
@@ -1350,45 +1345,26 @@ async function loadProducts() {
   const tbody = document.querySelector("#products-table tbody");
   tbody.innerHTML = "";
 
-  data.forEach(product => {
-    if (product.product_batches.length === 0) {
-      // Show product even if no batches
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${product.barcode}</td>
-        <td class="border p-2">${product.name}</td>
-        <td class="border p-2">0</td>
-        <td class="border p-2">${product.units || "-"}</td>
-        <td class="border p-2">-</td>
-        <td class="border p-2">-</td>
-        <td class="border p-2">-</td>
-        <td class="border p-2">
-          <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteProduct(${product.id})">Remove</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    } else {
-      // Show all batches
-      product.product_batches.forEach(batch => {
-        const inventoryValue = batch.remaining_quantity * batch.buy_in_price;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td class="border p-2">${product.barcode}</td>
-          <td class="border p-2">${product.name}</td>
-          <td class="border p-2">${batch.remaining_quantity}</td>
-          <td class="border p-2">${product.units || "-"}</td>
-          <td class="border p-2">${batch.batch_number}</td>
-          <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
-          <td class="border p-2">${inventoryValue.toFixed(2)}</td>
-          <td class="border p-2">
-            <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteProduct(${product.id})">Remove</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+  data.forEach(batch => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td class="border p-2">${batch.product.barcode}</td>
+      <td class="border p-2">${batch.product.name}</td>
+      <td class="border p-2">${batch.remaining_quantity}</td>
+      <td class="border p-2">${batch.product.units}</td>
+      <td class="border p-2">${batch.batch_number}</td>
+      <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
+      <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
+      <td class="border p-2">
+        <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteBatch(${batch.id})">Remove</button>
+      </td>
+    `;
+
+    tbody.appendChild(row);
   });
 }
+
 
 
 function handleAddProduct(event) {
