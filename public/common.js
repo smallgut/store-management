@@ -303,37 +303,36 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
 }
 
 
-// --- FIX populateProductDropdown ---
+/* =========================================================
+   Populate Product Dropdown (Record Customer Sales page)
+   ========================================================= */
 async function populateProductDropdown() {
   console.log("📦 Populating product dropdown...");
-  try {
-    const client = await ensureSupabaseClient();
-    const { data: products, error } = await client
-      .from("products")
-      .select("id, name, barcode, stock")
-      .order("name");
+  const client = await ensureSupabaseClient();
 
-    if (error) throw error;
+  const { data, error } = await client
+    .from("products")
+    .select("id, name, barcode")
+    .order("name", { ascending: true });
 
-    console.log("✅ Products for dropdown:", products);
-
-    const productSelect = document.getElementById("product-select");
-    if (!productSelect) return;
-
-    // Reset options
-    productSelect.innerHTML = '<option value="">Select Product</option>';
-
-    products.forEach((product) => {
-      const option = document.createElement("option");
-      // ✅ always use numeric ID for value
-      option.value = product.id;
-      // ✅ display name + barcode
-      option.textContent = `${product.name} (${product.barcode})`;
-      productSelect.appendChild(option);
-    });
-  } catch (err) {
-    console.error("❌ Error populating product dropdown:", err);
+  if (error) {
+    console.error("❌ Error populating product dropdown:", error);
+    return;
   }
+
+  console.log("✅ Products for dropdown:", data);
+
+  const dropdown = document.getElementById("product-select");
+  if (!dropdown) return;
+
+  dropdown.innerHTML = `<option value="">-- Select Product --</option>`;
+
+  data.forEach((p) => {
+    const option = document.createElement("option");
+    option.value = p.id;
+    option.textContent = `${p.name} (${p.barcode})`;
+    dropdown.appendChild(option);
+  });
 }
 
 async function populateVendorDropdown() {
@@ -1313,23 +1312,61 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
   }
 }
 
-/* ------------------------------------------------------------------
-   ✅ Fix loadProducts
-   ------------------------------------------------------------------ */
+/* =========================================================
+   Load Products (Manage Products page)
+   ========================================================= */
 async function loadProducts() {
   console.log("📦 Loading products...");
-  try {
-    const client = await ensureSupabaseClient();
-    const { data, error } = await client
-      .from("products")
-      .select("id, barcode, name, stock, price, batch_no, units, vendor_id");
-    if (error) throw error;
-    console.log("✅ Products:", data);
-    return data;
-  } catch (err) {
-    console.error("❌ Error loading products:", err.message);
-    return [];
+  const client = await ensureSupabaseClient();
+
+  const { data, error } = await client
+    .from("products")
+    .select(`
+      id,
+      barcode,
+      name,
+      price,
+      units,
+      vendor_id,
+      product_batches (
+        batch_number,
+        remaining_quantity,
+        buy_in_price
+      )
+    `);
+
+  if (error) {
+    console.error("❌ Error loading products:", error);
+    return;
   }
+
+  console.log("✅ Products loaded:", data);
+
+  const tbody = document.querySelector("#products-table tbody");
+  tbody.innerHTML = "";
+
+  data.forEach((p) => {
+    const totalStock = (p.product_batches || []).reduce(
+      (sum, b) => sum + (b.remaining_quantity || 0),
+      0
+    );
+    const latestBatch = (p.product_batches || [])[0];
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="border p-2">${p.barcode}</td>
+      <td class="border p-2">${p.name}</td>
+      <td class="border p-2">${totalStock}</td>
+      <td class="border p-2">${p.units || ""}</td>
+      <td class="border p-2">${latestBatch ? latestBatch.batch_number : "-"}</td>
+      <td class="border p-2">${latestBatch ? latestBatch.buy_in_price.toFixed(2) : "-"}</td>
+      <td class="border p-2">${latestBatch ? (latestBatch.remaining_quantity * latestBatch.buy_in_price).toFixed(2) : "-"}</td>
+      <td class="border p-2">
+        <button class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 
