@@ -1365,7 +1365,29 @@ async function loadProducts() {
   });
 }
 
+/* =========================================================
+   Delete Batch (not whole product)
+   ========================================================= */
+async function deleteBatch(batchId) {
+  if (!confirm("Are you sure you want to delete this batch?")) return;
 
+  const client = await ensureSupabaseClient();
+
+  const { error } = await client
+    .from("product_batches")
+    .delete()
+    .eq("id", batchId);
+
+  if (error) {
+    console.error("❌ Failed to delete batch:", error);
+    alert("Failed to delete batch.");
+    return;
+  }
+
+  console.log("🗑️ Batch deleted:", batchId);
+  alert("✅ Batch deleted successfully");
+  loadProducts(); // refresh table
+}
 
 function handleAddProduct(event) {
   event.preventDefault();
