@@ -13,7 +13,7 @@
     <ul class="flex space-x-4">
       <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
       <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products" class="font-bold">Manage Products</a></li>
+      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
       <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
       <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
       <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
@@ -40,6 +40,10 @@
           <input id="product-name" type="text" class="border p-2 w-full" required>
         </div>
         <div>
+          <label for="stock" data-lang-key="stock">Initial Stock</label>
+          <input id="stock" type="number" class="border p-2 w-full" required min="0">
+        </div>
+        <div>
           <label for="units" data-lang-key="units">Units</label>
           <select id="units" class="border p-2 w-full" required>
             <option value="" data-lang-key="select-unit">-- Select Unit --</option>
@@ -51,10 +55,6 @@
           <label for="buy-in-price" data-lang-key="buy-in-price">Buy-In Price</label>
           <input id="buy-in-price" type="number" step="0.01" class="border p-2 w-full" required min="0">
         </div>
-        <div>
-          <label for="stock" data-lang-key="stock">Initial Stock</label>
-          <input id="stock" type="number" class="border p-2 w-full" required min="0">
-        </div>
         <button type="submit" data-lang-key="add-product" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Add Product</button>
       </form>
     </div>
@@ -65,8 +65,8 @@
         <tr class="bg-gray-200">
           <th class="border p-2" data-lang-key="product-barcode">Product Barcode</th>
           <th class="border p-2" data-lang-key="product-name">Product Name</th>
+          <th class="border p-2" data-lang-key="stock">Stock</th>
           <th class="border p-2" data-lang-key="units">Units</th>
-          <th class="border p-2" data-lang-key="stock">Stock (Sum of Batches)</th>
           <th class="border p-2" data-lang-key="batch-no">Batch No.</th>
           <th class="border p-2" data-lang-key="buy-in-price">Buy-In Price</th>
           <th class="border p-2" data-lang-key="inventory-value">Inventory Value</th>
@@ -78,71 +78,49 @@
   </div>
 
   <script>
-    document.getElementById("add-product-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    // Run when DOM is ready
+    document.addEventListener("DOMContentLoaded", () => {
+      console.log("📦 Initializing Manage Products page...");
+      loadProducts(); // ✅ auto-load products table
+      document.getElementById("toggle-language").addEventListener("click", toggleLanguage);
+    });
 
-      const barcode = document.getElementById("product-barcode").value.trim();
-      const name = document.getElementById("product-name").value.trim();
-      const stock = parseInt(document.getElementById("stock").value, 10);
-      const units = document.getElementById("units").value;
-      const buyInPrice = parseFloat(document.getElementById("buy-in-price").value);
-      const vendorId = 31; // ⚠️ static vendor for now
-
-      if (!barcode || !name || isNaN(stock) || !units || isNaN(buyInPrice)) {
-        alert("⚠️ Please fill in all product fields");
+    // Delete product (also deletes its batches)
+    async function deleteProduct(productId) {
+      if (!confirm("Are you sure you want to delete this product? This will also delete related batches.")) {
         return;
       }
 
       const client = await ensureSupabaseClient();
 
-      // 1. Insert product (no stock column anymore)
-      const { data: product, error: productError } = await client
-        .from("products")
-        .insert([{
-          barcode,
-          name,
-          price: buyInPrice,
-          vendor_id: vendorId,
-          units
-        }])
-        .select("id")
-        .single();
-
-      if (productError) {
-        console.error("❌ Failed to insert product:", productError);
-        alert("Failed to add product");
-        return;
-      }
-
-      // 2. Generate batch number from today (DDMMYY)
-      const now = new Date();
-      const dd = String(now.getDate()).padStart(2, "0");
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const yy = String(now.getFullYear()).slice(-2);
-      const batchNumber = `${dd}${mm}${yy}`;
-
-      // 3. Insert initial batch
+      // First delete batches
       const { error: batchError } = await client
         .from("product_batches")
-        .insert([{
-          product_id: product.id,
-          vendor_id: vendorId,
-          batch_number: batchNumber,
-          quantity: stock, // original stock-in
-          remaining_quantity: stock, // live stock
-          buy_in_price: buyInPrice,
-          created_at: new Date().toISOString()
-        }]);
+        .delete()
+        .eq("product_id", productId);
 
       if (batchError) {
-        console.error("❌ Failed to insert batch:", batchError);
-        alert("Product added, but batch creation failed.");
+        console.error("❌ Failed to delete batches:", batchError);
+        alert("Failed to delete product batches.");
         return;
       }
 
-      alert("✅ Product and initial batch added successfully");
-      e.target.reset();
-    });
+      // Then delete product
+      const { error: productError } = await client
+        .from("products")
+        .delete()
+        .eq("id", productId);
+
+      if (productError) {
+        console.error("❌ Failed to delete product:", productError);
+        alert("Failed to delete product.");
+        return;
+      }
+
+      console.log("🗑️ Product deleted:", productId);
+      alert("✅ Product deleted successfully");
+      loadProducts(); // refresh table
+    }
   </script>
 </body>
 </html>
