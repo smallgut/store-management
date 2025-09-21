@@ -78,49 +78,104 @@
   </div>
 
   <script>
-    // Run when DOM is ready
-    document.addEventListener("DOMContentLoaded", () => {
-      console.log("📦 Initializing Manage Products page...");
-      loadProducts(); // ✅ auto-load products table
-      document.getElementById("toggle-language").addEventListener("click", toggleLanguage);
-    });
+  // Run when DOM is ready
+  document.addEventListener("DOMContentLoaded", () => {
+    console.log("📦 Initializing Manage Products page...");
+    loadProducts(); // ✅ auto-load products table
+    document.getElementById("toggle-language").addEventListener("click", toggleLanguage);
+  });
 
-    // Delete product (also deletes its batches)
-    async function deleteProduct(productId) {
-      if (!confirm("Are you sure you want to delete this product? This will also delete related batches.")) {
-        return;
-      }
+  // ✅ Handle Add Product form
+  document.getElementById("add-product-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-      const client = await ensureSupabaseClient();
+    const barcode = document.getElementById("product-barcode").value.trim();
+    const name = document.getElementById("product-name").value.trim();
+    const stock = parseInt(document.getElementById("stock").value, 10);
+    const units = document.getElementById("units").value;
+    const buyInPrice = parseFloat(document.getElementById("buy-in-price").value);
+    const vendorId = 31; // ⚠️ Hardcoded, replace with dropdown if needed
 
-      // First delete batches
-      const { error: batchError } = await client
-        .from("product_batches")
-        .delete()
-        .eq("product_id", productId);
-
-      if (batchError) {
-        console.error("❌ Failed to delete batches:", batchError);
-        alert("Failed to delete product batches.");
-        return;
-      }
-
-      // Then delete product
-      const { error: productError } = await client
-        .from("products")
-        .delete()
-        .eq("id", productId);
-
-      if (productError) {
-        console.error("❌ Failed to delete product:", productError);
-        alert("Failed to delete product.");
-        return;
-      }
-
-      console.log("🗑️ Product deleted:", productId);
-      alert("✅ Product deleted successfully");
-      loadProducts(); // refresh table
+    if (!barcode || !name || isNaN(stock) || !units || isNaN(buyInPrice)) {
+      alert("⚠️ Please fill in all product fields");
+      return;
     }
-  </script>
+
+    const client = await ensureSupabaseClient();
+
+    console.log("📦 Adding product...", { barcode, name, stock, units, price: buyInPrice, vendor_id: vendorId }, new Date().toISOString());
+
+    // 1. Insert product (❌ no stock column anymore)
+    const { data: product, error: productError } = await client
+      .from("products")
+      .insert([{
+        barcode,
+        name,
+        price: buyInPrice,
+        vendor_id: vendorId,
+        units
+      }])
+      .select("id")
+      .single();
+
+    if (productError) {
+      console.error("❌ Failed to insert product:", productError);
+      alert("Failed to add product");
+      return;
+    }
+
+    // 2. Generate batch number (DDMMYY)
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, "0");
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const yy = String(now.getFullYear()).slice(-2);
+    const batchNumber = `${dd}${mm}${yy}`;
+
+    // 3. Insert initial batch
+    const { error: batchError } = await client
+      .from("product_batches")
+      .insert([{
+        product_id: product.id,
+        vendor_id: vendorId,
+        batch_number: batchNumber,
+        quantity: stock,
+        remaining_quantity: stock,
+        buy_in_price: buyInPrice,
+        created_at: new Date().toISOString()
+      }]);
+
+    if (batchError) {
+      console.error("❌ Failed to insert batch:", batchError);
+      alert("Product added, but batch creation failed.");
+      return;
+    }
+
+    alert("✅ Product and initial batch added successfully");
+    e.target.reset();
+    loadProducts(); // refresh table
+  });
+
+  // ✅ Delete only a batch (not the whole product)
+  async function deleteBatch(batchId) {
+    if (!confirm("Are you sure you want to delete this batch?")) return;
+
+    const client = await ensureSupabaseClient();
+
+    const { error } = await client
+      .from("product_batches")
+      .delete()
+      .eq("id", batchId);
+
+    if (error) {
+      console.error("❌ Failed to delete batch:", error);
+      alert("Failed to delete batch.");
+      return;
+    }
+
+    console.log("🗑️ Batch deleted:", batchId);
+    alert("✅ Batch deleted successfully");
+    loadProducts(); // refresh table
+  }
+</script>
 </body>
 </html>
