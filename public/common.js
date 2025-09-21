@@ -1390,32 +1390,62 @@ function handleAddProduct(event) {
   addProduct(product);
 }
 
-async function addProduct(product) {
-  console.log('Adding product...', product, new Date().toISOString());
-  try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
-    const { data, error } = await client
-      .from('products')
-      .insert(product)
-      .select();
-    if (error) throw error;
-    console.log('Product added:', data, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品添加成功' : 'Product added successfully'}`;
-    clearMessage('message', 10000);
-    loadProducts();
-  } catch (error) {
-    console.error('Error adding product:', error.message, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加產品失敗：${error.message}` : `Failed to add product: ${error.message}`}`;
-      clearMessage('error', 10000);
-    }
-  } finally {
-    setLoading(false);
+
+/* =========================================================
+   Add Product + Initial Batch
+   ========================================================= */
+async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31) {
+  const client = await ensureSupabaseClient();
+
+  console.log("📦 Adding product...", { barcode, name, stock, units, price: buyInPrice, vendorId }, new Date().toISOString());
+
+  // 1. Insert product (❌ no stock column anymore)
+  const { data: product, error: productError } = await client
+    .from("products")
+    .insert([{
+      barcode,
+      name,
+      price: buyInPrice,
+      vendor_id: vendorId,
+      units
+    }])
+    .select("id")
+    .single();
+
+  if (productError) {
+    console.error("❌ Failed to insert product:", productError);
+    alert("Failed to add product");
+    return;
   }
+
+  // 2. Generate batch number (DDMMYY)
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yy = String(now.getFullYear()).slice(-2);
+  const batchNumber = `${dd}${mm}${yy}`;
+
+  // 3. Insert initial batch
+  const { error: batchError } = await client
+    .from("product_batches")
+    .insert([{
+      product_id: product.id,
+      vendor_id: vendorId,
+      batch_number: batchNumber,
+      quantity: stock,
+      remaining_quantity: stock,
+      buy_in_price: buyInPrice,
+      created_at: new Date().toISOString()
+    }]);
+
+  if (batchError) {
+    console.error("❌ Failed to insert batch:", batchError);
+    alert("Product added, but batch creation failed.");
+    return;
+  }
+
+  alert("✅ Product and initial batch added successfully");
+  loadProducts(); // refresh table
 }
 
 function handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo, currentUnits) {
