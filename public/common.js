@@ -1317,26 +1317,31 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
    ========================================================= */
 async function loadProducts() {
   console.log("📦 Loading products...");
+
   const client = await ensureSupabaseClient();
 
+  // Get products with their batches
   const { data, error } = await client
     .from("products")
     .select(`
       id,
       barcode,
       name,
-      price,
       units,
       vendor_id,
       product_batches (
+        id,
         batch_number,
+        quantity,
         remaining_quantity,
         buy_in_price
       )
-    `);
+    `)
+    .order("name", { ascending: true });
 
   if (error) {
-    console.error("❌ Error loading products:", error);
+    console.error("❌ Error loading products:", error.message);
+    document.getElementById("error").innerText = "Failed to load products.";
     return;
   }
 
@@ -1345,27 +1350,43 @@ async function loadProducts() {
   const tbody = document.querySelector("#products-table tbody");
   tbody.innerHTML = "";
 
-  data.forEach((p) => {
-    const totalStock = (p.product_batches || []).reduce(
-      (sum, b) => sum + (b.remaining_quantity || 0),
-      0
-    );
-    const latestBatch = (p.product_batches || [])[0];
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="border p-2">${p.barcode}</td>
-      <td class="border p-2">${p.name}</td>
-      <td class="border p-2">${totalStock}</td>
-      <td class="border p-2">${p.units || ""}</td>
-      <td class="border p-2">${latestBatch ? latestBatch.batch_number : "-"}</td>
-      <td class="border p-2">${latestBatch ? latestBatch.buy_in_price.toFixed(2) : "-"}</td>
-      <td class="border p-2">${latestBatch ? (latestBatch.remaining_quantity * latestBatch.buy_in_price).toFixed(2) : "-"}</td>
-      <td class="border p-2">
-        <button class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
+  data.forEach(product => {
+    if (product.product_batches.length === 0) {
+      // Show product even if no batches
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${product.barcode}</td>
+        <td class="border p-2">${product.name}</td>
+        <td class="border p-2">0</td>
+        <td class="border p-2">${product.units || "-"}</td>
+        <td class="border p-2">-</td>
+        <td class="border p-2">-</td>
+        <td class="border p-2">-</td>
+        <td class="border p-2">
+          <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteProduct(${product.id})">Remove</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    } else {
+      // Show all batches
+      product.product_batches.forEach(batch => {
+        const inventoryValue = batch.remaining_quantity * batch.buy_in_price;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="border p-2">${product.barcode}</td>
+          <td class="border p-2">${product.name}</td>
+          <td class="border p-2">${batch.remaining_quantity}</td>
+          <td class="border p-2">${product.units || "-"}</td>
+          <td class="border p-2">${batch.batch_number}</td>
+          <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
+          <td class="border p-2">${inventoryValue.toFixed(2)}</td>
+          <td class="border p-2">
+            <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteProduct(${product.id})">Remove</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
   });
 }
 
