@@ -81,10 +81,10 @@
   // Run when DOM is ready
   document.addEventListener("DOMContentLoaded", () => {
     console.log("📦 Initializing Manage Products page...");
-    loadProducts(); // auto-load products table
+    loadProducts(); // ✅ auto-load products table
     document.getElementById("toggle-language").addEventListener("click", toggleLanguage);
 
-    // ✅ Attach Add Product form submit
+    // Handle Add Product form submit
     document.getElementById("add-product-form").addEventListener("submit", async (e) => {
       e.preventDefault();
 
@@ -93,21 +93,20 @@
       const stock = parseInt(document.getElementById("stock").value, 10);
       const units = document.getElementById("units").value;
       const buyInPrice = parseFloat(document.getElementById("buy-in-price").value);
-      const vendorId = 31; // ⚠️ Hardcoded for now
+      const vendorId = 31; // ⚠️ hardcoded, can replace later
 
       if (!barcode || !name || isNaN(stock) || !units || isNaN(buyInPrice)) {
         alert("⚠️ Please fill in all fields");
         return;
       }
 
-      console.log("📦 Handling add product...", { barcode, name, stock, units, buyInPrice }, new Date().toISOString());
+      console.log("📦 Handling add product...", { barcode, name, stock, units, buyInPrice });
 
-      // ✅ Call the new addProduct with separate args
+      // ✅ Call new addProduct signature
       await addProduct(barcode, name, stock, units, buyInPrice, vendorId);
 
-      // Reset form and reload table
       e.target.reset();
-      loadProducts();
+      loadProducts(); // refresh table
     });
   });
 </script>
