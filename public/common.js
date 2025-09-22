@@ -888,64 +888,7 @@ async function addLoanRecord(event) {
     setLoading(false);
   }
 }
-async function handleAddProduct(event) {
-  event.preventDefault();
-  console.log('Adding product...', new Date().toISOString());
-  try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
 
-    const name = document.getElementById('product-name')?.value?.trim();
-    const barcode = document.getElementById('product-barcode')?.value?.trim();
-    const batchNo = document.getElementById('batch-no')?.value?.trim() || null;
-    const stock = parseInt(document.getElementById('stock')?.value?.replace(/,/g, '') || '0');
-    const price = parseFloat(document.getElementById('price')?.value?.replace(/,/g, '') || '0');
-
-    if (!name || !barcode || !stock || !price) {
-      const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-      const errorEl = document.getElementById('error');
-      if (errorEl) {
-        errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
-        clearMessage('error', 10000);
-      }
-      return;
-    }
-
-    const product = {
-      name,
-      barcode,
-      batch_no: batchNo === 'NO_BATCH' ? null : batchNo,
-      stock,
-      price
-    };
-    console.log('Product data to insert:', product, new Date().toISOString());
-
-    const { data: newProduct, error } = await client
-      .from('products')
-      .insert(product)
-      .select();
-    if (error) {
-      console.error('Supabase error details:', error, new Date().toISOString());
-      throw error;
-    }
-
-    console.log('Product added:', newProduct, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    document.getElementById('message').textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '產品添加成功' : 'Product added successfully'}`;
-    clearMessage('message', 10000);
-    if (typeof loadProducts === 'function') loadProducts();
-  } catch (error) {
-    console.error('Error adding product:', error.message, new Date().toISOString());
-    const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? `添加產品失敗：${error.message}` : `Failed to add product: ${error.message}`}`;
-      clearMessage('error', 10000);
-    }
-  } finally {
-    setLoading(false);
-  }
-}
 
 
 function handleDeleteLoanRecord(loanId) {
