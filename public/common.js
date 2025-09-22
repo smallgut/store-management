@@ -1431,7 +1431,27 @@ async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31
   loadProducts(); // refresh table
 }
 
+/* =========================================================
+   Handle Add Product Form Submit
+   ========================================================= */
+async function handleAddProduct(event) {
+  event.preventDefault();
+  console.log("📦 Handling add product...", new Date().toISOString());
 
+  const barcode = document.getElementById("product-barcode").value.trim();
+  const name = document.getElementById("product-name").value.trim();
+  const stock = parseInt(document.getElementById("stock").value, 10);
+  const units = document.getElementById("units").value;
+  const buyInPrice = parseFloat(document.getElementById("buy-in-price").value);
+
+  if (!barcode || !name || isNaN(stock) || !units || isNaN(buyInPrice)) {
+    alert("⚠️ Please fill in all product fields");
+    return;
+  }
+
+  await addProduct(barcode, name, stock, units, buyInPrice);
+  event.target.reset();
+}
 
 
 function handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo, currentUnits) {
