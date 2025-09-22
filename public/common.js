@@ -1406,25 +1406,28 @@ async function deleteBatch(batchId) {
 
 function handleAddProduct(event) {
   event.preventDefault();
-  console.log('Handling add product...', new Date().toISOString());
+  console.log('📦 Handling add product...', new Date().toISOString());
+
   const barcode = document.getElementById('product-barcode')?.value?.trim();
   const name = document.getElementById('product-name')?.value?.trim();
   const stock = parseInt(document.getElementById('stock')?.value?.replace(/,/g, '') || '0');
   const units = document.getElementById('units')?.value?.trim();
-  const price = parseFloat(document.getElementById('buy-in-price')?.value?.replace(/,/g, '') || '0');
+  const buyInPrice = parseFloat(document.getElementById('buy-in-price')?.value?.replace(/,/g, '') || '0');
 
-  if (!barcode || !name || !stock || !units || !price) {
+  if (!barcode || !name || !stock || !units || !buyInPrice) {
     const isChinese = document.getElementById('lang-body')?.classList.contains('lang-zh');
     const errorEl = document.getElementById('error');
     if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'}`;
+      errorEl.textContent = `[${new Date().toISOString().replace('Z', '+08:00')}] ${
+        isChinese ? '請填寫所有必填字段' : 'Please fill in all required fields'
+      }`;
       clearMessage('error', 10000);
     }
     return;
   }
 
-  const product = { barcode, name, stock, units, price, batch_no: getGMT8Date() };
-  addProduct(product);
+  // ✅ Call new addProduct signature
+  addProduct(barcode, name, stock, units, buyInPrice);
 }
 
 
