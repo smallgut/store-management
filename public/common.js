@@ -1256,10 +1256,7 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
 }
 
 /* =========================================================
-   Load Products (Manage Products page)
-   ========================================================= */
-/* =========================================================
-   Load Products + Batches into Table
+   Load Products (batch-centric)
    ========================================================= */
 async function loadProducts() {
   console.log("📦 Loading products...");
@@ -1273,7 +1270,6 @@ async function loadProducts() {
       quantity,
       remaining_quantity,
       buy_in_price,
-      created_at,
       products (
         id,
         barcode,
@@ -1281,7 +1277,7 @@ async function loadProducts() {
         units
       )
     `)
-    .order("created_at", { ascending: false });
+    .order("id", { ascending: true });
 
   if (error) {
     console.error("❌ Error loading products:", error);
@@ -1293,36 +1289,25 @@ async function loadProducts() {
   const tbody = document.querySelector("#products-table tbody");
   tbody.innerHTML = "";
 
-  if (!data || data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center p-2">No products found</td></tr>`;
-    return;
-  }
-
   data.forEach(batch => {
     const row = document.createElement("tr");
 
-    const inventoryValue = (batch.remaining_quantity * batch.buy_in_price).toFixed(2);
-
     row.innerHTML = `
-      <td class="border p-2">${batch.products?.barcode || "-"}</td>
-      <td class="border p-2">${batch.products?.name || "-"}</td>
+      <td class="border p-2">${batch.products.barcode}</td>
+      <td class="border p-2">${batch.products.name}</td>
       <td class="border p-2">${batch.remaining_quantity}</td>
-      <td class="border p-2">${batch.products?.units || "-"}</td>
+      <td class="border p-2">${batch.products.units}</td>
       <td class="border p-2">${batch.batch_number}</td>
       <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
-      <td class="border p-2">${inventoryValue}</td>
+      <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
       <td class="border p-2">
-        <button onclick="deleteBatch(${batch.id})" 
-          class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
-          Remove
-        </button>
+        <button onclick="deleteBatch(${batch.id})" class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
       </td>
     `;
 
     tbody.appendChild(row);
   });
 }
-
 /* =========================================================
    Delete Batch (not whole product)
    ========================================================= */
@@ -1330,11 +1315,7 @@ async function deleteBatch(batchId) {
   if (!confirm("Are you sure you want to delete this batch?")) return;
 
   const client = await ensureSupabaseClient();
-
-  const { error } = await client
-    .from("product_batches")
-    .delete()
-    .eq("id", batchId);
+  const { error } = await client.from("product_batches").delete().eq("id", batchId);
 
   if (error) {
     console.error("❌ Failed to delete batch:", error);
@@ -1344,9 +1325,8 @@ async function deleteBatch(batchId) {
 
   console.log("🗑️ Batch deleted:", batchId);
   alert("✅ Batch deleted successfully");
-  loadProducts(); // refresh table
+  await loadProducts();
 }
-
 
 
 /* =========================================================
@@ -1355,18 +1335,12 @@ async function deleteBatch(batchId) {
 async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31) {
   const client = await ensureSupabaseClient();
 
-  console.log("📦 Adding product...", { barcode, name, stock, units, price: buyInPrice, vendorId }, new Date().toISOString());
+  console.log("📦 Adding product...", { barcode, name, stock, units, buyInPrice, vendorId }, new Date().toISOString());
 
-  // 1. Insert product (❌ no stock column anymore)
+  // Insert product
   const { data: product, error: productError } = await client
     .from("products")
-    .insert([{
-      barcode,
-      name,
-      price: buyInPrice,
-      vendor_id: vendorId,
-      units
-    }])
+    .insert([{ barcode, name, price: buyInPrice, vendor_id: vendorId, units }])
     .select("id")
     .single();
 
@@ -1376,14 +1350,14 @@ async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31
     return;
   }
 
-  // 2. Generate batch number (DDMMYY)
+  // Generate batch number (DDMMYY)
   const now = new Date();
   const dd = String(now.getDate()).padStart(2, "0");
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const yy = String(now.getFullYear()).slice(-2);
   const batchNumber = `${dd}${mm}${yy}`;
 
-  // 3. Insert initial batch
+  // Insert initial batch
   const { error: batchError } = await client
     .from("product_batches")
     .insert([{
@@ -1403,30 +1377,36 @@ async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31
   }
 
   alert("✅ Product and initial batch added successfully");
-  loadProducts(); // refresh table
+  await loadProducts();
 }
-
 /* =========================================================
    Handle Add Product Form Submit
    ========================================================= */
-async function handleAddProduct(event) {
-  event.preventDefault();
-  console.log("📦 Handling add product...", new Date().toISOString());
+function setupAddProductForm() {
+  const form = document.getElementById("add-product-form");
+  if (!form) return;
 
-  const barcode = document.getElementById("product-barcode").value.trim();
-  const name = document.getElementById("product-name").value.trim();
-  const stock = parseInt(document.getElementById("stock").value, 10);
-  const units = document.getElementById("units").value;
-  const buyInPrice = parseFloat(document.getElementById("buy-in-price").value);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  if (!barcode || !name || isNaN(stock) || !units || isNaN(buyInPrice)) {
-    alert("⚠️ Please fill in all product fields");
-    return;
-  }
+    const barcode = document.getElementById("product-barcode").value.trim();
+    const name = document.getElementById("product-name").value.trim();
+    const stock = parseInt(document.getElementById("stock").value, 10);
+    const units = document.getElementById("units").value;
+    const buyInPrice = parseFloat(document.getElementById("buy-in-price").value);
 
-  await addProduct(barcode, name, stock, units, buyInPrice);
-  event.target.reset();
+    if (!barcode || !name || isNaN(stock) || !units || isNaN(buyInPrice)) {
+      alert("⚠️ Please fill in all fields");
+      return;
+    }
+
+    console.log("📦 Handling add product...", { barcode, name, stock, units, buyInPrice });
+    await addProduct(barcode, name, stock, units, buyInPrice);
+
+    e.target.reset();
+  });
 }
+
 
 
 function handleUpdateProduct(productId, currentStock, currentPrice, currentBatchNo, currentUnits) {
