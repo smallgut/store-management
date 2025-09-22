@@ -1262,123 +1262,126 @@ async function loadProducts() {
   console.log("📦 Loading products...");
   const client = await ensureSupabaseClient();
 
-  const { data, error } = await client
-    .from("product_batches")
-    .select(`
-      id,
-      batch_number,
-      quantity,
-      remaining_quantity,
-      buy_in_price,
-      products (
+  try {
+    const { data, error } = await client
+      .from("product_batches")
+      .select(`
         id,
-        barcode,
-        name,
-        units
-      )
-    `)
-    .order("id", { ascending: true });
+        batch_number,
+        stock,
+        buy_in_price,
+        product:products(id, barcode, name, units)
+      `)
+      .order("id", { ascending: true });
 
-  if (error) {
-    console.error("❌ Error loading products:", error);
-    return;
+    if (error) throw error;
+
+    console.log("✅ Products loaded:", data);
+
+    const tbody = document.querySelector("#products-table tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    data.forEach((row) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${row.product.barcode}</td>
+        <td class="border p-2">${row.product.name}</td>
+        <td class="border p-2">${row.stock}</td>
+        <td class="border p-2">${row.product.units}</td>
+        <td class="border p-2">${row.batch_number}</td>
+        <td class="border p-2">${row.buy_in_price.toFixed(2)}</td>
+        <td class="border p-2">${(row.stock * row.buy_in_price).toFixed(2)}</td>
+        <td class="border p-2">
+          <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+            onclick="deleteBatch(${row.id})">Remove</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("❌ Failed to load products:", err);
+    alert("Failed to load products: " + err.message);
   }
-
-  console.log("✅ Products loaded:", data);
-
-  const tbody = document.querySelector("#products-table tbody");
-  tbody.innerHTML = "";
-
-  data.forEach(batch => {
-    const row = document.createElement("tr");
-
-    row.innerHTML = `
-      <td class="border p-2">${batch.products.barcode}</td>
-      <td class="border p-2">${batch.products.name}</td>
-      <td class="border p-2">${batch.remaining_quantity}</td>
-      <td class="border p-2">${batch.products.units}</td>
-      <td class="border p-2">${batch.batch_number}</td>
-      <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
-      <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
-      <td class="border p-2">
-        <button onclick="deleteBatch(${batch.id})" class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
-      </td>
-    `;
-
-    tbody.appendChild(row);
-  });
 }
 /* =========================================================
    Delete Batch (not whole product)
    ========================================================= */
 async function deleteBatch(batchId) {
-  if (!confirm("Are you sure you want to delete this batch?")) return;
-
+  console.log("🗑️ Deleting batch:", batchId);
   const client = await ensureSupabaseClient();
-  const { error } = await client.from("product_batches").delete().eq("id", batchId);
-
-  if (error) {
-    console.error("❌ Failed to delete batch:", error);
-    alert("Failed to delete batch.");
-    return;
+  try {
+    const { error } = await client.from("product_batches").delete().eq("id", batchId);
+    if (error) throw error;
+    console.log("🗑️ Batch deleted:", batchId);
+    if (typeof loadProducts === "function") loadProducts();
+  } catch (err) {
+    console.error("❌ Failed to delete batch:", err);
+    alert("Failed to delete batch: " + err.message);
   }
-
-  console.log("🗑️ Batch deleted:", batchId);
-  alert("✅ Batch deleted successfully");
-  await loadProducts();
 }
-
 
 /* =========================================================
    Add Product + Initial Batch
    ========================================================= */
-async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31) {
+
+async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = null) {
+  console.log("📦 Adding product...", { barcode, name, stock, units, price: buyInPrice, vendorId });
+
   const client = await ensureSupabaseClient();
 
-  console.log("📦 Adding product...", { barcode, name, stock, units, buyInPrice, vendorId }, new Date().toISOString());
+  try {
+    setLoading(true);
 
-  // Insert product
-  const { data: product, error: productError } = await client
-    .from("products")
-    .insert([{ barcode, name, price: buyInPrice, vendor_id: vendorId, units }])
-    .select("id")
-    .single();
+    // 1️⃣ Insert or fetch product
+    const { data: productRows, error: productError } = await client
+      .from("products")
+      .insert({
+        barcode,
+        name,
+        units,
+        vendor_id: vendorId,
+        price: buyInPrice, // optional sale price field if needed
+      })
+      .select("id")
+      .single();
 
-  if (productError) {
-    console.error("❌ Failed to insert product:", productError);
-    alert("Failed to add product");
-    return;
-  }
+    if (productError && productError.code !== "23505") throw productError;
 
-  // Generate batch number (DDMMYY)
-  const now = new Date();
-  const dd = String(now.getDate()).padStart(2, "0");
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const yy = String(now.getFullYear()).slice(-2);
-  const batchNumber = `${dd}${mm}${yy}`;
+    let productId = productRows?.id;
 
-  // Insert initial batch
-  const { error: batchError } = await client
-    .from("product_batches")
-    .insert([{
-      product_id: product.id,
-      vendor_id: vendorId,
-      batch_number: batchNumber,
-      quantity: stock,
-      remaining_quantity: stock,
+    // if product already exists, fetch it
+    if (!productId) {
+      const { data: existing, error: fetchErr } = await client
+        .from("products")
+        .select("id")
+        .eq("barcode", barcode)
+        .single();
+      if (fetchErr) throw fetchErr;
+      productId = existing.id;
+    }
+
+    // 2️⃣ Create new batch
+    const batchNo = "BATCH-" + Date.now();
+    const { error: batchError } = await client.from("product_batches").insert({
+      product_id: productId,
+      batch_number: batchNo,
+      stock,
       buy_in_price: buyInPrice,
-      created_at: new Date().toISOString()
-    }]);
+    });
 
-  if (batchError) {
-    console.error("❌ Failed to insert batch:", batchError);
-    alert("Product added, but batch creation failed.");
-    return;
+    if (batchError) throw batchError;
+
+    console.log("✅ Product + batch inserted");
+    if (typeof loadProducts === "function") loadProducts();
+  } catch (err) {
+    console.error("❌ Failed to insert product:", err);
+    alert("Failed to add product: " + err.message);
+  } finally {
+    setLoading(false);
   }
-
-  alert("✅ Product and initial batch added successfully");
-  await loadProducts();
 }
+
 /* =========================================================
    Handle Add Product Form Submit
    ========================================================= */
@@ -1394,14 +1397,16 @@ function setupAddProductForm() {
     const stock = parseInt(document.getElementById("stock").value, 10);
     const units = document.getElementById("units").value;
     const buyInPrice = parseFloat(document.getElementById("buy-in-price").value);
+    const vendorId = 31; // hardcoded or replace with real
 
     if (!barcode || !name || isNaN(stock) || !units || isNaN(buyInPrice)) {
-      alert("⚠️ Please fill in all fields");
+      alert("⚠️ Please fill in all product fields");
       return;
     }
 
     console.log("📦 Handling add product...", { barcode, name, stock, units, buyInPrice });
-    await addProduct(barcode, name, stock, units, buyInPrice);
+
+    await addProduct(barcode, name, stock, units, buyInPrice, vendorId);
 
     e.target.reset();
   });
