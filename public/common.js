@@ -1330,13 +1330,18 @@ async function loadProducts() {
       quantity,
       remaining_quantity,
       buy_in_price,
-      product:products(id, name, barcode, units)
+      created_at,
+      products (
+        id,
+        barcode,
+        name,
+        units
+      )
     `)
-    .order("id", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("❌ Error loading products:", error);
-    alert("Failed to load products.");
     return;
   }
 
@@ -1345,19 +1350,29 @@ async function loadProducts() {
   const tbody = document.querySelector("#products-table tbody");
   tbody.innerHTML = "";
 
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center p-2">No products found</td></tr>`;
+    return;
+  }
+
   data.forEach(batch => {
     const row = document.createElement("tr");
 
+    const inventoryValue = (batch.remaining_quantity * batch.buy_in_price).toFixed(2);
+
     row.innerHTML = `
-      <td class="border p-2">${batch.product.barcode}</td>
-      <td class="border p-2">${batch.product.name}</td>
+      <td class="border p-2">${batch.products?.barcode || "-"}</td>
+      <td class="border p-2">${batch.products?.name || "-"}</td>
       <td class="border p-2">${batch.remaining_quantity}</td>
-      <td class="border p-2">${batch.product.units}</td>
+      <td class="border p-2">${batch.products?.units || "-"}</td>
       <td class="border p-2">${batch.batch_number}</td>
       <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
-      <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
+      <td class="border p-2">${inventoryValue}</td>
       <td class="border p-2">
-        <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteBatch(${batch.id})">Remove</button>
+        <button onclick="deleteBatch(${batch.id})" 
+          class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
+          Remove
+        </button>
       </td>
     `;
 
