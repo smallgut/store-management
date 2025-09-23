@@ -1256,7 +1256,7 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
 }
 
 /* =========================================================
-   Load Products (batch-centric)
+   Load Products (batch-centric, fixed to show remaining_quantity)
    ========================================================= */
 async function loadProducts() {
   console.log("📦 Loading products...");
@@ -1291,11 +1291,11 @@ async function loadProducts() {
       tr.innerHTML = `
         <td class="border p-2">${batch.product.barcode}</td>
         <td class="border p-2">${batch.product.name}</td>
-        <td class="border p-2">${batch.quantity}</td>
+        <td class="border p-2">${batch.remaining_quantity} / ${batch.quantity}</td>
         <td class="border p-2">${batch.product.units}</td>
         <td class="border p-2">${batch.batch_number}</td>
         <td class="border p-2">${batch.buy_in_price}</td>
-        <td class="border p-2">${(batch.quantity * batch.buy_in_price).toFixed(2)}</td>
+        <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
         <td class="border p-2">
           <button onclick="deleteBatch(${batch.id})" class="bg-red-500 text-white px-2 py-1 rounded">
             Remove
@@ -1328,9 +1328,8 @@ async function deleteBatch(batchId) {
 }
 
 /* =========================================================
-   Add Product + Initial Batch
+   Add Product + Initial Batch (fixed to use remaining_quantity)
    ========================================================= */
-
 async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = null) {
   console.log("📦 Adding product...", { barcode, name, stock, units, price: buyInPrice, vendorId });
 
@@ -1340,23 +1339,23 @@ async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = nu
     setLoading(true);
 
     // 1️⃣ Insert or fetch product
-    const { data: productRows, error: productError } = await client
+    const { data: productRow, error: productError } = await client
       .from("products")
       .insert({
         barcode,
         name,
         units,
         vendor_id: vendorId,
-        price: buyInPrice, // optional sale price field if needed
+        price: buyInPrice
       })
       .select("id")
       .single();
 
     if (productError && productError.code !== "23505") throw productError;
 
-    let productId = productRows?.id;
+    let productId = productRow?.id;
 
-    // if product already exists, fetch it
+    // If product already exists, fetch it
     if (!productId) {
       const { data: existing, error: fetchErr } = await client
         .from("products")
@@ -1367,12 +1366,13 @@ async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = nu
       productId = existing.id;
     }
 
-    // 2️⃣ Create new batch
+    // 2️⃣ Create new batch (with quantity + remaining_quantity)
     const batchNo = "BATCH-" + Date.now();
     const { error: batchError } = await client.from("product_batches").insert({
       product_id: productId,
       batch_number: batchNo,
-      stock,
+      quantity: stock,
+      remaining_quantity: stock,
       buy_in_price: buyInPrice,
     });
 
