@@ -1268,42 +1268,48 @@ async function loadProducts() {
       .select(`
         id,
         batch_number,
-        stock,
+        quantity,
+        remaining_quantity,
         buy_in_price,
-        product:products(id, barcode, name, units)
+        product:products (
+          id,
+          barcode,
+          name,
+          units
+        )
       `)
       .order("id", { ascending: true });
 
     if (error) throw error;
-
     console.log("✅ Products loaded:", data);
 
     const tbody = document.querySelector("#products-table tbody");
-    if (!tbody) return;
     tbody.innerHTML = "";
 
-    data.forEach((row) => {
+    data.forEach(batch => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="border p-2">${row.product.barcode}</td>
-        <td class="border p-2">${row.product.name}</td>
-        <td class="border p-2">${row.stock}</td>
-        <td class="border p-2">${row.product.units}</td>
-        <td class="border p-2">${row.batch_number}</td>
-        <td class="border p-2">${row.buy_in_price.toFixed(2)}</td>
-        <td class="border p-2">${(row.stock * row.buy_in_price).toFixed(2)}</td>
+        <td class="border p-2">${batch.product.barcode}</td>
+        <td class="border p-2">${batch.product.name}</td>
+        <td class="border p-2">${batch.quantity}</td>
+        <td class="border p-2">${batch.product.units}</td>
+        <td class="border p-2">${batch.batch_number}</td>
+        <td class="border p-2">${batch.buy_in_price}</td>
+        <td class="border p-2">${(batch.quantity * batch.buy_in_price).toFixed(2)}</td>
         <td class="border p-2">
-          <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-            onclick="deleteBatch(${row.id})">Remove</button>
+          <button onclick="deleteBatch(${batch.id})" class="bg-red-500 text-white px-2 py-1 rounded">
+            Remove
+          </button>
         </td>
       `;
       tbody.appendChild(tr);
     });
   } catch (err) {
     console.error("❌ Failed to load products:", err);
-    alert("Failed to load products: " + err.message);
+    alert("Failed to load products table.");
   }
 }
+
 /* =========================================================
    Delete Batch (not whole product)
    ========================================================= */
