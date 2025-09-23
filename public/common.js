@@ -1328,64 +1328,60 @@ async function deleteBatch(batchId) {
 }
 
 /* =========================================================
-   Add Product + Initial Batch (fixed to use remaining_quantity)
+   Add Product + Initial Batch
    ========================================================= */
-async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = null) {
-  console.log("📦 Adding product...", { barcode, name, stock, units, price: buyInPrice, vendorId });
-
+async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31) {
   const client = await ensureSupabaseClient();
 
-  try {
-    setLoading(true);
+  console.log("📦 Adding product...", { barcode, name, stock, units, price: buyInPrice, vendorId }, new Date().toISOString());
 
-    // 1️⃣ Insert or fetch product
-    const { data: productRow, error: productError } = await client
-      .from("products")
-      .insert({
-        barcode,
-        name,
-        units,
-        vendor_id: vendorId,
-        price: buyInPrice
-      })
-      .select("id")
-      .single();
+  // 1. Insert product (⚠️ no stock column in products anymore)
+  const { data: product, error: productError } = await client
+    .from("products")
+    .insert([{
+      barcode,
+      name,
+      price: buyInPrice,
+      vendor_id: vendorId,
+      units
+    }])
+    .select("id")
+    .single();
 
-    if (productError && productError.code !== "23505") throw productError;
-
-    let productId = productRow?.id;
-
-    // If product already exists, fetch it
-    if (!productId) {
-      const { data: existing, error: fetchErr } = await client
-        .from("products")
-        .select("id")
-        .eq("barcode", barcode)
-        .single();
-      if (fetchErr) throw fetchErr;
-      productId = existing.id;
-    }
-
-    // 2️⃣ Create new batch (with quantity + remaining_quantity)
-    // ✅ Generate compact batch number (YYMMDD + random 3 digits, max 12 chars)
-const now = new Date();
-const yy = String(now.getFullYear()).slice(-2);
-const mm = String(now.getMonth() + 1).padStart(2, "0");
-const dd = String(now.getDate()).padStart(2, "0");
-const rand = Math.floor(100 + Math.random() * 900); // 100-999
-const batchNo = `${yy}${mm}${dd}-${rand}`;
-    });
-
-    if (batchError) throw batchError;
-
-    console.log("✅ Product + batch inserted");
-    if (typeof loadProducts === "function") loadProducts();
-  } catch (err) {
-    console.error("❌ Failed to insert product:", err);
-    alert("Failed to add product: " + err.message);
-  } finally {
-    setLoading(false);
+  if (productError) {
+    console.error("❌ Failed to insert product:", productError);
+    alert("Failed to add product");
+    return;
   }
+
+  // 2. ✅ Generate compact batch number (YYMMDD + random 3 digits, max 12 chars)
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const rand = Math.floor(100 + Math.random() * 900); // 100-999
+  const batchNo = `${yy}${mm}${dd}-${rand}`;
+
+  // 3. Insert initial batch (⚠️ use remaining_quantity, not stock column)
+  const { error: batchError } = await client
+    .from("product_batches")
+    .insert([{
+      product_id: product.id,
+      vendor_id: vendorId,
+      batch_number: batchNo,
+      remaining_quantity: stock, // ✅ only remaining_quantity
+      buy_in_price: buyInPrice,
+      created_at: new Date().toISOString()
+    }]);
+
+  if (batchError) {
+    console.error("❌ Failed to insert batch:", batchError);
+    alert("Product added, but batch creation failed.");
+    return;
+  }
+
+  alert("✅ Product and initial batch added successfully");
+  loadProducts(); // refresh table
 }
 
 /* =========================================================
