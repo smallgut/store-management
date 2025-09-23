@@ -1367,13 +1367,13 @@ async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = nu
     }
 
     // 2️⃣ Create new batch (with quantity + remaining_quantity)
-    const batchNo = "BATCH-" + Date.now();
-    const { error: batchError } = await client.from("product_batches").insert({
-      product_id: productId,
-      batch_number: batchNo,
-      quantity: stock,
-      remaining_quantity: stock,
-      buy_in_price: buyInPrice,
+    // ✅ Generate compact batch number (YYMMDD + random 3 digits, max 12 chars)
+const now = new Date();
+const yy = String(now.getFullYear()).slice(-2);
+const mm = String(now.getMonth() + 1).padStart(2, "0");
+const dd = String(now.getDate()).padStart(2, "0");
+const rand = Math.floor(100 + Math.random() * 900); // 100-999
+const batchNo = `${yy}${mm}${dd}-${rand}`;
     });
 
     if (batchError) throw batchError;
