@@ -1268,7 +1268,6 @@ async function loadProducts() {
       .select(`
         id,
         batch_number,
-        quantity,
         remaining_quantity,
         buy_in_price,
         product:products (
@@ -1294,7 +1293,7 @@ async function loadProducts() {
         <td class="border p-2">${batch.product.name}</td>
         <td class="border p-2">${batch.remaining_quantity}</td>
         <td class="border p-2">${batch.product.units}</td>
-        <td class="border p-2">${batch.batch_number}</td> <!-- ✅ compact batch number -->
+        <td class="border p-2">${batch.batch_number}</td>
         <td class="border p-2">${batch.buy_in_price}</td>
         <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
         <td class="border p-2">
@@ -1361,15 +1360,14 @@ async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31
   const rand = Math.floor(100 + Math.random() * 900);
   const batchNo = `${yy}${mm}${dd}-${rand}`;
 
-  // 3. Insert initial batch (⚠️ include quantity + remaining_quantity)
+  // 3. Insert initial batch (⚠️ no more `quantity`)
   const { error: batchError } = await client
     .from("product_batches")
     .insert([{
       product_id: product.id,
       vendor_id: vendorId,
       batch_number: batchNo,
-      quantity: stock,              // ✅ needed by schema
-      remaining_quantity: stock,    // ✅ main field for stock tracking
+      remaining_quantity: stock,
       buy_in_price: buyInPrice,
       created_at: new Date().toISOString()
     }]);
