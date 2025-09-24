@@ -1259,10 +1259,10 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
    Load Products (batch-centric, fixed to show remaining_quantity)
    ========================================================= */
 async function loadProducts() {
-  console.log("📦 Loading products...");
   const client = await ensureSupabaseClient();
-
   try {
+    console.log("📦 Loading products...");
+
     const { data, error } = await client
       .from("product_batches")
       .select(`
@@ -1281,6 +1281,7 @@ async function loadProducts() {
       .order("id", { ascending: true });
 
     if (error) throw error;
+
     console.log("✅ Products loaded:", data);
 
     const tbody = document.querySelector("#products-table tbody");
@@ -1291,22 +1292,20 @@ async function loadProducts() {
       tr.innerHTML = `
         <td class="border p-2">${batch.product.barcode}</td>
         <td class="border p-2">${batch.product.name}</td>
-        <td class="border p-2">${batch.remaining_quantity} / ${batch.quantity}</td>
+        <td class="border p-2">${batch.remaining_quantity}</td>
         <td class="border p-2">${batch.product.units}</td>
-        <td class="border p-2">${batch.batch_number}</td>
+        <td class="border p-2">${batch.batch_number}</td> <!-- ✅ compact batch number -->
         <td class="border p-2">${batch.buy_in_price}</td>
         <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
         <td class="border p-2">
-          <button onclick="deleteBatch(${batch.id})" class="bg-red-500 text-white px-2 py-1 rounded">
-            Remove
-          </button>
+          <button onclick="deleteBatch(${batch.id})" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
+
   } catch (err) {
     console.error("❌ Failed to load products:", err);
-    alert("Failed to load products table.");
   }
 }
 
@@ -1335,7 +1334,7 @@ async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31
 
   console.log("📦 Adding product...", { barcode, name, stock, units, price: buyInPrice, vendorId }, new Date().toISOString());
 
-  // 1. Insert product (⚠️ no stock column in products anymore)
+  // 1. Insert product
   const { data: product, error: productError } = await client
     .from("products")
     .insert([{
@@ -1354,22 +1353,23 @@ async function addProduct(barcode, name, stock, units, buyInPrice, vendorId = 31
     return;
   }
 
-  // 2. ✅ Generate compact batch number (YYMMDD + random 3 digits, max 12 chars)
+  // 2. Compact batch number (YYMMDD-XYZ)
   const now = new Date();
   const yy = String(now.getFullYear()).slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
-  const rand = Math.floor(100 + Math.random() * 900); // 100-999
+  const rand = Math.floor(100 + Math.random() * 900);
   const batchNo = `${yy}${mm}${dd}-${rand}`;
 
-  // 3. Insert initial batch (⚠️ use remaining_quantity, not stock column)
+  // 3. Insert initial batch (⚠️ include quantity + remaining_quantity)
   const { error: batchError } = await client
     .from("product_batches")
     .insert([{
       product_id: product.id,
       vendor_id: vendorId,
       batch_number: batchNo,
-      remaining_quantity: stock, // ✅ only remaining_quantity
+      quantity: stock,              // ✅ needed by schema
+      remaining_quantity: stock,    // ✅ main field for stock tracking
       buy_in_price: buyInPrice,
       created_at: new Date().toISOString()
     }]);
