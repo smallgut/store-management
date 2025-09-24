@@ -1314,15 +1314,15 @@ async function loadProducts() {
 async function deleteBatch(batchId) {
   console.log("🗑️ Deleting batch:", batchId);
   const client = await ensureSupabaseClient();
-  try {
-    const { error } = await client.from("product_batches").delete().eq("id", batchId);
-    if (error) throw error;
-    console.log("🗑️ Batch deleted:", batchId);
-    if (typeof loadProducts === "function") loadProducts();
-  } catch (err) {
-    console.error("❌ Failed to delete batch:", err);
-    alert("Failed to delete batch: " + err.message);
+
+  const { error } = await client.from("product_batches").delete().eq("id", batchId);
+  if (error) {
+    console.error("❌ Failed to delete batch:", error);
+    return;
   }
+
+  console.log("🗑️ Batch deleted:", batchId);
+  loadProducts();
 }
 
 /* =========================================================
