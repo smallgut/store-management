@@ -1338,9 +1338,16 @@ async function loadProducts() {
 }
 
 /* =========================================================
-   Delete a Batch (safe confirmation, only update UI on success)
+   Delete a Batch (with confirmation & safe UI update)
    ========================================================= */
 async function deleteBatch(batchId) {
+  // ✅ Confirm with user before proceeding
+  const isSure = confirm(`Are you sure you want to delete batch ${batchId}?`);
+  if (!isSure) {
+    console.log("❌ Deletion cancelled by user");
+    return;
+  }
+
   try {
     console.log("🗑️ Deleting batch:", batchId);
 
@@ -1356,11 +1363,11 @@ async function deleteBatch(batchId) {
 
     console.log("🗑️ Batch deleted:", batchId);
 
-    // ✅ Remove row from table directly after confirmed deletion
+    // ✅ Remove row directly after confirmed deletion
     const row = document.querySelector(`#products-table tr[data-batch-id="${batchId}"]`);
     if (row) row.remove();
 
-    // ✅ Optionally show success message
+    // ✅ Show success message
     const msgEl = document.getElementById("message");
     if (msgEl) {
       msgEl.textContent = `[${new Date().toISOString().replace("Z", "+08:00")}] Batch ${batchId} deleted successfully`;
