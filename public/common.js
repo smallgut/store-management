@@ -1328,15 +1328,29 @@ async function loadProducts() {
   }
 }
 
-/* =========================================================
-   Delete Batch
-   ========================================================= */
-async function deleteBatch(batchId, batchNumber) {
+// ==========================================
+// Delete a batch (with confirmation)
+// ==========================================
+async function deleteBatch(batchId) {
   try {
+    // Find the row in the table
+    const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
+    if (!row) {
+      console.error("⚠️ Row not found for batch id:", batchId);
+      return;
+    }
+
+    // Get batch number from the row’s data attribute
+    const batchNumber = row.getAttribute("data-batch-number");
+
+    // Confirm with the user
+    if (!confirm(`Are you sure you want to delete batch ${batchNumber}?`)) {
+      return; // user cancelled
+    }
+
     console.log("🗑️ Deleting batch:", batchId);
 
-    if (!confirm(`Are you sure you want to delete batch ${batchNumber}?`)) return;
-
+    // Delete from Supabase
     const { error } = await supabase
       .from("product_batches")
       .delete()
@@ -1346,19 +1360,19 @@ async function deleteBatch(batchId, batchNumber) {
 
     console.log("🗑️ Batch deleted:", batchId);
 
-    // Remove the row from the table immediately
-    const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
-    if (row) row.remove();
+    // Remove row from table
+    row.remove();
 
-    // Show success message
+    // ✅ Show green success message
     const msg = document.getElementById("message");
     if (msg) {
-      msg.textContent = "Deleted successfully ✅";
-      msg.className = "text-green-500";
-      setTimeout(() => (msg.textContent = ""), 3000);
+      msg.textContent = `Batch ${batchNumber} deleted successfully ✅`;
+      msg.classList.remove("text-red-500");
+      msg.classList.add("text-green-500");
+      setTimeout(() => (msg.textContent = ""), 4000);
     }
   } catch (err) {
-    console.error("❌ Failed to delete batch:", err.message);
+    console.error("❌ Failed to delete batch:", err);
     const errorDiv = document.getElementById("error");
     if (errorDiv) {
       errorDiv.textContent = "Error deleting batch: " + err.message;
