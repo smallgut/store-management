@@ -1255,17 +1255,14 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
   }
 }
 
-/* =========================================================
-   Load Products (batch-centric, with Adjust + Remove)
-   ========================================================= */
+// ==========================================
+// Load products with their batches
+// ==========================================
 async function loadProducts() {
-  console.log("📦 Loading products...");
-
   try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
+    console.log("📦 Loading products...");
 
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from("product_batches")
       .select(`
         id,
@@ -1286,53 +1283,48 @@ async function loadProducts() {
     console.log("✅ Products loaded:", data);
 
     const tableBody = document.querySelector("#products-table tbody");
-    if (!tableBody) return;
-    tableBody.innerHTML = "";
+    tableBody.innerHTML = ""; // clear table
 
-    if (!data || data.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-2">No products found</td></tr>`;
-      return;
-    }
-
-    let rows = "";
     data.forEach((batch) => {
-      rows += `
-        <tr data-batch-id="${batch.id}">
-          <td class="border p-2">${batch.product?.barcode || ""}</td>
-          <td class="border p-2">${batch.product?.name || ""}</td>
-          <td class="border p-2">${batch.remaining_quantity}</td>
-          <td class="border p-2">${batch.product?.units || ""}</td>
-          <td class="border p-2">${batch.batch_number}</td>
-          <td class="border p-2">${batch.buy_in_price?.toFixed(2) || "0.00"}</td>
-          <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
-          <td class="border p-2 space-x-2">
-            <button 
-              class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-              onclick="adjustBatch(${batch.id}, '${batch.batch_number}', ${batch.remaining_quantity}, ${batch.buy_in_price})"
-            >
-              Adjust
-            </button>
-            <button 
-              class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-              onclick="deleteBatch(${batch.id}, '${batch.batch_number}')"
-            >
-              Remove
-            </button>
-          </td>
-        </tr>
-      `;
-    });
+      const tr = document.createElement("tr");
 
-    tableBody.innerHTML = rows;
+      // ✅ store both batch id and batch_number for delete/adjust
+      tr.setAttribute("data-batch-id", batch.id);
+      tr.setAttribute("data-batch-number", batch.batch_number);
+
+      tr.innerHTML = `
+        <td class="border p-2">${batch.product?.barcode || ""}</td>
+        <td class="border p-2">${batch.product?.name || ""}</td>
+        <td class="border p-2">${batch.remaining_quantity}</td>
+        <td class="border p-2">${batch.product?.units || ""}</td>
+        <td class="border p-2">${batch.batch_number}</td>
+        <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
+        <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
+        <td class="border p-2 space-x-2">
+          <button 
+            class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+            onclick="adjustBatch(${batch.id}, '${batch.batch_number}', ${batch.remaining_quantity}, ${batch.buy_in_price})"
+          >
+            Adjust
+          </button>
+          <button 
+            class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+            onclick="deleteBatch(${batch.id}, '${batch.batch_number}')"
+          >
+            Remove
+          </button>
+        </td>
+      `;
+
+      tableBody.appendChild(tr);
+    });
   } catch (err) {
-    console.error("❌ Unexpected error loading products:", err);
-    const errorEl = document.getElementById("error");
-    if (errorEl) {
-      errorEl.textContent = `❌ Failed to load products: ${err.message}`;
-      setTimeout(() => (errorEl.textContent = ""), 4000);
+    console.error("❌ Failed to load products:", err);
+    const errorDiv = document.getElementById("error");
+    if (errorDiv) {
+      errorDiv.textContent = "Error loading products: " + err.message;
+      setTimeout(() => (errorDiv.textContent = ""), 5000);
     }
-  } finally {
-    setLoading(false);
   }
 }
 
