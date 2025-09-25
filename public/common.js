@@ -1336,47 +1336,46 @@ async function loadProducts() {
 /* =========================================================
    Delete a Batch (with confirmation & safe Supabase update)
    ========================================================= */
-async function deleteBatch(batchId, batchNumber) {
-  // Show batch_number in confirm, but use id for Supabase deletion
-  const isSure = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
-  if (!isSure) {
-    console.log("❌ Deletion cancelled by user");
-    return;
-  }
+async function deleteBatch(batchId) {
+  console.log("🗑️ Deleting batch:", batchId);
 
   try {
-    console.log("🗑️ Deleting batch id:", batchId);
+    // 🔍 First fetch batch_number for friendly confirm
+    const { data: batchData, error: fetchError } = await supabase
+      .from("product_batches")
+      .select("batch_number")
+      .eq("id", batchId)
+      .single();
 
-    const client = await ensureSupabaseClient();
+    if (fetchError) {
+      console.error("❌ Failed to fetch batch_number:", fetchError);
+      alert("Failed to fetch batch info.");
+      return;
+    }
 
-    // Delete using primary key `id`
-    const { error } = await client
+    const batchNo = batchData?.batch_number || batchId;
+    const confirmed = confirm(`Are you sure you want to delete batch ${batchNo}?`);
+    if (!confirmed) return;
+
+    // 🗑️ Perform deletion by id
+    const { error: deleteError } = await supabase
       .from("product_batches")
       .delete()
       .eq("id", batchId);
 
-    if (error) throw error;
+    if (deleteError) {
+      console.error("❌ Failed to delete batch:", deleteError);
+      alert("Failed to delete batch.");
+      return;
+    }
 
     console.log("🗑️ Batch deleted:", batchId);
 
-    // Remove row from DOM
-    const row = document.querySelector(`#products-table tr[data-batch-id="${batchId}"]`);
+    // ✅ Remove the row from table only after successful deletion
+    const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
     if (row) row.remove();
-
-    const msgEl = document.getElementById("message");
-    if (msgEl) {
-      msgEl.textContent = `[${new Date().toISOString().replace("Z", "+08:00")}] Batch ${batchNumber} deleted successfully`;
-      clearMessage("message", 8000);
-    }
-
   } catch (err) {
-    console.error("❌ Failed to delete batch:", err);
-
-    const errorEl = document.getElementById("error");
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace("Z", "+08:00")}] Failed to delete batch: ${err.message}`;
-      clearMessage("error", 8000);
-    }
+    console.error("❌ Unexpected error deleting batch:", err);
   }
 }
 
