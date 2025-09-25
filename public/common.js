@@ -1322,7 +1322,7 @@ async function loadProducts() {
 }
 
 /* =========================================================
-   Delete Batch (with inline success message)
+   Delete Batch (confirmed + remove row from DOM)
    ========================================================= */
 async function deleteBatch(batchId, batchNumber) {
   const confirmDelete = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
@@ -1330,25 +1330,31 @@ async function deleteBatch(batchId, batchNumber) {
 
   console.log("🗑️ Deleting batch:", batchId);
   try {
-    const client = await ensureSupabaseClient(); // ✅ use client
+    const client = await ensureSupabaseClient();
 
-    const { error } = await client
+    // ✅ delete by primary key id
+    const { data, error } = await client
       .from("product_batches")
       .delete()
-      .eq("id", batchId);
+      .eq("id", batchId)
+      .select(); // force return deleted rows
 
     if (error) {
       console.error("❌ Failed to delete batch:", error);
       return;
     }
+    if (!data || data.length === 0) {
+      console.warn("⚠️ No batch deleted. ID may not exist.");
+      return;
+    }
 
-    console.log("🗑️ Batch deleted:", batchId);
+    console.log("🗑️ Batch deleted from Supabase:", data);
 
-    // remove row from DOM
+    // remove the row from DOM
     const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
     if (row) row.remove();
 
-    // show green success message
+    // show success message
     const msgEl = document.getElementById("message");
     if (msgEl) {
       msgEl.textContent = "Deleted successfully ✅";
