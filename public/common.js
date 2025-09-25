@@ -1256,19 +1256,15 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
 }
 
 /* =========================================================
-   Load Products (with optional show/hide sold-out batches)
+   Load Products (with data-batch-id on <tr>)
    ========================================================= */
 async function loadProducts() {
   console.log("📦 Loading products...");
+  const tableBody = document.querySelector("#products-table tbody");
+  tableBody.innerHTML = "";
 
   try {
-    const client = await ensureSupabaseClient();
-    setLoading(true);
-
-    // Check if user wants to see sold-out batches
-    const includeSoldOut = document.getElementById("toggle-soldout")?.checked;
-
-    let query = client
+    const { data, error } = await supabase
       .from("product_batches")
       .select(`
         id,
@@ -1284,52 +1280,44 @@ async function loadProducts() {
       `)
       .order("id", { ascending: true });
 
-    // If "show sold-out" is NOT checked, filter out zero-stock
-    if (!includeSoldOut) {
-      query = query.gt("remaining_quantity", 0);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    console.log("✅ Products loaded:", data);
-
-    // Render table
-    const tbody = document.querySelector("#products-table tbody");
-    tbody.innerHTML = "";
-
-    if (!data || data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center p-2">No products found</td></tr>`;
+    if (error) {
+      console.error("❌ Failed to load products:", error);
       return;
     }
 
-    data.forEach((batch) => {
+    console.log("✅ Products loaded:", data);
+
+    // If "Show sold-out" toggle exists, filter accordingly
+    const showSoldOut = document.querySelector("#toggle-soldout")?.checked ?? false;
+
+    data.forEach(batch => {
+      if (!batch.product) return; // safety
+      if (!showSoldOut && batch.remaining_quantity === 0) return;
+
       const row = document.createElement("tr");
-      row.setAttribute("data-batch-id", batch.id);   // ✅ added
+      row.setAttribute("data-batch-id", batch.id); // ✅ Add data-batch-id
+
       row.innerHTML = `
-  <td class="border p-2">${product.barcode}</td>
-  <td class="border p-2">${product.name}</td>
-  <td class="border p-2">${batch.remaining_quantity}</td>
-  <td class="border p-2">${product.units}</td>
-  <td class="border p-2">${batch.batch_number}</td>
-  <td class="border p-2">${batch.buy_in_price}</td>
-  <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
-  <td class="border p-2">
-    <button onclick="deleteBatch(${batch.id}, '${batch.batch_number}')"
-      class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
-  </td>
-`;
-      tbody.appendChild(row);
+        <td class="border p-2">${batch.product.barcode}</td>
+        <td class="border p-2">${batch.product.name}</td>
+        <td class="border p-2">${batch.remaining_quantity}</td>
+        <td class="border p-2">${batch.product.units}</td>
+        <td class="border p-2">${batch.batch_number}</td>
+        <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
+        <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
+        <td class="border p-2 text-center">
+          <button 
+            class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+            onclick="deleteBatch(${batch.id})">
+            Remove
+          </button>
+        </td>
+      `;
+
+      tableBody.appendChild(row);
     });
   } catch (err) {
-    console.error("❌ Failed to load products:", err);
-    const errorEl = document.getElementById("error");
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace("Z", "+08:00")}] Failed to load products: ${err.message}`;
-      clearMessage("error");
-    }
-  } finally {
-    setLoading(false);
+    console.error("❌ Unexpected error loading products:", err);
   }
 }
 
