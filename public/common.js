@@ -1256,7 +1256,7 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
 }
 
 /* =========================================================
-   Load Products (batch-centric)
+   Load Products (batch-centric, with Adjust + Remove)
    ========================================================= */
 async function loadProducts() {
   console.log("📦 Loading products...");
@@ -1305,7 +1305,13 @@ async function loadProducts() {
           <td class="border p-2">${batch.batch_number}</td>
           <td class="border p-2">${batch.buy_in_price?.toFixed(2) || "0.00"}</td>
           <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
-          <td class="border p-2">
+          <td class="border p-2 space-x-2">
+            <button 
+              class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+              onclick="adjustBatch(${batch.id}, '${batch.batch_number}', ${batch.remaining_quantity}, ${batch.buy_in_price})"
+            >
+              Adjust
+            </button>
             <button 
               class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
               onclick="deleteBatch(${batch.id}, '${batch.batch_number}')"
@@ -1378,6 +1384,55 @@ async function deleteBatch(batchId, batchNumber) {
     }
   }
 }
+
+/* =========================================================
+   Adjust Batch (Remaining Quantity + Buy-In Price)
+   ========================================================= */
+async function adjustBatch(batchId, batchNumber, currentQty, currentPrice) {
+  const newQty = prompt(`Enter new remaining stock for batch ${batchNumber}:`, currentQty);
+  if (newQty === null) return; // cancelled
+
+  const newPrice = prompt(`Enter new buy-in price for batch ${batchNumber}:`, currentPrice);
+  if (newPrice === null) return; // cancelled
+
+  console.log("✏️ Adjusting batch:", batchId, "→ Qty:", newQty, "Price:", newPrice);
+
+  try {
+    const client = await ensureSupabaseClient();
+
+    const { data, error } = await client
+      .from("product_batches")
+      .update({
+        remaining_quantity: parseInt(newQty, 10),
+        buy_in_price: parseFloat(newPrice)
+      })
+      .eq("id", batchId)
+      .select();
+
+    if (error) throw error;
+
+    console.log("✅ Batch adjusted:", data);
+
+    // reload table to reflect changes
+    loadProducts();
+
+    const msgEl = document.getElementById("message");
+    if (msgEl) {
+      msgEl.textContent = "Batch adjusted successfully ✏️✅";
+      msgEl.classList.remove("text-red-500");
+      msgEl.classList.add("text-green-500");
+      setTimeout(() => { msgEl.textContent = ""; }, 3000);
+    }
+  } catch (err) {
+    console.error("❌ Failed to adjust batch:", err);
+    const errorEl = document.getElementById("error");
+    if (errorEl) {
+      errorEl.textContent = `❌ Failed to adjust batch: ${err.message}`;
+      setTimeout(() => (errorEl.textContent = ""), 4000);
+    }
+  }
+}
+
 
 /* =========================================================
    Add Product + Initial Batch
