@@ -1256,15 +1256,14 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
 }
 
 /* =========================================================
-   Load Products (with data-batch-id on <tr>)
+   Load Products (batch-centric)
    ========================================================= */
 async function loadProducts() {
   console.log("📦 Loading products...");
-  const tableBody = document.querySelector("#products-table tbody");
-  tableBody.innerHTML = "";
 
   try {
-    const client = await ensureSupabaseClient(); // ✅ get client
+    const client = await ensureSupabaseClient();
+    setLoading(true);
 
     const { data, error } = await client
       .from("product_batches")
@@ -1282,67 +1281,75 @@ async function loadProducts() {
       `)
       .order("id", { ascending: true });
 
-    if (error) {
-      console.error("❌ Failed to load products:", error);
-      return;
-    }
+    if (error) throw error;
 
     console.log("✅ Products loaded:", data);
 
-    const showSoldOut = document.querySelector("#toggle-soldout")?.checked ?? false;
+    const tableBody = document.querySelector("#products-table tbody");
+    if (!tableBody) return;
+    tableBody.innerHTML = "";
 
-    data.forEach(batch => {
-      if (!batch.product) return;
-      if (!showSoldOut && batch.remaining_quantity === 0) return;
+    if (!data || data.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-2">No products found</td></tr>`;
+      return;
+    }
 
-      const row = document.createElement("tr");
-      row.setAttribute("data-batch-id", batch.id); // ✅ needed for row.remove()
-
-      row.innerHTML = `
-        <td class="border p-2">${batch.product.barcode}</td>
-        <td class="border p-2">${batch.product.name}</td>
-        <td class="border p-2">${batch.remaining_quantity}</td>
-        <td class="border p-2">${batch.product.units}</td>
-        <td class="border p-2">${batch.batch_number}</td>
-        <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
-        <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
-        <td class="border p-2 text-center">
-          <button 
-            class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-            onclick="deleteBatch(${batch.id}, '${batch.batch_number}')">
-            Remove
-          </button>
-        </td>
+    let rows = "";
+    data.forEach((batch) => {
+      rows += `
+        <tr data-batch-id="${batch.id}">
+          <td class="border p-2">${batch.product?.barcode || ""}</td>
+          <td class="border p-2">${batch.product?.name || ""}</td>
+          <td class="border p-2">${batch.remaining_quantity}</td>
+          <td class="border p-2">${batch.product?.units || ""}</td>
+          <td class="border p-2">${batch.batch_number}</td>
+          <td class="border p-2">${batch.buy_in_price?.toFixed(2) || "0.00"}</td>
+          <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
+          <td class="border p-2">
+            <button 
+              class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+              onclick="deleteBatch(${batch.id}, '${batch.batch_number}')"
+            >
+              Remove
+            </button>
+          </td>
+        </tr>
       `;
-      tableBody.appendChild(row);
     });
+
+    tableBody.innerHTML = rows;
   } catch (err) {
     console.error("❌ Unexpected error loading products:", err);
+    const errorEl = document.getElementById("error");
+    if (errorEl) {
+      errorEl.textContent = `❌ Failed to load products: ${err.message}`;
+      setTimeout(() => (errorEl.textContent = ""), 4000);
+    }
+  } finally {
+    setLoading(false);
   }
 }
 
 /* =========================================================
-   Delete Batch (confirmed + remove row from DOM)
+   Delete Batch
    ========================================================= */
 async function deleteBatch(batchId, batchNumber) {
   const confirmDelete = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
   if (!confirmDelete) return;
 
   console.log("🗑️ Deleting batch:", batchId);
+
   try {
     const client = await ensureSupabaseClient();
 
-    // ✅ delete by primary key id
     const { data, error } = await client
       .from("product_batches")
       .delete()
       .eq("id", batchId)
-      .select(); // force return deleted rows
+      .select();
 
-    if (error) {
-      console.error("❌ Failed to delete batch:", error);
-      return;
-    }
+    if (error) throw error;
+
     if (!data || data.length === 0) {
       console.warn("⚠️ No batch deleted. ID may not exist.");
       return;
@@ -1350,11 +1357,11 @@ async function deleteBatch(batchId, batchNumber) {
 
     console.log("🗑️ Batch deleted from Supabase:", data);
 
-    // remove the row from DOM
+    // remove row from DOM
     const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
     if (row) row.remove();
 
-    // show success message
+    // inline success message
     const msgEl = document.getElementById("message");
     if (msgEl) {
       msgEl.textContent = "Deleted successfully ✅";
@@ -1363,7 +1370,12 @@ async function deleteBatch(batchId, batchNumber) {
       setTimeout(() => { msgEl.textContent = ""; }, 3000);
     }
   } catch (err) {
-    console.error("❌ Unexpected error deleting batch:", err);
+    console.error("❌ Failed to delete batch:", err);
+    const errorEl = document.getElementById("error");
+    if (errorEl) {
+      errorEl.textContent = `❌ Failed to delete batch: ${err.message}`;
+      setTimeout(() => (errorEl.textContent = ""), 4000);
+    }
   }
 }
 
