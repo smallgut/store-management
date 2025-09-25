@@ -1322,46 +1322,45 @@ async function loadProducts() {
 }
 
 /* =========================================================
-   Delete a Batch (with confirmation & safe Supabase update)
+   Delete Batch (with inline success message)
    ========================================================= */
-async function deleteBatch(batchId) {
+async function deleteBatch(batchId, batchNumber) {
+  const confirmDelete = confirm(
+    `Are you sure you want to delete batch ${batchNumber}?`
+  );
+  if (!confirmDelete) return;
+
   console.log("🗑️ Deleting batch:", batchId);
 
   try {
-    // 🔍 First fetch batch_number for friendly confirm
-    const { data: batchData, error: fetchError } = await supabase
-      .from("product_batches")
-      .select("batch_number")
-      .eq("id", batchId)
-      .single();
-
-    if (fetchError) {
-      console.error("❌ Failed to fetch batch_number:", fetchError);
-      alert("Failed to fetch batch info.");
-      return;
-    }
-
-    const batchNo = batchData?.batch_number || batchId;
-    const confirmed = confirm(`Are you sure you want to delete batch ${batchNo}?`);
-    if (!confirmed) return;
-
-    // 🗑️ Perform deletion by id
-    const { error: deleteError } = await supabase
+    const { error } = await supabase
       .from("product_batches")
       .delete()
       .eq("id", batchId);
 
-    if (deleteError) {
-      console.error("❌ Failed to delete batch:", deleteError);
-      alert("Failed to delete batch.");
+    if (error) {
+      console.error("❌ Failed to delete batch:", error);
       return;
     }
 
     console.log("🗑️ Batch deleted:", batchId);
 
-    // ✅ Remove the row from table only after successful deletion
+    // ✅ Remove only the row from DOM
     const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
     if (row) row.remove();
+
+    // ✅ Show success message
+    const msgEl = document.getElementById("message");
+    if (msgEl) {
+      msgEl.textContent = "Deleted successfully ✅";
+      msgEl.classList.remove("text-red-500");
+      msgEl.classList.add("text-green-500");
+
+      // auto-clear after 3 seconds
+      setTimeout(() => {
+        msgEl.textContent = "";
+      }, 3000);
+    }
   } catch (err) {
     console.error("❌ Unexpected error deleting batch:", err);
   }
