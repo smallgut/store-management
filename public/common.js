@@ -1307,20 +1307,16 @@ async function loadProducts() {
       const row = document.createElement("tr");
       row.setAttribute("data-batch-id", batch.id);   // ✅ added
       row.innerHTML = `
-  <td class="border p-2">${batch.product?.barcode || "-"}</td>
-  <td class="border p-2">${batch.product?.name || "-"}</td>
-  <td class="border p-2">${batch.remaining_quantity ?? 0}</td>
-  <td class="border p-2">${batch.product?.units || "-"}</td>
-  <td class="border p-2">${batch.batch_number || "-"}</td>
-  <td class="border p-2">${batch.buy_in_price?.toFixed(2) || "0.00"}</td>
+  <td class="border p-2">${product.barcode}</td>
+  <td class="border p-2">${product.name}</td>
+  <td class="border p-2">${batch.remaining_quantity}</td>
+  <td class="border p-2">${product.units}</td>
+  <td class="border p-2">${batch.batch_number}</td>
+  <td class="border p-2">${batch.buy_in_price}</td>
+  <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
   <td class="border p-2">
-    ${(batch.remaining_quantity ?? 0) * (batch.buy_in_price ?? 0)}
-  </td>
-  <td class="border p-2">
-    <button onclick="deleteBatch(${batch.id})"
-      class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
-      Remove
-    </button>
+    <button onclick="deleteBatch(${batch.id}, '${batch.batch_number}')"
+      class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
   </td>
 `;
       tbody.appendChild(row);
@@ -1338,22 +1334,22 @@ async function loadProducts() {
 }
 
 /* =========================================================
-   Delete a Batch (with confirmation & safe UI update)
+   Delete a Batch (with confirmation & safe Supabase update)
    ========================================================= */
-async function deleteBatch(batchId) {
-  // ✅ Confirm with user before proceeding
-  const isSure = confirm(`Are you sure you want to delete batch ${batchId}?`);
+async function deleteBatch(batchId, batchNumber) {
+  // Show batch_number in confirm, but use id for Supabase deletion
+  const isSure = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
   if (!isSure) {
     console.log("❌ Deletion cancelled by user");
     return;
   }
 
   try {
-    console.log("🗑️ Deleting batch:", batchId);
+    console.log("🗑️ Deleting batch id:", batchId);
 
     const client = await ensureSupabaseClient();
 
-    // Perform deletion
+    // Delete using primary key `id`
     const { error } = await client
       .from("product_batches")
       .delete()
@@ -1363,14 +1359,13 @@ async function deleteBatch(batchId) {
 
     console.log("🗑️ Batch deleted:", batchId);
 
-    // ✅ Remove row directly after confirmed deletion
+    // Remove row from DOM
     const row = document.querySelector(`#products-table tr[data-batch-id="${batchId}"]`);
     if (row) row.remove();
 
-    // ✅ Show success message
     const msgEl = document.getElementById("message");
     if (msgEl) {
-      msgEl.textContent = `[${new Date().toISOString().replace("Z", "+08:00")}] Batch ${batchId} deleted successfully`;
+      msgEl.textContent = `[${new Date().toISOString().replace("Z", "+08:00")}] Batch ${batchNumber} deleted successfully`;
       clearMessage("message", 8000);
     }
 
