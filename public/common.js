@@ -1264,7 +1264,9 @@ async function loadProducts() {
   tableBody.innerHTML = "";
 
   try {
-    const { data, error } = await supabase
+    const client = await ensureSupabaseClient(); // ✅ get client
+
+    const { data, error } = await client
       .from("product_batches")
       .select(`
         id,
@@ -1287,15 +1289,14 @@ async function loadProducts() {
 
     console.log("✅ Products loaded:", data);
 
-    // If "Show sold-out" toggle exists, filter accordingly
     const showSoldOut = document.querySelector("#toggle-soldout")?.checked ?? false;
 
     data.forEach(batch => {
-      if (!batch.product) return; // safety
+      if (!batch.product) return;
       if (!showSoldOut && batch.remaining_quantity === 0) return;
 
       const row = document.createElement("tr");
-      row.setAttribute("data-batch-id", batch.id); // ✅ Add data-batch-id
+      row.setAttribute("data-batch-id", batch.id); // ✅ needed for row.remove()
 
       row.innerHTML = `
         <td class="border p-2">${batch.product.barcode}</td>
@@ -1308,12 +1309,11 @@ async function loadProducts() {
         <td class="border p-2 text-center">
           <button 
             class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-            onclick="deleteBatch(${batch.id})">
+            onclick="deleteBatch(${batch.id}, '${batch.batch_number}')">
             Remove
           </button>
         </td>
       `;
-
       tableBody.appendChild(row);
     });
   } catch (err) {
@@ -1325,15 +1325,14 @@ async function loadProducts() {
    Delete Batch (with inline success message)
    ========================================================= */
 async function deleteBatch(batchId, batchNumber) {
-  const confirmDelete = confirm(
-    `Are you sure you want to delete batch ${batchNumber}?`
-  );
+  const confirmDelete = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
   if (!confirmDelete) return;
 
   console.log("🗑️ Deleting batch:", batchId);
-
   try {
-    const { error } = await supabase
+    const client = await ensureSupabaseClient(); // ✅ use client
+
+    const { error } = await client
       .from("product_batches")
       .delete()
       .eq("id", batchId);
@@ -1345,21 +1344,17 @@ async function deleteBatch(batchId, batchNumber) {
 
     console.log("🗑️ Batch deleted:", batchId);
 
-    // ✅ Remove only the row from DOM
+    // remove row from DOM
     const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
     if (row) row.remove();
 
-    // ✅ Show success message
+    // show green success message
     const msgEl = document.getElementById("message");
     if (msgEl) {
       msgEl.textContent = "Deleted successfully ✅";
       msgEl.classList.remove("text-red-500");
       msgEl.classList.add("text-green-500");
-
-      // auto-clear after 3 seconds
-      setTimeout(() => {
-        msgEl.textContent = "";
-      }, 3000);
+      setTimeout(() => { msgEl.textContent = ""; }, 3000);
     }
   } catch (err) {
     console.error("❌ Unexpected error deleting batch:", err);
