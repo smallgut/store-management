@@ -1316,48 +1316,45 @@ async function loadProducts() {
 }
 
 
-/* =========================================================
-   Delete Batch (with confirm + row removal + green message)
-   ========================================================= */
-async function deleteBatch(batchId) {
-  const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
-  const batchNumber = row ? row.getAttribute("data-batch-number") : batchId;
-
-  if (!confirm(`Are you sure you want to delete batch ${batchNumber}?`)) {
-    return;
-  }
-
-  console.log("🗑️ Deleting batch:", batchId);
-
+// =========================================================
+// Delete a batch by its ID (with confirm + DB delete)
+// =========================================================
+async function deleteBatch(batchId, rowElement) {
   try {
-    const client = await ensureSupabaseClient();
-    const { error } = await client
+    const batchNumber = rowElement.getAttribute("data-batch-number");
+    if (!confirm(`Are you sure you want to delete batch ${batchNumber}?`)) {
+      return;
+    }
+
+    console.log("🗑️ Deleting batch from Supabase:", batchId);
+
+    // Delete from Supabase
+    const { error } = await supabase
       .from("product_batches")
       .delete()
       .eq("id", batchId);
 
-    if (error) throw error;
+    if (error) {
+      console.error("❌ Failed to delete batch:", error);
+      alert("Failed to delete batch: " + error.message);
+      return;
+    }
 
-    console.log("✅ Batch deleted:", batchId);
+    console.log("✅ Batch deleted from DB:", batchId);
 
-    if (row) row.remove();
+    // Remove from table UI only after DB confirms
+    rowElement.remove();
 
-    // Inline success message
+    // Show success message at top
     const msgEl = document.getElementById("message");
     if (msgEl) {
-      msgEl.textContent = "Deleted successfully ✅";
-      msgEl.classList.remove("hidden");
-      setTimeout(() => {
-        msgEl.textContent = "";
-      }, 3000);
+      msgEl.textContent = `Deleted batch ${batchNumber} successfully ✅`;
+      msgEl.classList.add("text-green-600", "font-bold");
+      setTimeout(() => (msgEl.textContent = ""), 3000);
     }
   } catch (err) {
-    console.error("❌ Failed to delete batch:", err);
-    const errEl = document.getElementById("error");
-    if (errEl) {
-      errEl.textContent = `Error deleting batch: ${err.message}`;
-      setTimeout(() => (errEl.textContent = ""), 5000);
-    }
+    console.error("❌ Unexpected error deleting batch:", err);
+    alert("Unexpected error deleting batch.");
   }
 }
 
