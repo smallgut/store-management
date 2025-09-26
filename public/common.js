@@ -1255,62 +1255,81 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
   }
 }
 
-/* =========================================================
-   Load Products (with batch info)
-   ========================================================= */
+// =========================================================
+// Load products + batches into the table
+// Each row gets data-batch-id, data-batch-number, data-product-id
+// =========================================================
 async function loadProducts() {
-  console.log("📦 Loading products...");
-  const loadingEl = document.getElementById("loading");
-  const tbody = document.querySelector("#products-table tbody");
-
-  if (loadingEl) loadingEl.classList.remove("hidden");
-  if (tbody) tbody.innerHTML = "";
-
   try {
-    const client = await ensureSupabaseClient();
-    const { data, error } = await client
+    console.log("📦 Loading products...");
+
+    const loadingEl = document.getElementById("loading");
+    if (loadingEl) loadingEl.classList.remove("hidden");
+
+    const tbody = document.querySelector("#products-table tbody");
+    tbody.innerHTML = "";
+
+    // Query products joined with batches
+    const { data, error } = await supabase
       .from("product_batches")
       .select(`
         id,
         batch_number,
         remaining_quantity,
         buy_in_price,
-        product:products(id, barcode, name, units)
+        product:products (
+          id,
+          barcode,
+          name,
+          units
+        )
       `)
       .order("id", { ascending: true });
 
-    if (error) throw error;
-    if (!data) return;
+    if (error) {
+      console.error("❌ Failed to load products:", error);
+      const errorEl = document.getElementById("error");
+      if (errorEl) errorEl.textContent = "Failed to load products.";
+      return;
+    }
 
     console.log("✅ Products loaded:", data);
 
-    data.forEach((batch) => {
+    data.forEach(batch => {
       const tr = document.createElement("tr");
       tr.setAttribute("data-batch-id", batch.id);
-      tr.setAttribute("data-batch-number", batch.batch_number);
-
-      const invValue = batch.remaining_quantity * batch.buy_in_price;
+      tr.setAttribute("data-batch-number", batch.batch_number || "");
+      tr.setAttribute("data-product-id", batch.product.id);
 
       tr.innerHTML = `
-        <td class="border p-2">${batch.product?.barcode || ""}</td>
-        <td class="border p-2">${batch.product?.name || ""}</td>
+        <td class="border p-2">${batch.product.barcode}</td>
+        <td class="border p-2">${batch.product.name}</td>
         <td class="border p-2">${batch.remaining_quantity}</td>
-        <td class="border p-2">${batch.product?.units || ""}</td>
+        <td class="border p-2">${batch.product.units}</td>
         <td class="border p-2">${batch.batch_number}</td>
         <td class="border p-2">${batch.buy_in_price}</td>
-        <td class="border p-2">${invValue}</td>
-        <td class="border p-2">
-          <button onclick="adjustBatch(${batch.id}, '${batch.batch_number}', ${batch.remaining_quantity}, ${batch.buy_in_price})"
-            class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 mr-2">Adjust</button>
-          <button onclick="deleteBatch(${batch.id})"
-            class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
+        <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
+        <td class="border p-2 space-x-2">
+          <button class="bg-yellow-500 text-white px-2 py-1 rounded"
+            onclick="adjustBatch(${batch.id}, '${batch.batch_number}', ${batch.remaining_quantity}, ${batch.buy_in_price})">
+            Adjust
+          </button>
+          <button class="bg-red-500 text-white px-2 py-1 rounded"
+            onclick="deleteBatch(${batch.id})">
+            Remove
+          </button>
         </td>
       `;
+
       tbody.appendChild(tr);
     });
+
   } catch (err) {
-    console.error("❌ Failed to load products:", err);
+    console.error("❌ Unexpected error loading products:", err);
+    const errorEl = document.getElementById("error");
+    if (errorEl) errorEl.textContent = "Unexpected error loading products.";
   } finally {
+    const loadingEl = document.getElementById("loading");
     if (loadingEl) loadingEl.classList.add("hidden");
   }
 }
