@@ -1285,7 +1285,7 @@ async function loadProducts() {
     console.log("✅ Products loaded:", data);
 
     const tableBody = document.querySelector("#products-table tbody");
-    tableBody.innerHTML = ""; // clear table
+    tableBody.innerHTML = "";
 
     if (!data || data.length === 0) {
       tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-2">No products found</td></tr>`;
@@ -1309,6 +1309,12 @@ async function loadProducts() {
         <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
         <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
         <td class="border p-2 space-x-2">
+          <button 
+            class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+            onclick="adjustBatch(${batch.id}, '${batch.batch_number}', ${batch.remaining_quantity}, ${batch.buy_in_price})"
+          >
+            Adjust
+          </button>
           <button 
             class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
             onclick="deleteBatch(${batch.id})"
@@ -1334,13 +1340,18 @@ async function loadProducts() {
 // Delete batch by looking up batch_number from <tr>
 // ==========================================
 async function deleteBatch(batchId) {
-  const row = document.querySelector(`#products-table tr[data-batch-id="${batchId}"]`);
-  const batchNumber = row ? row.getAttribute("data-batch-number") : "?";
-
-  const isSure = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
-  if (!isSure) return;
-
   try {
+    const row = document.querySelector(`#products-table tr[data-batch-id="${batchId}"]`);
+    if (!row) {
+      alert("Row not found in DOM.");
+      return;
+    }
+
+    const batchNumber = row.getAttribute("data-batch-number");
+
+    const isSure = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
+    if (!isSure) return;
+
     console.log("🗑️ Deleting batch from Supabase:", batchId);
 
     const client = await ensureSupabaseClient();
@@ -1354,8 +1365,8 @@ async function deleteBatch(batchId) {
 
     console.log("🗑️ Batch deleted:", batchId);
 
-    // Remove row from DOM immediately
-    if (row) row.remove();
+    // Remove row from DOM
+    row.remove();
 
     alert("✅ Batch deleted successfully");
   } catch (err) {
