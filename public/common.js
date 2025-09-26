@@ -1,21 +1,16 @@
+// ================================
+// ✅ Supabase Client (v2 browser)
+// ================================
 let supabaseClient;
 
 async function ensureSupabaseClient() {
   if (!supabaseClient) {
     console.log("🔑 Initializing Supabase Client...");
-
     const supabaseUrl = "https://aouduygmcspiqauhrabx.supabase.co"; // your project URL
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"; // paste your anon/public key here
-
+    const supabaseKey = "YOUR_ANON_PUBLIC_KEY"; // ⚠️ replace with your anon public key
     supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
   }
   return supabaseClient;
-}
-// ✅ Ensure applyTranslations always exists
-if (typeof applyTranslations !== "function") {
-  function applyTranslations() {
-    console.log("🌐 applyTranslations() placeholder – implement if needed.");
-  }
 }
 
 
@@ -1257,16 +1252,17 @@ async function generateCustomerSalesReport(startDate, endDate, customerName) {
   }
 }
 
-// ==========================================
-// Load products with their batches
-// ==========================================
+// ================================
+// ✅ Load Products with Batches
+// ================================
 async function loadProducts() {
   try {
+    const supabase = await ensureSupabaseClient();
     console.log("📦 Loading products...");
 
-    const client = await ensureSupabaseClient();
+    const showSoldOut = document.getElementById("toggle-soldout")?.checked || false;
 
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from("product_batches")
       .select(`
         id,
@@ -1284,96 +1280,97 @@ async function loadProducts() {
 
     if (error) throw error;
 
-    console.log("✅ Products loaded:", data);
-
-    const tableBody = document.querySelector("#products-table tbody");
-    tableBody.innerHTML = "";
+    const tbody = document.querySelector("#products-table tbody");
+    tbody.innerHTML = "";
 
     if (!data || data.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-2">No products found</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-gray-500">No products found</td></tr>`;
       return;
     }
 
-    data.forEach((batch) => {
-      const tr = document.createElement("tr");
+    data.forEach(batch => {
+      // hide sold-out batches unless checkbox ticked
+      if (!showSoldOut && batch.remaining_quantity === 0) return;
 
-      // ✅ store product_id, batch id, and batch_number
-      tr.setAttribute("data-product-id", batch.product?.id || "");
+      const product = batch.product;
+      if (!product) return; // safety
+
+      const tr = document.createElement("tr");
+      tr.setAttribute("data-product-id", product.id);
       tr.setAttribute("data-batch-id", batch.id);
       tr.setAttribute("data-batch-number", batch.batch_number);
 
+      const inventoryValue = (batch.remaining_quantity * batch.buy_in_price).toFixed(2);
+
       tr.innerHTML = `
-        <td class="border p-2">${batch.product?.barcode || ""}</td>
-        <td class="border p-2">${batch.product?.name || ""}</td>
+        <td class="border p-2">${product.barcode}</td>
+        <td class="border p-2">${product.name}</td>
         <td class="border p-2">${batch.remaining_quantity}</td>
-        <td class="border p-2">${batch.product?.units || ""}</td>
+        <td class="border p-2">${product.units}</td>
         <td class="border p-2">${batch.batch_number}</td>
-        <td class="border p-2">${batch.buy_in_price.toFixed(2)}</td>
-        <td class="border p-2">${(batch.remaining_quantity * batch.buy_in_price).toFixed(2)}</td>
-        <td class="border p-2 space-x-2">
-          <button 
-            class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-            onclick="adjustBatch(${batch.id}, '${batch.batch_number}', ${batch.remaining_quantity}, ${batch.buy_in_price})"
-          >
+        <td class="border p-2">${batch.buy_in_price}</td>
+        <td class="border p-2">${inventoryValue}</td>
+        <td class="border p-2">
+          <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 mr-2"
+            onclick="adjustBatch(${batch.id}, '${batch.batch_number}', ${batch.remaining_quantity}, ${batch.buy_in_price})">
             Adjust
           </button>
-          <button 
-            class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-            onclick="deleteBatch(${batch.id})"
-          >
+          <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+            onclick="deleteBatch(${batch.id})">
             Remove
           </button>
         </td>
       `;
 
-      tableBody.appendChild(tr);
+      tbody.appendChild(tr);
     });
+
+    console.log("✅ Products loaded:", data);
   } catch (err) {
     console.error("❌ Unexpected error loading products:", err);
-    const errorEl = document.getElementById("error");
-    if (errorEl) {
-      errorEl.textContent = `[${new Date().toISOString().replace("Z", "+08:00")}] Failed to load products: ${err.message}`;
-      clearMessage("error");
-    }
+    document.getElementById("error").innerText = "Failed to load products.";
   }
 }
 
-// ==========================================
-// Delete batch by looking up batch_number from <tr>
-// ==========================================
+// ================================
+// ✅ Delete Batch
+// ================================
 async function deleteBatch(batchId) {
   try {
-    const row = document.querySelector(`#products-table tr[data-batch-id="${batchId}"]`);
+    const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
     if (!row) {
-      alert("Row not found in DOM.");
+      alert("Row not found.");
       return;
     }
 
     const batchNumber = row.getAttribute("data-batch-number");
+    const productId = row.getAttribute("data-product-id");
 
-    const isSure = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
-    if (!isSure) return;
+    const confirmed = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
+    if (!confirmed) return;
 
+    const supabase = await ensureSupabaseClient();
     console.log("🗑️ Deleting batch from Supabase:", batchId);
 
-    const client = await ensureSupabaseClient();
-
-    const { error } = await client
-      .from("product_batches")
-      .delete()
-      .eq("id", batchId);
+    const { error } = await supabase.from("product_batches").delete().eq("id", batchId);
 
     if (error) throw error;
 
     console.log("🗑️ Batch deleted:", batchId);
-
-    // Remove row from DOM
     row.remove();
 
-    alert("✅ Batch deleted successfully");
+    // check if this product has any remaining batches in DOM
+    const stillHasBatches = document.querySelector(`tr[data-product-id="${productId}"]`);
+    if (!stillHasBatches) {
+      console.log(`🗑️ Product ${productId} has no more batches → removing product row`);
+    }
+
+    const msg = document.getElementById("message");
+    msg.innerText = "Batch deleted successfully ✅";
+    setTimeout(() => (msg.innerText = ""), 2500);
   } catch (err) {
     console.error("❌ Unexpected error deleting batch:", err);
-    alert("Failed to delete batch: " + err.message);
+    document.getElementById("error").innerText = "Unexpected error deleting batch.";
   }
 }
 
