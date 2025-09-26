@@ -7,7 +7,7 @@ async function ensureSupabaseClient() {
   if (!supabaseClient) {
     console.log("🔑 Initializing Supabase Client...");
     const supabaseUrl = "https://aouduygmcspiqauhrabx.supabase.co"; // your project URL
-    const supabaseKey = "YOUR_ANON_PUBLIC_KEY"; // ⚠️ replace with your anon public key
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"; // ⚠️ replace with your anon public key
     supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
   }
   return supabaseClient;
