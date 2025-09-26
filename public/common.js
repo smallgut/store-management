@@ -1317,35 +1317,71 @@ async function loadProducts() {
 
 
 // =========================================================
-// Delete a batch by its ID (with confirm + DB delete)
+// Delete a batch (and product if no batches left)
 // =========================================================
-async function deleteBatch(batchId, rowElement) {
+async function deleteBatch(batchId) {
   try {
+    // Find the <tr> for this batch
+    const rowElement = document.querySelector(`tr[data-batch-id='${batchId}']`);
+    if (!rowElement) {
+      console.warn("⚠️ No table row found for batch:", batchId);
+      return;
+    }
+
     const batchNumber = rowElement.getAttribute("data-batch-number");
+    const productId = rowElement.getAttribute("data-product-id");
+
     if (!confirm(`Are you sure you want to delete batch ${batchNumber}?`)) {
       return;
     }
 
     console.log("🗑️ Deleting batch from Supabase:", batchId);
 
-    // Delete from Supabase
-    const { error } = await supabase
+    // Delete from product_batches
+    const { error: batchError } = await supabase
       .from("product_batches")
       .delete()
       .eq("id", batchId);
 
-    if (error) {
-      console.error("❌ Failed to delete batch:", error);
-      alert("Failed to delete batch: " + error.message);
+    if (batchError) {
+      console.error("❌ Failed to delete batch:", batchError);
+      alert("Failed to delete batch: " + batchError.message);
       return;
     }
 
-    console.log("✅ Batch deleted from DB:", batchId);
+    console.log("✅ Batch deleted:", batchId);
 
-    // Remove from table UI only after DB confirms
+    // Remove the row from UI
     rowElement.remove();
 
-    // Show success message at top
+    // ✅ Now check if this product still has any batches
+    const { data: remaining, error: checkError } = await supabase
+      .from("product_batches")
+      .select("id")
+      .eq("product_id", productId)
+      .limit(1);
+
+    if (checkError) {
+      console.error("❌ Failed to check remaining batches:", checkError);
+      return;
+    }
+
+    if (!remaining || remaining.length === 0) {
+      console.log(`🗑️ No batches left → deleting product ${productId}`);
+
+      const { error: productError } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", productId);
+
+      if (productError) {
+        console.error("❌ Failed to delete product:", productError);
+      } else {
+        console.log("✅ Product deleted:", productId);
+      }
+    }
+
+    // Show success message
     const msgEl = document.getElementById("message");
     if (msgEl) {
       msgEl.textContent = `Deleted batch ${batchNumber} successfully ✅`;
