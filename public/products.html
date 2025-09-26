@@ -95,13 +95,18 @@
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      console.log("📦 Initializing Manage Products page...");
-      loadProducts();        // load table on start
-      setupAddProductForm(); // bind add product form
-      document.getElementById("toggle-language")
-              .addEventListener("click", toggleLanguage);
-    });
-  </script>
+  document.addEventListener("DOMContentLoaded", () => {
+    console.log("📦 Initializing Manage Products page...");
+    loadProducts();        // load table on start
+    setupAddProductForm(); // bind add product form
+
+    document.getElementById("toggle-language")
+            .addEventListener("click", toggleLanguage);
+
+    // ✅ Reload table when toggle sold-out checkbox changes
+    document.getElementById("toggle-soldout")
+            .addEventListener("change", loadProducts);
+  });
+</script>
 </body>
 </html>
