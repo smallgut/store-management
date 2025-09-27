@@ -95,18 +95,49 @@
   </div>
 
   <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    console.log("📦 Initializing Manage Products page...");
-    loadProducts();        // load table on start
-    setupAddProductForm(); // bind add product form
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("📦 Initializing Manage Products page...");
+  loadProducts();
+  setupAddProductForm();
+  document.getElementById("toggle-language")
+          .addEventListener("click", toggleLanguage);
 
-    document.getElementById("toggle-language")
-            .addEventListener("click", toggleLanguage);
+  // ✅ Auto-fill Product Name when barcode is entered/scanned
+  const barcodeInput = document.getElementById("product-barcode");
+  const nameInput = document.getElementById("product-name");
 
-    // ✅ Reload table when toggle sold-out checkbox changes
-    document.getElementById("toggle-soldout")
-            .addEventListener("change", loadProducts);
+  barcodeInput.addEventListener("blur", async () => {
+    const barcode = barcodeInput.value.trim();
+    if (!barcode) return;
+
+    const supabase = await ensureSupabaseClient();
+    const { data, error } = await supabase
+      .from("product_catalog")
+      .select("name, default_units, default_price")
+      .eq("barcode", barcode)
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Error fetching catalog:", error);
+      return;
+    }
+
+    if (data) {
+      console.log("✅ Auto-fill from catalog:", data);
+      nameInput.value = data.name;
+
+      // Optional: also auto-fill units + price if provided
+      if (data.default_units) {
+        document.getElementById("units").value = data.default_units;
+      }
+      if (data.default_price) {
+        document.getElementById("buy-in-price").value = data.default_price;
+      }
+    } else {
+      console.log("ℹ️ No match in catalog, manual entry required");
+    }
   });
+});
 </script>
 </body>
 </html>
