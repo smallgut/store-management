@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Product Catalog</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="common.js"></script>
+</head>
+<body class="bg-gray-100 p-4">
+  <h1 class="text-2xl font-bold mb-4">Product Catalog</h1>
+
+  <form id="catalog-form" class="space-y-2 mb-6">
+    <input id="catalog-barcode" placeholder="Barcode" class="border p-2 w-full" required>
+    <input id="catalog-name" placeholder="Name" class="border p-2 w-full" required>
+    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Add to Catalog</button>
+  </form>
+
+  <table id="catalog-table" class="w-full border-collapse border">
+    <thead>
+      <tr class="bg-gray-200">
+        <th class="border p-2">Barcode</th>
+        <th class="border p-2">Name</th>
+        <th class="border p-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function loadCatalog() {
+      const supabase = await ensureSupabaseClient();
+      const { data, error } = await supabase.from("product_catalog").select("*").order("id", { ascending: false });
+      if (error) {
+        console.error("❌ Error loading catalog:", error);
+        return;
+      }
+      const tbody = document.querySelector("#catalog-table tbody");
+      tbody.innerHTML = "";
+      data.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="border p-2">${item.barcode}</td>
+          <td class="border p-2">${item.name}</td>
+          <td class="border p-2">
+            <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteCatalog(${item.id})">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function deleteCatalog(id) {
+      if (!confirm("Delete this catalog entry?")) return;
+      const supabase = await ensureSupabaseClient();
+      const { error } = await supabase.from("product_catalog").delete().eq("id", id);
+      if (error) {
+        alert("❌ Failed to delete catalog item");
+        console.error(error);
+      } else {
+        loadCatalog();
+      }
+    }
+
+    document.getElementById("catalog-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const barcode = document.getElementById("catalog-barcode").value.trim();
+      const name = document.getElementById("catalog-name").value.trim();
+      const supabase = await ensureSupabaseClient();
+      const { error } = await supabase.from("product_catalog").insert([{ barcode, name }]);
+      if (error) {
+        alert("❌ Failed to add catalog item");
+        console.error(error);
+      } else {
+        e.target.reset();
+        loadCatalog();
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", loadCatalog);
+  </script>
+</body>
+</html>
