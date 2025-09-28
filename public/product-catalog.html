@@ -1,83 +1,161 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Product Catalog</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Product Catalog Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
-<body class="bg-gray-100 p-4">
-  <h1 class="text-2xl font-bold mb-4">Product Catalog</h1>
+<body class="bg-gray-100">
+  <nav class="bg-blue-500 p-4 text-white flex justify-between">
+    <span class="font-bold">Product Catalog Admin</span>
+    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
+  </nav>
 
-  <form id="catalog-form" class="space-y-2 mb-6">
-    <input id="catalog-barcode" placeholder="Barcode" class="border p-2 w-full" required>
-    <input id="catalog-name" placeholder="Name" class="border p-2 w-full" required>
-    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Add to Catalog</button>
-  </form>
+  <div class="container mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-4">Manage Product Catalog</h1>
 
-  <table id="catalog-table" class="w-full border-collapse border">
-    <thead>
-      <tr class="bg-gray-200">
-        <th class="border p-2">Barcode</th>
-        <th class="border p-2">Name</th>
-        <th class="border p-2">Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <div id="message" class="text-green-500 mb-2"></div>
+    <div id="error" class="text-red-500 mb-2"></div>
+
+    <!-- Add Item Form -->
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold mb-2">Add New Item</h2>
+      <form id="add-catalog-form" class="space-y-4">
+        <div>
+          <label for="catalog-barcode">Barcode</label>
+          <input id="catalog-barcode" type="text" class="border p-2 w-full" required>
+        </div>
+        <div>
+          <label for="catalog-name">Product Name</label>
+          <input id="catalog-name" type="text" class="border p-2 w-full" required>
+        </div>
+        <button type="submit"
+          class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+          Add Item
+        </button>
+      </form>
+    </div>
+
+    <!-- Catalog Table -->
+    <h2 class="text-xl font-semibold mb-2">Catalog Items</h2>
+    <table id="catalog-table" class="w-full border-collapse border">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">Barcode</th>
+          <th class="border p-2">Product Name</th>
+          <th class="border p-2">Created At</th>
+          <th class="border p-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <script>
-    async function loadCatalog() {
-      const supabase = await ensureSupabaseClient();
-      const { data, error } = await supabase.from("product_catalog").select("*").order("id", { ascending: false });
-      if (error) {
-        console.error("❌ Error loading catalog:", error);
+    document.addEventListener("DOMContentLoaded", async () => {
+      // ✅ Ensure authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = "login.html";
         return;
       }
-      const tbody = document.querySelector("#catalog-table tbody");
-      tbody.innerHTML = "";
-      data.forEach(item => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td class="border p-2">${item.barcode}</td>
-          <td class="border p-2">${item.name}</td>
-          <td class="border p-2">
-            <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteCatalog(${item.id})">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
+
+      // ✅ Logout
+      document.getElementById("logout-btn").addEventListener("click", async () => {
+        await supabase.auth.signOut();
+        window.location.href = "login.html";
       });
-    }
 
-    async function deleteCatalog(id) {
-      if (!confirm("Delete this catalog entry?")) return;
-      const supabase = await ensureSupabaseClient();
-      const { error } = await supabase.from("product_catalog").delete().eq("id", id);
-      if (error) {
-        alert("❌ Failed to delete catalog item");
-        console.error(error);
-      } else {
-        loadCatalog();
-      }
-    }
+      const tableBody = document.querySelector("#catalog-table tbody");
+      const message = document.getElementById("message");
+      const errorBox = document.getElementById("error");
 
-    document.getElementById("catalog-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const barcode = document.getElementById("catalog-barcode").value.trim();
-      const name = document.getElementById("catalog-name").value.trim();
-      const supabase = await ensureSupabaseClient();
-      const { error } = await supabase.from("product_catalog").insert([{ barcode, name }]);
-      if (error) {
-        alert("❌ Failed to add catalog item");
-        console.error(error);
-      } else {
-        e.target.reset();
-        loadCatalog();
+      async function loadCatalog() {
+        const { data, error } = await supabase
+          .from("product_catalog")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        tableBody.innerHTML = "";
+        if (error) {
+          errorBox.textContent = error.message;
+          return;
+        }
+
+        data.forEach(item => {
+          const row = document.createElement("tr");
+          row.setAttribute("data-id", item.id);
+
+          row.innerHTML = `
+            <td class="border p-2">${item.barcode}</td>
+            <td class="border p-2">${item.name}</td>
+            <td class="border p-2">${new Date(item.created_at).toLocaleString()}</td>
+            <td class="border p-2 space-x-2">
+              <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 edit-btn">Edit</button>
+              <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 delete-btn">Delete</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+
+          // ✅ Edit
+          row.querySelector(".edit-btn").addEventListener("click", async () => {
+            const newName = prompt("Enter new product name:", item.name);
+            if (newName && newName.trim() !== "") {
+              const { error } = await supabase
+                .from("product_catalog")
+                .update({ name: newName.trim() })
+                .eq("id", item.id);
+              if (error) {
+                errorBox.textContent = error.message;
+              } else {
+                message.textContent = "Item updated successfully ✅";
+                loadCatalog();
+              }
+            }
+          });
+
+          // ✅ Delete
+          row.querySelector(".delete-btn").addEventListener("click", async () => {
+            if (confirm(`Are you sure you want to delete ${item.name}?`)) {
+              const { error } = await supabase
+                .from("product_catalog")
+                .delete()
+                .eq("id", item.id);
+              if (error) {
+                errorBox.textContent = error.message;
+              } else {
+                message.textContent = "Item deleted successfully ✅";
+                loadCatalog();
+              }
+            }
+          });
+        });
       }
+
+      // ✅ Add new item
+      document.getElementById("add-catalog-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const barcode = document.getElementById("catalog-barcode").value.trim();
+        const name = document.getElementById("catalog-name").value.trim();
+
+        if (!barcode || !name) return;
+
+        const { error } = await supabase.from("product_catalog").insert([{ barcode, name }]);
+
+        if (error) {
+          errorBox.textContent = error.message;
+        } else {
+          message.textContent = "Item added successfully ✅";
+          e.target.reset();
+          loadCatalog();
+        }
+      });
+
+      loadCatalog();
     });
-
-    document.addEventListener("DOMContentLoaded", loadCatalog);
   </script>
 </body>
 </html>
