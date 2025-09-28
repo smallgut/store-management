@@ -107,8 +107,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // ✅ Auto-fill Product Name when barcode is entered/scanned
   const barcodeInput = document.getElementById("product-barcode");
   const nameInput = document.getElementById("product-name");
+  const unitsSelect = document.getElementById("units");
+  const priceInput = document.getElementById("buy-in-price");
 
-  barcodeInput.addEventListener("blur", async () => {
+  // Trigger lookup when scanner finishes input (blur OR Enter key)
+  async function lookupCatalog() {
     const barcode = barcodeInput.value.trim();
     if (!barcode) return;
 
@@ -126,17 +129,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (data) {
       console.log("✅ Auto-fill from catalog:", data);
-      nameInput.value = data.name;
-
-      // Optional: also auto-fill units + price if provided
-      if (data.default_units) {
-        document.getElementById("units").value = data.default_units;
-      }
-      if (data.default_price) {
-        document.getElementById("buy-in-price").value = data.default_price;
-      }
+      // Fill fields
+      if (data.name) nameInput.value = data.name;
+      if (data.default_units) unitsSelect.value = data.default_units;
+      if (data.default_price) priceInput.value = data.default_price;
     } else {
-      console.log("ℹ️ No match in catalog, manual entry required");
+      console.log("ℹ️ No match in catalog → manual entry required");
+    }
+  }
+
+  barcodeInput.addEventListener("blur", lookupCatalog);
+  barcodeInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      lookupCatalog();
     }
   });
 });
