@@ -56,13 +56,20 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      // ✅ Ensure authenticated
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = "login.html";
-        return;
-      }
+  const supabase = await ensureSupabaseClient();
+  const { data: { session } } = await supabase.auth.getSession();
 
+  if (!session) {
+    // Not logged in → send back to login
+    window.location.href = "login.html";
+    return;
+  }
+
+  console.log("🔑 Authenticated user:", session.user.email);
+  loadCatalog(); // your existing function to load catalog items
+});
+    
+    
       // ✅ Logout
       document.getElementById("logout-btn").addEventListener("click", async () => {
         await supabase.auth.signOut();
