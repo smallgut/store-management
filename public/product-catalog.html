@@ -57,6 +57,15 @@
   <script>
 document.addEventListener("DOMContentLoaded", async () => {
   const supabase = await ensureSupabaseClient();
+
+  // 🔒 Auth Guard — redirect to login.html if not logged in
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    console.warn("❌ No session found. Redirecting to login...");
+    window.location.href = "login.html";
+    return; // stop running rest of script
+  }
+
   const catalogTable = document.querySelector("#catalog-table tbody");
   const form = document.getElementById("add-catalog-form");
 
