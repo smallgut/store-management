@@ -3,33 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>POS Admin Signup</title>
+  <title>POS Signup</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
   <div class="bg-white p-8 rounded shadow-md w-96">
-    <h1 class="text-2xl font-bold mb-4">Create Admin User</h1>
+    <h1 class="text-2xl font-bold mb-4">Create Admin Account</h1>
     <form id="signup-form" class="space-y-4">
       <div>
         <label for="email" class="block mb-1">Email</label>
-        <input id="email" type="email" required class="w-full border p-2 rounded" />
+        <input id="email" type="email" required class="w-full border p-2 rounded" autocomplete="email" />
       </div>
       <div>
         <label for="password" class="block mb-1">Password</label>
-        <input id="password" type="password" required class="w-full border p-2 rounded" />
+        <input id="password" type="password" required class="w-full border p-2 rounded" autocomplete="new-password" />
       </div>
       <div>
         <label for="confirm" class="block mb-1">Confirm Password</label>
-        <input id="confirm" type="password" required class="w-full border p-2 rounded" />
+        <input id="confirm" type="password" required class="w-full border p-2 rounded" autocomplete="new-password" />
       </div>
       <button type="submit" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">
-        Create Admin
+        Sign Up
       </button>
     </form>
     <p id="error" class="text-red-500 mt-4"></p>
-    <p id="success" class="text-green-500 mt-4"></p>
   </div>
 
   <script>
@@ -51,9 +50,8 @@
         document.getElementById("error").textContent = error.message;
       } else {
         console.log("✅ Admin created:", data);
-        document.getElementById("success").textContent = 
-          "Admin account created. Please check your email to confirm.";
-        document.getElementById("error").textContent = "";
+        // Redirect with success message
+        window.location.href = "login.html?signup=success";
       }
     });
   </script>
