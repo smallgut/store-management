@@ -9,19 +9,21 @@
   <script src="common.js"></script>
 </head>
 <body class="bg-gray-100 p-4">
-  <nav class="bg-blue-500 text-white p-4 mb-4">
-    <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home" class="font-bold">Home</a></li>
-      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
-      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
-      <li><button id="toggle-language" data-lang-key="toggle-language" class="bg-blue-700 px-2 py-1 rounded">Toggle Language</button></li>
-    </ul>
-  </nav>
+  <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
+  <ul class="flex space-x-4">
+    <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
+    <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
+    <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
+    <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
+    <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+    <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+    <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+    <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
+    <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
+  </ul>
+  <!-- 🔒 Logout button -->
+  <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
+</nav>
 
   <h1 data-lang-key="nav-home" class="text-2xl font-bold mb-4">Home</h1>
   <div id="error" class="text-red-500 mb-4 font-bold text-lg"></div>
