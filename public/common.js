@@ -1778,51 +1778,62 @@ async function loadBatches(productId) {
    Handle Product Selection + Barcode Input
    ========================================================= */
 
-/**
- * Triggered when a product is selected from dropdown
- */
-async function handleProductSelection(eventOrProductId) {
+// ✅ Handle product selection from dropdown
+async function handleProductSelection(e) {
+  const productId = e.target.value;
+  console.log("🔍 Handling product selection, productId:", productId);
+
+  if (!productId) {
+    document.getElementById("product-barcode").value = "";
+    document.getElementById("batch-no").innerHTML = "";
+    document.getElementById("stock-display").textContent = "";
+    return;
+  }
+
+  const supabase = await ensureSupabaseClient();
+
   try {
-    let productId;
-
-    // Detect if it's an event or a direct productId call
-    if (typeof eventOrProductId === "object" && eventOrProductId.target) {
-      productId = parseInt(eventOrProductId.target.value, 10);
-    } else {
-      productId = parseInt(eventOrProductId, 10);
-    }
-
-    console.log("🔍 Handling product selection, productId:", productId);
-
-    if (!productId || isNaN(productId)) {
-      console.warn("⚠️ No valid product selected");
-      return;
-    }
-
-    const client = await ensureSupabaseClient();
-    // ✅ fetch product details so we can update barcode + stock
-    const { data: product, error } = await client
+    // 1️⃣ Get product barcode
+    const { data: product, error: productError } = await supabase
       .from("products")
-      .select("id, barcode, stock")
+      .select("barcode")
       .eq("id", productId)
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
+    if (productError) throw productError;
 
-    // ✅ update barcode input so it refreshes properly
-    const barcodeInput = document.getElementById("product-barcode");
-    if (barcodeInput) {
-      barcodeInput.value = product.barcode || "";
+    // Fill barcode field
+    if (product) {
+      document.getElementById("product-barcode").value = product.barcode || "";
     }
 
-    // ✅ update stock display
-    const stockDisplay = document.getElementById("stock-display");
-    if (stockDisplay) {
-      stockDisplay.textContent = `Available stock: ${product.stock ?? 0}`;
-    }
+    // 2️⃣ Get product batches (batch_no + stock)
+    const { data: batches, error: batchError } = await supabase
+      .from("product_batches")
+      .select("batch_no, stock")
+      .eq("product_id", productId);
 
-    // ✅ load available batches
-    await loadBatches(productId);
+    if (batchError) throw batchError;
+
+    console.log("📦 Batches for product:", batches);
+
+    // Fill Batch No. dropdown
+    const batchSelect = document.getElementById("batch-no");
+    batchSelect.innerHTML = "";
+    batches.forEach(batch => {
+      const option = document.createElement("option");
+      option.value = batch.batch_no;
+      option.textContent = `${batch.batch_no} (Stock: ${batch.stock})`;
+      batchSelect.appendChild(option);
+    });
+
+    // Update stock display
+    if (batches.length > 0) {
+      document.getElementById("stock-display").textContent =
+        `Available stock: ${batches.reduce((sum, b) => sum + (b.stock || 0), 0)}`;
+    } else {
+      document.getElementById("stock-display").textContent = "No batches available";
+    }
   } catch (err) {
     console.error("❌ Failed in handleProductSelection:", err);
   }
