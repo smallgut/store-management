@@ -1841,45 +1841,71 @@ async function handleProductSelection(e) {
 /**
  * Triggered when user enters a barcode manually
  */
-async function handleBarcodeInput(event) {
-  const barcode = event.target.value.trim();
-  console.log("📦 Barcode input:", barcode);
+// ✅ Handle barcode input (typing/scanning)
+async function handleBarcodeInput(e) {
+  const barcode = e.target.value.trim();
+  console.log("🔍 Handling barcode input:", barcode);
 
-  if (!barcode) return;
+  if (!barcode) {
+    document.getElementById("product-select").value = "";
+    document.getElementById("batch-no").innerHTML = "";
+    document.getElementById("stock-display").textContent = "";
+    return;
+  }
+
+  const supabase = await ensureSupabaseClient();
 
   try {
-    const client = await ensureSupabaseClient();
-    const { data: products, error } = await client
+    // 1️⃣ Find product by barcode
+    const { data: product, error: productError } = await supabase
       .from("products")
-      .select("id, barcode, name, stock")
+      .select("id, barcode")
       .eq("barcode", barcode)
-      .limit(1);
+      .maybeSingle();
 
-    if (error) throw error;
+    if (productError) throw productError;
 
-    if (products && products.length > 0) {
-      const product = products[0];
-      console.log("✅ Found product by barcode:", product);
+    if (!product) {
+      console.warn("❌ No product found for barcode:", barcode);
+      document.getElementById("product-select").value = "";
+      document.getElementById("batch-no").innerHTML = "";
+      document.getElementById("stock-display").textContent = "No product found";
+      return;
+    }
 
-      // Set dropdown to match
-      const productSelect = document.getElementById("product-select");
-      if (productSelect) {
-        productSelect.value = product.id;
-      }
+    // Select the product in the dropdown
+    document.getElementById("product-select").value = product.id;
 
-      // Show stock info
-      const stockDisplay = document.getElementById("stock-display");
-      if (stockDisplay) {
-        stockDisplay.textContent = `Stock: ${product.stock}`;
-      }
+    // 2️⃣ Load batches for that product
+    const { data: batches, error: batchError } = await supabase
+      .from("product_batches")
+      .select("id, remaining_quantity")   // 👈 use your actual columns here
+      .eq("product_id", product.id)
+      .gt("remaining_quantity", 0);       // only show batches with stock left
 
-      // Load batches directly by product_id
-      await loadBatches(product.id);
+    if (batchError) throw batchError;
+
+    console.log("📦 Batches for barcode:", batches);
+
+    // Fill batch dropdown
+    const batchSelect = document.getElementById("batch-no");
+    batchSelect.innerHTML = "";
+    batches.forEach(batch => {
+      const option = document.createElement("option");
+      option.value = batch.id;
+      option.textContent = `Batch #${batch.id} (Stock: ${batch.remaining_quantity})`;
+      batchSelect.appendChild(option);
+    });
+
+    // Update stock display
+    if (batches.length > 0) {
+      document.getElementById("stock-display").textContent =
+        `Available stock: ${batches.reduce((sum, b) => sum + (b.remaining_quantity || 0), 0)}`;
     } else {
-      console.warn("⚠️ No product found for barcode:", barcode);
+      document.getElementById("stock-display").textContent = "No stock available";
     }
   } catch (err) {
-    console.error("❌ Error handling barcode input:", err);
+    console.error("❌ Failed in handleBarcodeInput:", err);
   }
 }
 
