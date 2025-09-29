@@ -1615,24 +1615,40 @@ async function loadVendors() {
   const tbody = document.querySelector("#vendors-table tbody");
   tbody.innerHTML = ""; // clear old rows
 
-  vendors.forEach(vendor => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="border p-2">${vendor.name || ""}</td>
-      <td class="border p-2">${vendor.contact_email || ""}</td>
-      <td class="border p-2 space-x-2">
-        <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-                onclick="adjustVendor(${vendor.id}, '${vendor.name || ""}', '${vendor.contact_email || ""}')">
-          Adjust
-        </button>
-        <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-                onclick="deleteVendor(${vendor.id})">
-          Remove
-        </button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+  function openAdjustVendor(id, name, contact) {
+  document.getElementById("adjust-vendor-id").value = id;
+  document.getElementById("adjust-vendor-name").value = name;
+  document.getElementById("adjust-vendor-contact").value = contact;
+  document.getElementById("adjust-vendor-modal").classList.remove("hidden");
+}
+
+document.getElementById("cancel-adjust").addEventListener("click", () => {
+  document.getElementById("adjust-vendor-modal").classList.add("hidden");
+});
+
+document.getElementById("adjust-vendor-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const supabase = await ensureSupabaseClient();
+
+  const id = document.getElementById("adjust-vendor-id").value;
+  const name = document.getElementById("adjust-vendor-name").value.trim();
+  const contact_email = document.getElementById("adjust-vendor-contact").value.trim();
+
+  console.log("✏️ Adjusting vendor via modal...", id);
+
+  const { error } = await supabase
+    .from("vendors")
+    .update({ name, contact_email })
+    .eq("id", id);
+
+  if (error) {
+    console.error("❌ Failed adjusting vendor:", error);
+  } else {
+    console.log("✅ Vendor adjusted:", id);
+    loadVendors();
+    document.getElementById("adjust-vendor-modal").classList.add("hidden");
+  }
+});
 }
 
 async function adjustVendor(id, currentName, currentContact) {
