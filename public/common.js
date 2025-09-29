@@ -1603,7 +1603,7 @@ async function loadVendors() {
 
   const { data: vendors, error } = await supabase
     .from("vendors")
-    .select("id, name, contact_email");  // ✅ use contact_email
+    .select("id, name, contact_email");
 
   if (error) {
     console.error("❌ Error loading vendors:", error);
@@ -1619,17 +1619,50 @@ async function loadVendors() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="border p-2">${vendor.name || ""}</td>
-      <td class="border p-2">${vendor.contact_email || ""}</td>  <!-- ✅ use contact_email -->
-      <td class="border p-2">
+      <td class="border p-2">${vendor.contact_email || ""}</td>
+      <td class="border p-2 space-x-2">
+        <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+                onclick="adjustVendor(${vendor.id}, '${vendor.name || ""}', '${vendor.contact_email || ""}')">
+          Adjust
+        </button>
         <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
                 onclick="deleteVendor(${vendor.id})">
-          Delete
+          Remove
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
 }
+
+async function adjustVendor(id, currentName, currentContact) {
+  console.log("✏️ Adjusting vendor...", id);
+
+  const newName = prompt("Enter new Vendor Name:", currentName);
+  if (newName === null) return; // cancelled
+
+  const newContact = prompt("Enter new Vendor Contact (email):", currentContact);
+  if (newContact === null) return; // cancelled
+
+  const supabase = await ensureSupabaseClient();
+  const { error } = await supabase
+    .from("vendors")
+    .update({
+      name: newName.trim(),
+      contact_email: newContact.trim()
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("❌ Error adjusting vendor:", error);
+    alert("Failed to adjust vendor.");
+    return;
+  }
+
+  console.log("✅ Vendor adjusted:", id);
+  loadVendors(); // refresh table
+}
+
 async function addVendor(vendor) {
   console.log('Adding vendor...', vendor, new Date().toISOString());
   try {
