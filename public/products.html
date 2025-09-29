@@ -126,31 +126,30 @@
     const unitsSelect = document.getElementById("units");
     const priceInput = document.getElementById("buy-in-price");
 
-    async function lookupCatalog() {
-      const barcode = barcodeInput.value.trim();
-      if (!barcode) return;
+    // Trigger lookup when scanner finishes input (blur OR Enter key)
+async function lookupCatalog() {
+  const barcode = barcodeInput.value.trim();
+  if (!barcode) return;
 
-      const { data, error } = await supabase
-        .from("product_catalog")
-        .select("name, default_units, default_price")
-        .eq("barcode", barcode)
-        .maybeSingle();
+  const supabase = await ensureSupabaseClient();
+  const { data, error } = await supabase
+    .from("product_catalog")
+    .select("name")   // ✅ Only query name now
+    .eq("barcode", barcode)
+    .maybeSingle();
 
-      if (error) {
-        console.error("❌ Error fetching catalog:", error);
-        return;
-      }
+  if (error) {
+    console.error("❌ Error fetching catalog:", error);
+    return;
+  }
 
-      if (data) {
-        console.log("✅ Auto-fill from catalog:", data);
-        if (data.name) nameInput.value = data.name;
-        if (data.default_units) unitsSelect.value = data.default_units;
-        if (data.default_price) priceInput.value = data.default_price;
-      } else {
-        console.log("ℹ️ No match in catalog → manual entry required");
-      }
-    }
-
+  if (data) {
+    console.log("✅ Auto-fill from catalog:", data);
+    if (data.name) nameInput.value = data.name;  // ✅ Fill only product name
+  } else {
+    console.log("ℹ️ No match in catalog → manual entry required");
+  }
+}
     barcodeInput.addEventListener("blur", lookupCatalog);
     barcodeInput.addEventListener("keypress", (e) => {
       if (e.key === "Enter") {
