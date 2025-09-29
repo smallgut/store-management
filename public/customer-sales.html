@@ -117,6 +117,31 @@
 </div>
 
   <script>
+document.addEventListener("DOMContentLoaded", async () => {
+  const supabase = await ensureSupabaseClient();
+
+  // 🔒 Auth Guard
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    console.warn("❌ Not logged in. Redirecting...");
+    window.location.href = "login.html";
+    return;
+  }
+
+  // 🔑 Logout button
+  const logoutBtn = document.getElementById("logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = "login.html";
+    });
+  }
+
+  // 🛠️ Keep each page’s original initialization here
+  console.log("✅ Authenticated, initializing page...");
+});
+
+    
     document.addEventListener('DOMContentLoaded', () => {
       console.log('Customer Sales DOM fully loaded and parsed', new Date().toISOString());
       applyTranslations();
