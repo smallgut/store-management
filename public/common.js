@@ -303,35 +303,40 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
 /* =========================================================
    Populate Product Dropdown (Record Customer Sales page)
    ========================================================= */
+// ✅ Populate product dropdown (only in-stock products)
 async function populateProductDropdown() {
   console.log("📦 Populating product dropdown...");
-  const client = await ensureSupabaseClient();
+  const supabase = await ensureSupabaseClient();
 
-  const { data, error } = await client
-    .from("products")
-    .select("id, name, barcode")
-    .order("name", { ascending: true });
+  try {
+    // Join products with batches that have stock > 0
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, name, barcode, product_batches(id, remaining_quantity)")
+      .order("name", { ascending: true });
 
-  if (error) {
-    console.error("❌ Error populating product dropdown:", error);
-    return;
+    if (error) throw error;
+
+    // Filter out products that have no batch with remaining_quantity > 0
+    const inStockProducts = data.filter(p =>
+      p.product_batches.some(b => (b.remaining_quantity || 0) > 0)
+    );
+
+    console.log("✅ Products for dropdown:", inStockProducts);
+
+    const select = document.getElementById("product-select");
+    select.innerHTML = `<option value="">-- Select a Product --</option>`;
+
+    inStockProducts.forEach(p => {
+      const option = document.createElement("option");
+      option.value = p.id;
+      option.textContent = `${p.name} (${p.barcode})`;
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error("❌ Error populating products:", err);
   }
-
-  console.log("✅ Products for dropdown:", data);
-
-  const dropdown = document.getElementById("product-select");
-  if (!dropdown) return;
-
-  dropdown.innerHTML = `<option value="">-- Select Product --</option>`;
-
-  data.forEach((p) => {
-    const option = document.createElement("option");
-    option.value = p.id;
-    option.textContent = `${p.name} (${p.barcode})`;
-    dropdown.appendChild(option);
-  });
 }
-
 async function populateVendorDropdown() {
   console.log('Populating vendor dropdown...');
   try {
