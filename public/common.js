@@ -1599,20 +1599,37 @@ function handleAddVendor(event) {
    ------------------------------------------------------------------ */
 async function loadVendors() {
   console.log("🏭 Loading vendors...");
-  try {
-    const client = await ensureSupabaseClient();
-    const { data, error } = await client
-      .from("vendors")
-      .select("id, name, address, contact_email, phone_number, contact");
-    if (error) throw error;
-    console.log("✅ Vendors:", data);
-    return data;
-  } catch (err) {
-    console.error("❌ Error loading vendors:", err.message);
-    return [];
-  }
-}
+  const supabase = await ensureSupabaseClient();
 
+  const { data: vendors, error } = await supabase
+    .from("vendors")
+    .select("id, name, contact_email");  // ✅ use contact_email
+
+  if (error) {
+    console.error("❌ Error loading vendors:", error);
+    return;
+  }
+
+  console.log("✅ Vendors:", vendors);
+
+  const tbody = document.querySelector("#vendors-table tbody");
+  tbody.innerHTML = ""; // clear old rows
+
+  vendors.forEach(vendor => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="border p-2">${vendor.name || ""}</td>
+      <td class="border p-2">${vendor.contact_email || ""}</td>  <!-- ✅ use contact_email -->
+      <td class="border p-2">
+        <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                onclick="deleteVendor(${vendor.id})">
+          Delete
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 async function addVendor(vendor) {
   console.log('Adding vendor...', vendor, new Date().toISOString());
   try {
