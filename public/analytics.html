@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // 🔑 Logout button
+  // 🚪 Logout button
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
@@ -125,16 +125,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // 🛠️ Keep each page’s original initialization here
-  console.log("✅ Authenticated, initializing page...");
+  // 🌐 Page initialization
+  console.log("✅ Authenticated, initializing Analytics page...");
+  applyTranslations();
+  loadAnalytics();
+  document.getElementById("toggle-language")
+          .addEventListener("click", toggleLanguage);
 });
-    
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log('DOM fully loaded and parsed', new Date().toISOString());
-      applyTranslations();
-      loadAnalytics();
-      document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
-    });
-  </script>
+</script>
 </body>
 </html>
