@@ -449,22 +449,43 @@ async function populateCustomerDropdown() {
 // ✅ From now on, always load customer sales like this:
 async function loadCustomerSales() {
   console.log("📦 Loading customer sales...", new Date().toISOString());
-  try {
-    const client = await ensureSupabaseClient();
+  const supabase = await ensureSupabaseClient();
 
-    const { data, error } = await client
-      .from("customer_sales")
-      .select("id, customer_name, product_id, barcode, quantity, selling_price, sale_date")
-      .order("sale_date", { ascending: false });
+  const { data: sales, error } = await supabase
+    .from("customer_sales")
+    .select(`
+      id, customer_name, sale_date, total_cost,
+      customer_sales_items (id)
+    `)
+    .order("id", { ascending: false });
 
-    if (error) throw error;
-
-    console.log("✅ Customer sales loaded:", data?.length || 0);
-    renderOrders(data);
-  } catch (err) {
-    console.error("❌ Error loading customer sales:", err);
-    alert("Failed to load customer sales: " + err.message);
+  if (error) {
+    console.error("❌ Error loading customer sales:", error);
+    return;
   }
+
+  console.log("✅ Customer sales loaded:", sales);
+
+  const tbody = document.querySelector("#customer-sales-body");
+  tbody.innerHTML = "";
+
+  sales.forEach(order => {
+    const itemsCount = order.customer_sales_items?.length || 0;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="border p-2">#${order.id}</td>
+      <td class="border p-2">${itemsCount}</td>
+      <td class="border p-2">${order.total_cost.toFixed(2)}</td>
+      <td class="border p-2">${new Date(order.sale_date).toLocaleDateString()}</td>
+      <td class="border p-2">${order.customer_name}</td>
+      <td class="border p-2">
+        <button class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                onclick="showReceipt(${order.id})">Receipt</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 /* =========================================================
@@ -532,6 +553,45 @@ async function deleteSale(id) {
     console.error("❌ Failed to delete sale:", err);
     alert("Failed to delete sale: " + err.message);
   }
+}
+
+async function showReceipt(orderId) {
+  const supabase = await ensureSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("customer_sales_items")
+    .select(`
+      quantity,
+      selling_price,
+      sub_total,
+      products(name, barcode),
+      product_batches(batch_number)
+    `)
+    .eq("order_id", orderId);
+
+  if (error) {
+    console.error("❌ Failed to load receipt:", error);
+    return;
+  }
+
+  // Build receipt UI
+  let receiptHtml = "<h2>Receipt</h2><table>";
+  receiptHtml += "<tr><th>Product</th><th>Batch</th><th>Qty</th><th>Price</th><th>Sub-Total</th></tr>";
+
+  data.forEach(item => {
+    receiptHtml += `
+      <tr>
+        <td>${item.products?.name || ""}</td>
+        <td>${item.product_batches?.batch_number || ""}</td>
+        <td>${item.quantity}</td>
+        <td>${item.selling_price.toFixed(2)}</td>
+        <td>${item.sub_total.toFixed(2)}</td>
+      </tr>`;
+  });
+
+  receiptHtml += "</table>";
+
+  document.getElementById("message").innerHTML = receiptHtml;
 }
 
 // --- FIX printReceipt ---
