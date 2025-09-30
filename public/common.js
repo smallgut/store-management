@@ -451,41 +451,57 @@ async function loadCustomerSales() {
   console.log("📦 Loading customer sales...", new Date().toISOString());
   const supabase = await ensureSupabaseClient();
 
-  const { data: sales, error } = await supabase
-    .from("customer_sales")
-    .select(`
-      id, customer_name, sale_date, total_cost,
-      customer_sales_items (id)
-    `)
-    .order("id", { ascending: false });
+  try {
+    // 1️⃣ Fetch all orders
+    const { data: orders, error: ordersError } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date, created_at")
+      .order("id", { ascending: false });
 
-  if (error) {
-    console.error("❌ Error loading customer sales:", error);
-    return;
+    if (ordersError) throw ordersError;
+
+    // 2️⃣ For each order, fetch items and compute totals
+    const tbody = document.getElementById("customer-sales-body");
+    tbody.innerHTML = "";
+
+    for (const order of orders) {
+      const { data: items, error: itemsError } = await supabase
+        .from("customer_sales_items")
+        .select("quantity, sub_total")
+        .eq("order_id", order.id);
+
+      if (itemsError) throw itemsError;
+
+      const itemsCount = items.length;
+      const totalCost = items.reduce((sum, i) => sum + (i.sub_total || 0), 0);
+
+      // 3️⃣ Build table row
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${order.id}</td>
+        <td class="border p-2">${itemsCount}</td>
+        <td class="border p-2">${totalCost.toFixed(2)}</td>
+        <td class="border p-2">${order.sale_date}</td>
+        <td class="border p-2">${order.customer_name}</td>
+        <td class="border p-2">
+          <button class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                  onclick="showReceipt(${order.id})">
+            View Receipt
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    console.log("✅ Customer sales loaded:", orders.length);
+  } catch (err) {
+    console.error("❌ Error loading customer sales:", err);
+    const errorEl = document.getElementById("error");
+    if (errorEl) {
+      errorEl.textContent = "Failed to load customer sales: " + err.message;
+      clearMessage("error");
+    }
   }
-
-  console.log("✅ Customer sales loaded:", sales);
-
-  const tbody = document.querySelector("#customer-sales-body");
-  tbody.innerHTML = "";
-
-  sales.forEach(order => {
-    const itemsCount = order.customer_sales_items?.length || 0;
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="border p-2">#${order.id}</td>
-      <td class="border p-2">${itemsCount}</td>
-      <td class="border p-2">${order.total_cost.toFixed(2)}</td>
-      <td class="border p-2">${new Date(order.sale_date).toLocaleDateString()}</td>
-      <td class="border p-2">${order.customer_name}</td>
-      <td class="border p-2">
-        <button class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                onclick="showReceipt(${order.id})">Receipt</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
 }
 
 /* =========================================================
