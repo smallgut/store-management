@@ -304,12 +304,13 @@ function handleDeleteSale(saleId, productBarcode, quantity) {
    Populate Product Dropdown (Record Customer Sales page)
    ========================================================= */
 // ✅ Populate product dropdown (only in-stock products)
+
 async function populateProductDropdown() {
   console.log("📦 Populating product dropdown...");
   const supabase = await ensureSupabaseClient();
 
   try {
-    // Join products with batches that have stock > 0
+    // Join products with their batches
     const { data, error } = await supabase
       .from("products")
       .select("id, name, barcode, product_batches(id, remaining_quantity)")
@@ -337,6 +338,8 @@ async function populateProductDropdown() {
     console.error("❌ Error populating products:", err);
   }
 }
+
+
 async function populateVendorDropdown() {
   console.log('Populating vendor dropdown...');
   try {
@@ -1847,6 +1850,7 @@ async function handleProductSelection(e) {
  * Triggered when user enters a barcode manually
  */
 // ✅ Handle barcode input (typing/scanning)
+// ✅ Handle barcode input (typing/scanning)
 async function handleBarcodeInput(e) {
   const barcode = e.target.value.trim();
   console.log("🔍 Handling barcode input:", barcode);
@@ -1881,12 +1885,12 @@ async function handleBarcodeInput(e) {
     // Select the product in the dropdown
     document.getElementById("product-select").value = product.id;
 
-    // 2️⃣ Load batches for that product
+    // 2️⃣ Load batches for that product (only ones with stock left)
     const { data: batches, error: batchError } = await supabase
       .from("product_batches")
-      .select("id, remaining_quantity")   // 👈 use your actual columns here
+      .select("id, batch_number, remaining_quantity")
       .eq("product_id", product.id)
-      .gt("remaining_quantity", 0);       // only show batches with stock left
+      .gt("remaining_quantity", 0);
 
     if (batchError) throw batchError;
 
@@ -1897,8 +1901,8 @@ async function handleBarcodeInput(e) {
     batchSelect.innerHTML = "";
     batches.forEach(batch => {
       const option = document.createElement("option");
-      option.value = batch.id;
-      option.textContent = `Batch #${batch.id} (Stock: ${batch.remaining_quantity})`;
+      option.value = batch.id; // use primary key as value
+      option.textContent = `${batch.batch_number} (Stock: ${batch.remaining_quantity})`;
       batchSelect.appendChild(option);
     });
 
