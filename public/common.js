@@ -1049,30 +1049,75 @@ async function deleteLoanRecord(loanId) {
  * Fix loadAnalytics
  * - replace wrong column names across vendors, products, etc.
  */
+// 📊 Load Analytics (patched to use product_batches)
 async function loadAnalytics() {
   console.log("📊 Loading analytics...", new Date().toISOString());
+  const client = await ensureSupabaseClient();
+
   try {
-    const client = await getClient();
+    // 🔹 Query product_batches instead of products.stock
+    const { data: batches, error } = await client
+      .from("product_batches")
+      .select(`
+        id,
+        batch_number,
+        remaining_quantity,
+        buy_in_price,
+        product:products (
+          id,
+          name,
+          barcode,
+          units
+        )
+      `);
 
-    // Example: load products properly
-    const { data: products, error: prodErr } = await client
-      .from("products")
-      .select("id, name, barcode, stock, price, batch_no");
+    if (error) throw error;
 
-    if (prodErr) throw prodErr;
-    console.log("✅ Products analytics:", products);
+    console.log("📊 Analytics data loaded:", batches);
 
-    // Example: load vendors properly
-    const { data: vendors, error: vendErr } = await client
-      .from("vendors")
-      .select("id, name, contact, phone_number");
+    // 🔹 Aggregate per product (sum of remaining_quantity)
+    const productMap = {};
+    batches.forEach(b => {
+      if (!b.product) return; // skip if no product joined
+      const pid = b.product.id;
+      if (!productMap[pid]) {
+        productMap[pid] = {
+          id: pid,
+          name: b.product.name,
+          barcode: b.product.barcode,
+          units: b.product.units,
+          total_stock: 0,
+          total_value: 0,
+        };
+      }
+      productMap[pid].total_stock += b.remaining_quantity || 0;
+      productMap[pid].total_value += (b.remaining_quantity || 0) * (b.buy_in_price || 0);
+    });
 
-    if (vendErr) throw vendErr;
-    console.log("✅ Vendors analytics:", vendors);
+    const analyticsData = Object.values(productMap);
 
-    // (extend this with charts/tables rendering)
+    // 🔹 Render into your analytics table (replace DOM IDs with your table’s)
+    const tbody = document.querySelector("#analytics-table tbody");
+    if (tbody) {
+      tbody.innerHTML = "";
+      analyticsData.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="border p-2">${p.name}</td>
+          <td class="border p-2">${p.barcode || ""}</td>
+          <td class="border p-2">${p.total_stock}</td>
+          <td class="border p-2">${p.units || ""}</td>
+          <td class="border p-2">${p.total_value.toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
   } catch (err) {
     console.error("❌ Analytics error:", err);
+    const errorEl = document.getElementById("error");
+    if (errorEl) {
+      errorEl.textContent = `❌ Analytics error: ${err.message}`;
+    }
   }
 }
 function parseBatchNoToDate(batchNo) {
