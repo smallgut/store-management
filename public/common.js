@@ -2215,40 +2215,35 @@ function adjustCartItem(index) {
 // ✅ Checkout Order with customer_sales + customer_sales_items
 async function checkoutOrder() {
   const supabase = await ensureSupabaseClient();
+  if (cart.length === 0) {
+    alert("Cart is empty!");
+    return;
+  }
 
   try {
     console.log("💳 Checking out order...", new Date().toISOString());
-    setLoading(true);
 
-    // 1️⃣ Collect data
-    const customerName = document.getElementById("customer-name").value.trim();
-    const saleDate = document.getElementById("sale-date").value;
-    if (!customerName || !saleDate) {
-      alert("Please enter customer name and sale date.");
-      return;
-    }
+    // Calculate totals
+    const totalCost = cart.reduce((sum, item) => sum + (item.sellingPrice * item.quantity), 0);
+    const itemsCount = cart.length;
 
-    if (cart.length === 0) {
-      alert("Cart is empty.");
-      return;
-    }
-
-    // 2️⃣ Insert order row (customer_sales)
+    // Insert order into customer_sales (no quantity field anymore)
     const { data: order, error: orderError } = await supabase
       .from("customer_sales")
-      .insert({
-        customer_name: customerName,
-        sale_date: saleDate
-      })
+      .insert([{
+        customer_name: document.getElementById("customer-name").value,
+        sale_date: document.getElementById("sale-date").value,
+        total_cost: totalCost,
+        items_count: itemsCount
+      }])
       .select("id")
       .single();
 
     if (orderError) throw orderError;
-    const orderId = order.id;
 
-    // 3️⃣ Insert items into customer_sales_items
-    const itemsPayload = cart.map(item => ({
-      order_id: orderId,
+    // Insert items into customer_sales_items
+    const itemsToInsert = cart.map(item => ({
+      order_id: order.id,
       product_id: item.productId,
       batch_id: item.batchId,
       quantity: item.quantity,
@@ -2257,32 +2252,31 @@ async function checkoutOrder() {
 
     const { error: itemsError } = await supabase
       .from("customer_sales_items")
-      .insert(itemsPayload);
+      .insert(itemsToInsert);
 
     if (itemsError) throw itemsError;
 
-    // 4️⃣ Decrement stock safely (call SQL function per item)
-    for (const item of cart) {
-      const { error: decError } = await supabase.rpc(
-        "decrement_remaining_quantity",
-        { batch_id: item.batchId, qty: item.quantity }
-      );
+    // Decrement stock safely
+    for (let item of cart) {
+      const { error: decError } = await supabase.rpc("decrement_remaining_quantity", {
+        batch_id: item.batchId,
+        qty: item.quantity
+      });
       if (decError) throw decError;
       console.log(`📉 Stock decremented for batch ${item.batchId} by ${item.quantity}`);
     }
 
-    // 5️⃣ Clear cart + reload sales
+    alert("✅ Checkout successful!");
     cart = [];
     renderCart();
-    await loadCustomerSales();
+    loadCustomerSales();
 
-    console.log("✅ Checkout success, order ID:", orderId);
-    showReceipt(orderId); // 🔥 auto show receipt after checkout
+    // Auto-show receipt
+    showReceipt(order.id);
+
   } catch (err) {
     console.error("❌ Checkout failed:", err);
     alert("Checkout failed: " + err.message);
-  } finally {
-    setLoading(false);
   }
 }
 
