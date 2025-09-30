@@ -1786,7 +1786,7 @@ async function loadBatches(productId) {
    Handle Product Selection + Barcode Input
    ========================================================= */
 
-// ✅ Handle product selection from dropdown
+// ✅ Handle when a product is selected from the dropdown
 async function handleProductSelection(e) {
   const productId = e.target.value;
   console.log("🔍 Handling product selection, productId:", productId);
@@ -1801,51 +1801,56 @@ async function handleProductSelection(e) {
   const supabase = await ensureSupabaseClient();
 
   try {
-    // 1️⃣ Get product barcode
+    // 1️⃣ Get product details (barcode)
     const { data: product, error: productError } = await supabase
       .from("products")
-      .select("barcode")
+      .select("id, barcode")
       .eq("id", productId)
       .maybeSingle();
 
     if (productError) throw productError;
-
-    // Fill barcode field
-    if (product) {
-      document.getElementById("product-barcode").value = product.barcode || "";
+    if (!product) {
+      console.warn("❌ No product found for id:", productId);
+      return;
     }
 
-    // 2️⃣ Get product batches (batch_no + stock)
+    // Fill barcode field
+    document.getElementById("product-barcode").value = product.barcode || "";
+
+    // 2️⃣ Get product batches (only those with stock left)
     const { data: batches, error: batchError } = await supabase
       .from("product_batches")
-      .select("batch_no, stock")
-      .eq("product_id", productId);
+      .select("id, batch_number, remaining_quantity")
+      .eq("product_id", product.id)
+      .gt("remaining_quantity", 0);
 
     if (batchError) throw batchError;
 
     console.log("📦 Batches for product:", batches);
 
-    // Fill Batch No. dropdown
+    // Fill batch dropdown
     const batchSelect = document.getElementById("batch-no");
     batchSelect.innerHTML = "";
     batches.forEach(batch => {
       const option = document.createElement("option");
-      option.value = batch.batch_no;
-      option.textContent = `${batch.batch_no} (Stock: ${batch.stock})`;
+      option.value = batch.id; // store batch primary key
+      option.textContent = `${batch.batch_number} (Stock: ${batch.remaining_quantity})`;
       batchSelect.appendChild(option);
     });
 
     // Update stock display
     if (batches.length > 0) {
       document.getElementById("stock-display").textContent =
-        `Available stock: ${batches.reduce((sum, b) => sum + (b.stock || 0), 0)}`;
+        `Available stock: ${batches.reduce((sum, b) => sum + (b.remaining_quantity || 0), 0)}`;
     } else {
-      document.getElementById("stock-display").textContent = "No batches available";
+      document.getElementById("stock-display").textContent = "No stock available";
     }
   } catch (err) {
     console.error("❌ Failed in handleProductSelection:", err);
   }
 }
+
+
 /**
  * Triggered when user enters a barcode manually
  */
