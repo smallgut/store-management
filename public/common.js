@@ -558,7 +558,20 @@ async function deleteSale(id) {
 async function showReceipt(orderId) {
   const supabase = await ensureSupabaseClient();
 
-  const { data, error } = await supabase
+  // 1️⃣ Fetch order header
+  const { data: order, error: orderError } = await supabase
+    .from("customer_sales")
+    .select("id, customer_name, sale_date, created_at")
+    .eq("id", orderId)
+    .single();
+
+  if (orderError) {
+    console.error("❌ Failed to load order:", orderError);
+    return;
+  }
+
+  // 2️⃣ Fetch items
+  const { data: items, error: itemsError } = await supabase
     .from("customer_sales_items")
     .select(`
       quantity,
@@ -569,19 +582,39 @@ async function showReceipt(orderId) {
     `)
     .eq("order_id", orderId);
 
-  if (error) {
-    console.error("❌ Failed to load receipt:", error);
+  if (itemsError) {
+    console.error("❌ Failed to load receipt items:", itemsError);
     return;
   }
 
-  // Build receipt UI
-  let receiptHtml = "<h2>Receipt</h2><table>";
-  receiptHtml += "<tr><th>Product</th><th>Batch</th><th>Qty</th><th>Price</th><th>Sub-Total</th></tr>";
+  // 3️⃣ Compute totals
+  const itemsCount = items.length;
+  const totalCost = items.reduce((sum, i) => sum + (i.sub_total || 0), 0);
 
-  data.forEach(item => {
+  // 4️⃣ Build receipt UI
+  let receiptHtml = `
+    <h2>Receipt</h2>
+    <p><b>Order #:</b> ${order.id}</p>
+    <p><b>Customer:</b> ${order.customer_name}</p>
+    <p><b>Sale Date:</b> ${order.sale_date}</p>
+    <p><b>Items:</b> ${itemsCount}</p>
+    <p><b>Total Cost:</b> ${totalCost.toFixed(2)}</p>
+    <hr/>
+    <table border="1" cellspacing="0" cellpadding="4">
+      <tr>
+        <th>Product</th>
+        <th>Barcode</th>
+        <th>Batch</th>
+        <th>Qty</th>
+        <th>Price</th>
+        <th>Sub-Total</th>
+      </tr>`;
+
+  items.forEach(item => {
     receiptHtml += `
       <tr>
         <td>${item.products?.name || ""}</td>
+        <td>${item.products?.barcode || ""}</td>
         <td>${item.product_batches?.batch_number || ""}</td>
         <td>${item.quantity}</td>
         <td>${item.selling_price.toFixed(2)}</td>
@@ -589,10 +622,17 @@ async function showReceipt(orderId) {
       </tr>`;
   });
 
-  receiptHtml += "</table>";
+  receiptHtml += `
+    <tr>
+      <td colspan="5" style="text-align:right;"><b>Total:</b></td>
+      <td><b>${totalCost.toFixed(2)}</b></td>
+    </tr>
+    </table>`;
 
   document.getElementById("message").innerHTML = receiptHtml;
 }
+
+
 
 // --- FIX printReceipt ---
 async function printReceipt(orderId) {
@@ -2158,105 +2198,75 @@ function adjustCartItem(index) {
    ========================================================= */
 // ✅ Checkout Order with customer_sales + customer_sales_items
 async function checkoutOrder() {
-  console.log("💳 Checking out order...", new Date().toISOString());
   const supabase = await ensureSupabaseClient();
 
   try {
+    console.log("💳 Checking out order...", new Date().toISOString());
+    setLoading(true);
+
+    // 1️⃣ Collect data
     const customerName = document.getElementById("customer-name").value.trim();
     const saleDate = document.getElementById("sale-date").value;
-    const cartRows = document.querySelectorAll("#cart-table tbody tr");
-
     if (!customerName || !saleDate) {
-      alert("Please fill in customer name and sale date.");
+      alert("Please enter customer name and sale date.");
       return;
     }
 
-    if (cartRows.length === 0) {
+    if (cart.length === 0) {
       alert("Cart is empty.");
       return;
     }
 
-    // 1️⃣ Collect items from cart
-    let items = [];
-    cartRows.forEach((row) => {
-      const productId = row.dataset.productId;
-      const productName = row.querySelector("td:nth-child(1)").textContent;
-      const barcode = row.querySelector("td:nth-child(2)").textContent;
-      const batchId = row.dataset.batchId;
-      const batchNumber = row.querySelector("td:nth-child(3)").textContent;
-      const quantity = parseInt(row.querySelector("td:nth-child(4)").textContent);
-      const sellingPrice = parseFloat(row.querySelector("td:nth-child(5)").textContent);
-
-      items.push({
-        productId,
-        productName,
-        barcode,
-        batchId,
-        batchNumber,
-        quantity,
-        sellingPrice,
-      });
-    });
-
-    // 2️⃣ Calculate totals
-    const totalCost = items.reduce((sum, i) => sum + i.quantity * i.sellingPrice, 0);
-
-    // 3️⃣ Insert a new order (customer_sales)
+    // 2️⃣ Insert order row (customer_sales)
     const { data: order, error: orderError } = await supabase
       .from("customer_sales")
-      .insert([
-        {
-          customer_name: customerName,
-          sale_date: saleDate,
-          total_cost: totalCost,
-          items_count: items.length, // optional: add a column in customer_sales if you want
-        },
-      ])
+      .insert({
+        customer_name: customerName,
+        sale_date: saleDate
+      })
       .select("id")
       .single();
 
     if (orderError) throw orderError;
-    console.log("🆕 Order inserted:", order);
+    const orderId = order.id;
 
-    // 4️⃣ Insert line items (customer_sales_items)
-    const lineItems = items.map((i) => ({
-      order_id: order.id,
-      product_id: i.productId,
-      batch_id: i.batchId,
-      quantity: i.quantity,
-      selling_price: i.sellingPrice,
+    // 3️⃣ Insert items into customer_sales_items
+    const itemsPayload = cart.map(item => ({
+      order_id: orderId,
+      product_id: item.productId,
+      batch_id: item.batchId,
+      quantity: item.quantity,
+      selling_price: item.sellingPrice
     }));
 
-    const { error: itemsError } = await supabase.from("customer_sales_items").insert(lineItems);
+    const { error: itemsError } = await supabase
+      .from("customer_sales_items")
+      .insert(itemsPayload);
+
     if (itemsError) throw itemsError;
-    console.log("📦 Items inserted:", lineItems);
 
-    // 5️⃣ Update stock in product_batches
-    for (const i of items) {
-      const { error: stockError } = await supabase
-        .from("product_batches")
-        .update({ remaining_quantity: supabase.rpc("decrement_remaining_quantity", { batch_id: i.batchId, qty: i.quantity }) })
-        .eq("id", i.batchId);
-
-      if (stockError) {
-        console.error("❌ Stock update failed:", stockError);
-      } else {
-        console.log(`📉 Stock decremented for batch ${i.batchId} by ${i.quantity}`);
-      }
+    // 4️⃣ Decrement stock safely (call SQL function per item)
+    for (const item of cart) {
+      const { error: decError } = await supabase.rpc(
+        "decrement_remaining_quantity",
+        { batch_id: item.batchId, qty: item.quantity }
+      );
+      if (decError) throw decError;
+      console.log(`📉 Stock decremented for batch ${item.batchId} by ${item.quantity}`);
     }
 
-    // 6️⃣ Clear cart + reload sales
-    document.querySelector("#cart-table tbody").innerHTML = "";
-    document.getElementById("total-cost").textContent = "0.00";
-    document.getElementById("message").textContent =
-      `✅ Order #${order.id} placed successfully with ${items.length} items.`;
-    clearMessage("message");
+    // 5️⃣ Clear cart + reload sales
+    cart = [];
+    renderCart();
+    await loadCustomerSales();
 
-    loadCustomerSales();
+    console.log("✅ Checkout success, order ID:", orderId);
+    showReceipt(orderId); // 🔥 auto show receipt after checkout
   } catch (err) {
     console.error("❌ Checkout failed:", err);
-    document.getElementById("error").textContent = "Checkout failed: " + err.message;
-    clearMessage("error");
+    alert("Checkout failed: " + err.message);
+  } finally {
+    setLoading(false);
   }
 }
 
