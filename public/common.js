@@ -2040,59 +2040,107 @@ function adjustCartItem(index) {
 /* =========================================================
    Checkout Order
    ========================================================= */
+// ✅ Checkout Order with customer_sales + customer_sales_items
 async function checkoutOrder() {
   console.log("💳 Checking out order...", new Date().toISOString());
   const supabase = await ensureSupabaseClient();
 
-  if (cart.length === 0) {
-    alert("Cart is empty!");
-    return;
-  }
-
-  const customerName = document.getElementById("customer-name").value.trim();
-  const saleDate = document.getElementById("sale-date").value || new Date().toISOString().slice(0, 10);
-  const totalCost = cart.reduce((sum, item) => sum + item.subTotal, 0);
-
   try {
-    // 1️⃣ Insert one order
+    const customerName = document.getElementById("customer-name").value.trim();
+    const saleDate = document.getElementById("sale-date").value;
+    const cartRows = document.querySelectorAll("#cart-table tbody tr");
+
+    if (!customerName || !saleDate) {
+      alert("Please fill in customer name and sale date.");
+      return;
+    }
+
+    if (cartRows.length === 0) {
+      alert("Cart is empty.");
+      return;
+    }
+
+    // 1️⃣ Collect items from cart
+    let items = [];
+    cartRows.forEach((row) => {
+      const productId = row.dataset.productId;
+      const productName = row.querySelector("td:nth-child(1)").textContent;
+      const barcode = row.querySelector("td:nth-child(2)").textContent;
+      const batchId = row.dataset.batchId;
+      const batchNumber = row.querySelector("td:nth-child(3)").textContent;
+      const quantity = parseInt(row.querySelector("td:nth-child(4)").textContent);
+      const sellingPrice = parseFloat(row.querySelector("td:nth-child(5)").textContent);
+
+      items.push({
+        productId,
+        productName,
+        barcode,
+        batchId,
+        batchNumber,
+        quantity,
+        sellingPrice,
+      });
+    });
+
+    // 2️⃣ Calculate totals
+    const totalCost = items.reduce((sum, i) => sum + i.quantity * i.sellingPrice, 0);
+
+    // 3️⃣ Insert a new order (customer_sales)
     const { data: order, error: orderError } = await supabase
       .from("customer_sales")
-      .insert([{ customer_name: customerName, sale_date: saleDate, total_cost: totalCost }])
-      .select()
+      .insert([
+        {
+          customer_name: customerName,
+          sale_date: saleDate,
+          total_cost: totalCost,
+          items_count: items.length, // optional: add a column in customer_sales if you want
+        },
+      ])
+      .select("id")
       .single();
 
     if (orderError) throw orderError;
+    console.log("🆕 Order inserted:", order);
 
-    const orderId = order.id;
-
-    // 2️⃣ Insert all items for this order
-    const items = cart.map(item => ({
-      order_id: orderId,
-      product_id: item.productId,
-      batch_id: item.batchId,
-      quantity: item.quantity,
-      selling_price: item.sellingPrice,
-      sub_total: item.subTotal
+    // 4️⃣ Insert line items (customer_sales_items)
+    const lineItems = items.map((i) => ({
+      order_id: order.id,
+      product_id: i.productId,
+      batch_id: i.batchId,
+      quantity: i.quantity,
+      selling_price: i.sellingPrice,
     }));
 
-    const { error: itemsError } = await supabase.from("customer_sales_items").insert(items);
+    const { error: itemsError } = await supabase.from("customer_sales_items").insert(lineItems);
     if (itemsError) throw itemsError;
+    console.log("📦 Items inserted:", lineItems);
 
-    // 3️⃣ Decrement stock
-    for (const item of cart) {
-      const { error: updateError } = await supabase.rpc("decrement_stock", {
-        batch_id: item.batchId,
-        qty: item.quantity
-      });
-      if (updateError) throw updateError;
+    // 5️⃣ Update stock in product_batches
+    for (const i of items) {
+      const { error: stockError } = await supabase
+        .from("product_batches")
+        .update({ remaining_quantity: supabase.rpc("decrement_remaining_quantity", { batch_id: i.batchId, qty: i.quantity }) })
+        .eq("id", i.batchId);
+
+      if (stockError) {
+        console.error("❌ Stock update failed:", stockError);
+      } else {
+        console.log(`📉 Stock decremented for batch ${i.batchId} by ${i.quantity}`);
+      }
     }
 
-    console.log("✅ Order saved with items:", orderId);
-    cart = [];
-    renderCart();
+    // 6️⃣ Clear cart + reload sales
+    document.querySelector("#cart-table tbody").innerHTML = "";
+    document.getElementById("total-cost").textContent = "0.00";
+    document.getElementById("message").textContent =
+      `✅ Order #${order.id} placed successfully with ${items.length} items.`;
+    clearMessage("message");
+
     loadCustomerSales();
   } catch (err) {
     console.error("❌ Checkout failed:", err);
+    document.getElementById("error").textContent = "Checkout failed: " + err.message;
+    clearMessage("error");
   }
 }
 
