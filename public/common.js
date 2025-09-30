@@ -1049,13 +1049,12 @@ async function deleteLoanRecord(loanId) {
  * Fix loadAnalytics
  * - replace wrong column names across vendors, products, etc.
  */
-// 📊 Load Analytics (patched to use product_batches)
+// 📊 Load Analytics (patched to use product_batches + footer total row)
 async function loadAnalytics() {
   console.log("📊 Loading analytics...", new Date().toISOString());
   const client = await ensureSupabaseClient();
 
   try {
-    // 🔹 Query product_batches instead of products.stock
     const { data: batches, error } = await client
       .from("product_batches")
       .select(`
@@ -1075,10 +1074,10 @@ async function loadAnalytics() {
 
     console.log("📊 Analytics data loaded:", batches);
 
-    // 🔹 Aggregate per product (sum of remaining_quantity)
+    // 🔹 Aggregate per product
     const productMap = {};
     batches.forEach(b => {
-      if (!b.product) return; // skip if no product joined
+      if (!b.product) return;
       const pid = b.product.id;
       if (!productMap[pid]) {
         productMap[pid] = {
@@ -1096,7 +1095,7 @@ async function loadAnalytics() {
 
     const analyticsData = Object.values(productMap);
 
-    // 🔹 Render into your analytics table (replace DOM IDs with your table’s)
+    // 🔹 Render
     const tbody = document.querySelector("#analytics-table tbody");
     if (tbody) {
       tbody.innerHTML = "";
@@ -1111,6 +1110,16 @@ async function loadAnalytics() {
         `;
         tbody.appendChild(tr);
       });
+
+      // 🔹 Add footer row for total inventory value
+      const totalValue = analyticsData.reduce((sum, p) => sum + p.total_value, 0);
+      const footer = document.createElement("tr");
+      footer.classList.add("bg-gray-200", "font-bold");
+      footer.innerHTML = `
+        <td colspan="4" class="border p-2 text-right">Total Inventory Value:</td>
+        <td class="border p-2">${totalValue.toFixed(2)}</td>
+      `;
+      tbody.appendChild(footer);
     }
   } catch (err) {
     console.error("❌ Analytics error:", err);
@@ -1120,6 +1129,8 @@ async function loadAnalytics() {
     }
   }
 }
+
+
 function parseBatchNoToDate(batchNo) {
   if (!batchNo || batchNo.length !== 6 || isNaN(batchNo)) {
     return null;
