@@ -1987,20 +1987,28 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
   const supabase = await ensureSupabaseClient();
 
   try {
-    // 1️⃣ Fetch product
     let query = supabase.from("products").select("id, name, barcode");
+
     if (byBarcode) {
-      query = query.eq("barcode", productIdOrBarcode).maybeSingle();
+      const trimmed = productIdOrBarcode.trim();
+      console.log("🔍 Looking up product by barcode:", trimmed);
+      query = query.eq("barcode", trimmed).maybeSingle();
     } else {
+      console.log("🔍 Looking up product by ID:", productIdOrBarcode);
       query = query.eq("id", productIdOrBarcode).maybeSingle();
     }
 
     const { data: product, error: productError } = await query;
-    if (productError) throw productError;
-    if (!product) {
-      console.warn("❌ Product not found for:", productIdOrBarcode);
+
+    if (productError) {
+      console.error("❌ Supabase product query error:", productError);
       return null;
     }
+    if (!product) {
+      console.warn("⚠️ No product found for:", productIdOrBarcode, " (byBarcode:", byBarcode, ")");
+      return null;
+    }
+    console.log("✅ Found product:", product);
 
     // 2️⃣ Fetch batches (remaining_quantity > 0)
     const { data: batches, error: batchError } = await supabase
@@ -2009,7 +2017,11 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
       .eq("product_id", product.id)
       .gt("remaining_quantity", 0);
 
-    if (batchError) throw batchError;
+    if (batchError) {
+      console.error("❌ Supabase batch query error:", batchError);
+      return null;
+    }
+    console.log(`📦 Found ${batches.length} batches for product ${product.id}`, batches);
 
     // 3️⃣ Update UI
     document.getElementById("product-select").value = product.id;
@@ -2031,76 +2043,10 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
 
     return { product, batches };
   } catch (err) {
-    console.error("❌ Error in loadProductAndBatches:", err);
+    console.error("❌ Unexpected error in loadProductAndBatches:", err);
     return null;
   }
 }
-
-// ✅ Replace old handlers
-async function handleProductSelection(e) {
-  const productId = e.target.value;
-  if (productId) await loadProductAndBatches(productId, false);
-}
-
-// ✅ Patch: Barcode handler loads batches automatically
-async function handleBarcodeInput(e) {
-  const barcode = e.target.value.trim();
-  if (!barcode) return;
-
-  console.log("📡 Looking up product by barcode:", barcode);
-  const supabase = await ensureSupabaseClient();
-
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select("id, name, barcode")
-    .eq("barcode", barcode)
-    .maybeSingle();
-
-  if (productError) {
-    console.error("❌ Error fetching product:", productError);
-    return;
-  }
-  if (!product) {
-    console.warn("❌ Product not found for barcode:", barcode);
-    return;
-  }
-
-  // ✅ Populate product + barcode input
-  document.getElementById("product-select").value = product.id;
-  document.getElementById("product-barcode").value = product.barcode || "";
-
-  // ✅ Fetch and populate batches
-  const { data: batches, error: batchError } = await supabase
-    .from("product_batches")
-    .select("id, batch_number, remaining_quantity")
-    .eq("product_id", product.id)
-    .gt("remaining_quantity", 0);
-
-  if (batchError) {
-    console.error("❌ Error loading batches:", batchError);
-    return;
-  }
-
-  const batchSelect = document.getElementById("batch-no");
-  batchSelect.innerHTML = "";
-  if (batches && batches.length > 0) {
-    batches.forEach(batch => {
-      const option = document.createElement("option");
-      option.value = batch.id;
-      option.textContent = `${batch.batch_number} (Stock: ${batch.remaining_quantity})`;
-      batchSelect.appendChild(option);
-    });
-  }
-
-  document.getElementById("stock-display").textContent =
-    batches.length > 0
-      ? `Available stock: ${batches.reduce(
-          (sum, b) => sum + (b.remaining_quantity || 0),
-          0
-        )}`
-      : "No stock available";
-}
-
 
 
 
