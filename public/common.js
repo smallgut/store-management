@@ -570,80 +570,64 @@ async function deleteSale(id) {
 async function showReceipt(orderId) {
   const supabase = await ensureSupabaseClient();
 
-  // 1️⃣ Fetch order header
-  const { data: order, error: orderError } = await supabase
-    .from("customer_sales")
-    .select("id, customer_name, sale_date, created_at")
-    .eq("id", orderId)
-    .single();
+  try {
+    // 🔹 Get order summary
+    const { data: orders, error: orderError } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date, customer_sales_items(quantity, selling_price, sub_total, products(name, barcode), product_batches(batch_number))")
+      .eq("id", orderId)
+      .limit(1);
 
-  if (orderError) {
-    console.error("❌ Failed to load order:", orderError);
-    return;
+    if (orderError) throw orderError;
+    if (!orders || orders.length === 0) {
+      console.warn("❌ No order found for ID:", orderId);
+      return;
+    }
+
+    const order = orders[0];
+
+    // 🔢 Calculate items_count + total_cost live
+    const itemsCount = order.customer_sales_items.reduce((sum, i) => sum + i.quantity, 0);
+    const totalCost = order.customer_sales_items.reduce((sum, i) => sum + i.sub_total, 0);
+
+    // 🧾 Build receipt UI
+    let receiptHtml = `
+      <h2>Receipt</h2>
+      <p><strong>Order #:</strong> ${order.id}</p>
+      <p><strong>Customer:</strong> ${order.customer_name}</p>
+      <p><strong>Sale Date:</strong> ${order.sale_date}</p>
+      <p><strong>Items:</strong> ${itemsCount}</p>
+      <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
+      <table border="1" cellpadding="4" cellspacing="0" style="margin-top:10px;">
+        <tr>
+          <th>Product</th>
+          <th>Barcode</th>
+          <th>Batch</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Sub-Total</th>
+        </tr>`;
+
+    order.customer_sales_items.forEach(item => {
+      receiptHtml += `
+        <tr>
+          <td>${item.products?.name || ""}</td>
+          <td>${item.products?.barcode || ""}</td>
+          <td>${item.product_batches?.batch_number || ""}</td>
+          <td>${item.quantity}</td>
+          <td>${item.selling_price.toFixed(2)}</td>
+          <td>${item.sub_total.toFixed(2)}</td>
+        </tr>`;
+    });
+
+    receiptHtml += "</table>";
+
+    document.getElementById("message").innerHTML = receiptHtml;
+
+  } catch (err) {
+    console.error("❌ Failed to load order:", err);
   }
-
-  // 2️⃣ Fetch items
-  const { data: items, error: itemsError } = await supabase
-    .from("customer_sales_items")
-    .select(`
-      quantity,
-      selling_price,
-      sub_total,
-      products(name, barcode),
-      product_batches(batch_number)
-    `)
-    .eq("order_id", orderId);
-
-  if (itemsError) {
-    console.error("❌ Failed to load receipt items:", itemsError);
-    return;
-  }
-
-  // 3️⃣ Compute totals
-  const itemsCount = items.length;
-  const totalCost = items.reduce((sum, i) => sum + (i.sub_total || 0), 0);
-
-  // 4️⃣ Build receipt UI
-  let receiptHtml = `
-    <h2>Receipt</h2>
-    <p><b>Order #:</b> ${order.id}</p>
-    <p><b>Customer:</b> ${order.customer_name}</p>
-    <p><b>Sale Date:</b> ${order.sale_date}</p>
-    <p><b>Items:</b> ${itemsCount}</p>
-    <p><b>Total Cost:</b> ${totalCost.toFixed(2)}</p>
-    <hr/>
-    <table border="1" cellspacing="0" cellpadding="4">
-      <tr>
-        <th>Product</th>
-        <th>Barcode</th>
-        <th>Batch</th>
-        <th>Qty</th>
-        <th>Price</th>
-        <th>Sub-Total</th>
-      </tr>`;
-
-  items.forEach(item => {
-    receiptHtml += `
-      <tr>
-        <td>${item.products?.name || ""}</td>
-        <td>${item.products?.barcode || ""}</td>
-        <td>${item.product_batches?.batch_number || ""}</td>
-        <td>${item.quantity}</td>
-        <td>${item.selling_price.toFixed(2)}</td>
-        <td>${item.sub_total.toFixed(2)}</td>
-      </tr>`;
-  });
-
-  receiptHtml += `
-    <tr>
-      <td colspan="5" style="text-align:right;"><b>Total:</b></td>
-      <td><b>${totalCost.toFixed(2)}</b></td>
-    </tr>
-    </table>`;
-
-  document.getElementById("message").innerHTML = receiptHtml;
 }
-
 
 
 // --- FIX printReceipt ---
