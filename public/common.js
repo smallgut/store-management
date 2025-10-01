@@ -203,6 +203,15 @@ function getGMT8Date() {
   return `${today[2]}${today[1]}${today[0].slice(-2)}`;
 }
 
+// ✅ Date formatter (reusable across Sales + Receipt)
+function formatDate(dateString) {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
 /* ===============================
    🌐 GLOBAL PATCH FOR common.js
    - Fixes Supabase client usage
@@ -449,57 +458,64 @@ async function populateCustomerDropdown() {
 // ✅ From now on, always load customer sales like this:
 // ✅ Load Customer Sales with live-calculated items_count & total_cost
 // ✅ Load Customer Sales with properly aligned columns
+// ✅ Patch: loadCustomerSales with live-calculated totals + line items count
 async function loadCustomerSales() {
   console.log("📦 Loading customer sales...");
   const supabase = await ensureSupabaseClient();
 
-  try {
-    // Pull orders with their items
-    const { data: sales, error } = await supabase
-      .from("customer_sales")
-      .select(`
+  const { data: orders, error } = await supabase
+    .from("customer_sales")
+    .select(`
+      id,
+      customer_name,
+      sale_date,
+      customer_sales_items (
         id,
-        customer_name,
-        sale_date,
-        customer_sales_items (
-          quantity,
-          selling_price
-        )
-      `)
-      .order("id", { ascending: false });
+        quantity,
+        selling_price,
+        sub_total
+      )
+    `)
+    .order("id", { ascending: false });
 
-    if (error) throw error;
-
-    console.log("✅ Customer sales loaded:", sales);
-
-    const tbody = document.querySelector("#customer-sales-table tbody");
-    tbody.innerHTML = "";
-
-    sales.forEach(order => {
-      // 🔢 Calculate items_count and total_cost dynamically
-      const itemsCount = order.customer_sales_items.reduce((sum, i) => sum + i.quantity, 0);
-      const totalCost = order.customer_sales_items.reduce((sum, i) => sum + (i.quantity * i.selling_price), 0);
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">Order #${order.id}</td>
-        <td class="border p-2">${itemsCount}</td>
-        <td class="border p-2">${totalCost.toFixed(2)}</td>
-        <td class="border p-2">${order.sale_date || ""}</td>
-        <td class="border p-2">${order.customer_name || ""}</td>
-        <td class="border p-2">
-          <button class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                  onclick="showReceipt(${order.id})">
-            Receipt
-          </button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  } catch (err) {
-    console.error("❌ Error loading customer sales:", err);
+  if (error) {
+    console.error("❌ Error loading customer sales:", error);
+    return;
   }
+
+  console.log("✅ Customer sales loaded:", orders);
+
+  const tbody = document.getElementById("customer-sales-body");
+  tbody.innerHTML = "";
+
+  orders.forEach(order => {
+    // ✅ Items = number of line items (rows)
+    const itemsCount = order.customer_sales_items.length;
+
+    // ✅ Total cost = sum of subtotals
+    const totalCost = order.customer_sales_items.reduce(
+      (sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0),
+      0
+    );
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="border p-2">Order #${order.id}</td>
+      <td class="border p-2">${itemsCount}</td>
+      <td class="border p-2">${totalCost.toFixed(2)}</td>
+      <td class="border p-2">${formatDate(order.sale_date)}</td>
+      <td class="border p-2">${order.customer_name || ""}</td>
+      <td class="border p-2">
+        <button onclick="showReceipt(${order.id})"
+          class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Receipt</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
+
+
+
 /* =========================================================
    Render Customer Sales Table
    ========================================================= */
@@ -570,100 +586,92 @@ async function deleteSale(id) {
 /* =========================================================
    Show Receipt (Option A)
    ========================================================= */
+// ✅ Patch: showReceipt with formatted Sale Date and full details
 async function showReceipt(orderId) {
   console.log("🧾 Loading receipt for order:", orderId);
   const supabase = await ensureSupabaseClient();
 
-  try {
-    // Fetch order header
-    const { data: order, error: orderError } = await supabase
-      .from("customer_sales")
-      .select("id, customer_name, sale_date")
-      .eq("id", orderId)
-      .single();
-    if (orderError) throw orderError;
-
-    // Fetch ALL order items
-    const { data: items, error: itemsError } = await supabase
-      .from("customer_sales_items")
-      .select(`
+  // Fetch order + items together
+  const { data: order, error: orderError } = await supabase
+    .from("customer_sales")
+    .select(`
+      id,
+      customer_name,
+      sale_date,
+      customer_sales_items (
         quantity,
         selling_price,
         sub_total,
         products(name, barcode),
         product_batches(batch_number)
-      `)
-      .eq("order_id", orderId);
-    if (itemsError) throw itemsError;
+      )
+    `)
+    .eq("id", orderId)
+    .single();
 
-    // Compute totals
-    const itemsCount = items.reduce((sum, i) => sum + i.quantity, 0);
-    const totalCost = items.reduce((sum, i) => sum + Number(i.sub_total || 0), 0);
-
-    // Build receipt HTML
-    let receiptHtml = `
-      <html>
-        <head>
-          <title>Receipt - Order #${order.id}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h2 { margin-bottom: 5px; }
-            table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-            th, td { border: 1px solid #ccc; padding: 5px; text-align: left; }
-            th { background: #f5f5f5; }
-          </style>
-        </head>
-        <body>
-          <h2>Receipt</h2>
-          <p><strong>Order #:</strong> ${order.id}</p>
-          <p><strong>Customer:</strong> ${order.customer_name}</p>
-          <p><strong>Sale Date:</strong> ${order.sale_date}</p>
-          <p><strong>Items:</strong> ${itemsCount}</p>
-          <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
-          <hr/>
-          <table>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Barcode</th>
-                <th>Batch</th>
-                <th>Qty</th>
-                <th>Price</th>
-                <th>Sub-Total</th>
-              </tr>
-            </thead>
-            <tbody>`;
-
-    items.forEach(item => {
-      receiptHtml += `
-              <tr>
-                <td>${item.products?.name || ""}</td>
-                <td>${item.products?.barcode || ""}</td>
-                <td>${item.product_batches?.batch_number || ""}</td>
-                <td>${item.quantity}</td>
-                <td>${Number(item.selling_price).toFixed(2)}</td>
-                <td>${Number(item.sub_total).toFixed(2)}</td>
-              </tr>`;
-    });
-
-    receiptHtml += `
-            </tbody>
-          </table>
-          <br/>
-          <button onclick="window.print()">🖨️ Print</button>
-        </body>
-      </html>
-    `;
-
-    // Open popup
-    const receiptWindow = window.open("", "_blank", "width=800,height=600");
-    receiptWindow.document.write(receiptHtml);
-    receiptWindow.document.close();
-
-  } catch (err) {
-    console.error("❌ Failed to load receipt:", err);
-    alert("❌ Failed to load receipt: " + err.message);
+  if (orderError) {
+    console.error("❌ Failed to load order:", orderError);
+    return;
   }
+
+  // Compute totals
+  const itemsCount = order.customer_sales_items.length;
+  const totalCost = order.customer_sales_items.reduce(
+    (sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0),
+    0
+  );
+
+  // Build receipt HTML
+  let receiptHtml = `
+    <div id="receipt-popup" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded shadow-lg w-3/4 max-w-2xl">
+        <h2 class="text-xl font-bold mb-4">Receipt</h2>
+        <p><strong>Order #:</strong> ${order.id}</p>
+        <p><strong>Customer:</strong> ${order.customer_name || ""}</p>
+        <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
+        <p><strong>Items:</strong> ${itemsCount}</p>
+        <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
+        <table class="w-full border-collapse border mt-4 text-sm">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="border p-2">Product</th>
+              <th class="border p-2">Barcode</th>
+              <th class="border p-2">Batch</th>
+              <th class="border p-2">Qty</th>
+              <th class="border p-2">Price</th>
+              <th class="border p-2">Sub-Total</th>
+            </tr>
+          </thead>
+          <tbody>
+  `;
+
+  order.customer_sales_items.forEach(item => {
+    receiptHtml += `
+      <tr>
+        <td class="border p-2">${item.products?.name || ""}</td>
+        <td class="border p-2">${item.products?.barcode || ""}</td>
+        <td class="border p-2">${item.product_batches?.batch_number || ""}</td>
+        <td class="border p-2">${item.quantity}</td>
+        <td class="border p-2">${item.selling_price.toFixed(2)}</td>
+        <td class="border p-2">${item.sub_total.toFixed(2)}</td>
+      </tr>
+    `;
+  });
+
+  receiptHtml += `
+          </tbody>
+        </table>
+        <div class="mt-4 text-right">
+          <button onclick="document.getElementById('receipt-popup').remove()"
+            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Close</button>
+          <button onclick="window.print()"
+            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ml-2">Print</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML("beforeend", receiptHtml);
 }
 
 
@@ -2034,12 +2042,63 @@ async function handleProductSelection(e) {
   if (productId) await loadProductAndBatches(productId, false);
 }
 
+// ✅ Patch: Barcode handler loads batches automatically
 async function handleBarcodeInput(e) {
   const barcode = e.target.value.trim();
-  if (barcode) {
-    console.log("📡 Looking up product by barcode:", barcode);
-    await loadProductAndBatches(barcode, true);
+  if (!barcode) return;
+
+  console.log("📡 Looking up product by barcode:", barcode);
+  const supabase = await ensureSupabaseClient();
+
+  const { data: product, error: productError } = await supabase
+    .from("products")
+    .select("id, name, barcode")
+    .eq("barcode", barcode)
+    .maybeSingle();
+
+  if (productError) {
+    console.error("❌ Error fetching product:", productError);
+    return;
   }
+  if (!product) {
+    console.warn("❌ Product not found for barcode:", barcode);
+    return;
+  }
+
+  // ✅ Populate product + barcode input
+  document.getElementById("product-select").value = product.id;
+  document.getElementById("product-barcode").value = product.barcode || "";
+
+  // ✅ Fetch and populate batches
+  const { data: batches, error: batchError } = await supabase
+    .from("product_batches")
+    .select("id, batch_number, remaining_quantity")
+    .eq("product_id", product.id)
+    .gt("remaining_quantity", 0);
+
+  if (batchError) {
+    console.error("❌ Error loading batches:", batchError);
+    return;
+  }
+
+  const batchSelect = document.getElementById("batch-no");
+  batchSelect.innerHTML = "";
+  if (batches && batches.length > 0) {
+    batches.forEach(batch => {
+      const option = document.createElement("option");
+      option.value = batch.id;
+      option.textContent = `${batch.batch_number} (Stock: ${batch.remaining_quantity})`;
+      batchSelect.appendChild(option);
+    });
+  }
+
+  document.getElementById("stock-display").textContent =
+    batches.length > 0
+      ? `Available stock: ${batches.reduce(
+          (sum, b) => sum + (b.remaining_quantity || 0),
+          0
+        )}`
+      : "No stock available";
 }
 
 
