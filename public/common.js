@@ -575,7 +575,7 @@ async function showReceipt(orderId) {
   const supabase = await ensureSupabaseClient();
 
   try {
-    // 1️⃣ Fetch order info
+    // 🔹 Fetch order header
     const { data: order, error: orderError } = await supabase
       .from("customer_sales")
       .select("id, customer_name, sale_date")
@@ -583,12 +583,8 @@ async function showReceipt(orderId) {
       .single();
 
     if (orderError) throw orderError;
-    if (!order) {
-      alert("❌ Order not found.");
-      return;
-    }
 
-    // 2️⃣ Fetch all items for this order
+    // 🔹 Fetch order items
     const { data: items, error: itemsError } = await supabase
       .from("customer_sales_items")
       .select(`
@@ -602,58 +598,75 @@ async function showReceipt(orderId) {
 
     if (itemsError) throw itemsError;
 
-    // 3️⃣ Compute totals
+    // 🔹 Totals
     const itemsCount = items.reduce((sum, i) => sum + i.quantity, 0);
     const totalCost = items.reduce((sum, i) => sum + Number(i.sub_total || 0), 0);
 
-    // 4️⃣ Build receipt HTML
+    // 🔹 Build receipt HTML
     let receiptHtml = `
-      <h2 class="text-xl font-bold mb-2">Receipt</h2>
-      <p><strong>Order #:</strong> ${order.id}</p>
-      <p><strong>Customer:</strong> ${order.customer_name}</p>
-      <p><strong>Sale Date:</strong> ${order.sale_date}</p>
-      <p><strong>Items:</strong> ${itemsCount}</p>
-      <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
-      <hr class="my-2"/>
-      <table class="min-w-full border text-sm">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="border p-2">Product</th>
-            <th class="border p-2">Barcode</th>
-            <th class="border p-2">Batch</th>
-            <th class="border p-2">Qty</th>
-            <th class="border p-2">Price</th>
-            <th class="border p-2">Sub-Total</th>
-          </tr>
-        </thead>
-        <tbody>`;
+      <html>
+        <head>
+          <title>Receipt - Order #${order.id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h2 { margin-bottom: 5px; }
+            table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+            th, td { border: 1px solid #ccc; padding: 5px; text-align: left; }
+            th { background: #f5f5f5; }
+          </style>
+        </head>
+        <body>
+          <h2>Receipt</h2>
+          <p><strong>Order #:</strong> ${order.id}</p>
+          <p><strong>Customer:</strong> ${order.customer_name}</p>
+          <p><strong>Sale Date:</strong> ${order.sale_date}</p>
+          <p><strong>Items:</strong> ${itemsCount}</p>
+          <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
+          <hr/>
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Barcode</th>
+                <th>Batch</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Sub-Total</th>
+              </tr>
+            </thead>
+            <tbody>`;
 
     items.forEach(item => {
       receiptHtml += `
-        <tr>
-          <td class="border p-2">${item.products?.name || ""}</td>
-          <td class="border p-2">${item.products?.barcode || ""}</td>
-          <td class="border p-2">${item.product_batches?.batch_number || ""}</td>
-          <td class="border p-2">${item.quantity}</td>
-          <td class="border p-2">${Number(item.selling_price).toFixed(2)}</td>
-          <td class="border p-2">${Number(item.sub_total).toFixed(2)}</td>
-        </tr>`;
+              <tr>
+                <td>${item.products?.name || ""}</td>
+                <td>${item.products?.barcode || ""}</td>
+                <td>${item.product_batches?.batch_number || ""}</td>
+                <td>${item.quantity}</td>
+                <td>${Number(item.selling_price).toFixed(2)}</td>
+                <td>${Number(item.sub_total).toFixed(2)}</td>
+              </tr>`;
     });
 
     receiptHtml += `
-        </tbody>
-      </table>
+            </tbody>
+          </table>
+          <br/>
+          <button onclick="window.print()">🖨️ Print</button>
+        </body>
+      </html>
     `;
 
-    // 5️⃣ Display in message container
-    document.getElementById("message").innerHTML = receiptHtml;
+    // 🔹 Open popup window
+    const receiptWindow = window.open("", "_blank", "width=800,height=600");
+    receiptWindow.document.write(receiptHtml);
+    receiptWindow.document.close();
 
   } catch (err) {
     console.error("❌ Failed to load receipt:", err);
     alert("❌ Failed to load receipt: " + err.message);
   }
 }
-
 // --- FIX printReceipt ---
 async function printReceipt(orderId) {
   const client = await ensureSupabaseClient();
