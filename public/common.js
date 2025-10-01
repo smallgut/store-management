@@ -567,68 +567,92 @@ async function deleteSale(id) {
   }
 }
 
+/* =========================================================
+   Show Receipt (Option A)
+   ========================================================= */
 async function showReceipt(orderId) {
+  console.log("🧾 Loading receipt for order:", orderId);
   const supabase = await ensureSupabaseClient();
 
   try {
-    // 🔹 Get order summary
-    const { data: orders, error: orderError } = await supabase
+    // 1️⃣ Fetch order info
+    const { data: order, error: orderError } = await supabase
       .from("customer_sales")
-      .select("id, customer_name, sale_date, customer_sales_items(quantity, selling_price, sub_total, products(name, barcode), product_batches(batch_number))")
+      .select("id, customer_name, sale_date")
       .eq("id", orderId)
-      .limit(1);
+      .single();
 
     if (orderError) throw orderError;
-    if (!orders || orders.length === 0) {
-      console.warn("❌ No order found for ID:", orderId);
+    if (!order) {
+      alert("❌ Order not found.");
       return;
     }
 
-    const order = orders[0];
+    // 2️⃣ Fetch all items for this order
+    const { data: items, error: itemsError } = await supabase
+      .from("customer_sales_items")
+      .select(`
+        quantity,
+        selling_price,
+        sub_total,
+        products(name, barcode),
+        product_batches(batch_number)
+      `)
+      .eq("order_id", orderId);
 
-    // 🔢 Calculate items_count + total_cost live
-    const itemsCount = order.customer_sales_items.reduce((sum, i) => sum + i.quantity, 0);
-    const totalCost = order.customer_sales_items.reduce((sum, i) => sum + i.sub_total, 0);
+    if (itemsError) throw itemsError;
 
-    // 🧾 Build receipt UI
+    // 3️⃣ Compute totals
+    const itemsCount = items.reduce((sum, i) => sum + i.quantity, 0);
+    const totalCost = items.reduce((sum, i) => sum + Number(i.sub_total || 0), 0);
+
+    // 4️⃣ Build receipt HTML
     let receiptHtml = `
-      <h2>Receipt</h2>
+      <h2 class="text-xl font-bold mb-2">Receipt</h2>
       <p><strong>Order #:</strong> ${order.id}</p>
       <p><strong>Customer:</strong> ${order.customer_name}</p>
       <p><strong>Sale Date:</strong> ${order.sale_date}</p>
       <p><strong>Items:</strong> ${itemsCount}</p>
       <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
-      <table border="1" cellpadding="4" cellspacing="0" style="margin-top:10px;">
-        <tr>
-          <th>Product</th>
-          <th>Barcode</th>
-          <th>Batch</th>
-          <th>Qty</th>
-          <th>Price</th>
-          <th>Sub-Total</th>
-        </tr>`;
+      <hr class="my-2"/>
+      <table class="min-w-full border text-sm">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="border p-2">Product</th>
+            <th class="border p-2">Barcode</th>
+            <th class="border p-2">Batch</th>
+            <th class="border p-2">Qty</th>
+            <th class="border p-2">Price</th>
+            <th class="border p-2">Sub-Total</th>
+          </tr>
+        </thead>
+        <tbody>`;
 
-    order.customer_sales_items.forEach(item => {
+    items.forEach(item => {
       receiptHtml += `
         <tr>
-          <td>${item.products?.name || ""}</td>
-          <td>${item.products?.barcode || ""}</td>
-          <td>${item.product_batches?.batch_number || ""}</td>
-          <td>${item.quantity}</td>
-          <td>${item.selling_price.toFixed(2)}</td>
-          <td>${item.sub_total.toFixed(2)}</td>
+          <td class="border p-2">${item.products?.name || ""}</td>
+          <td class="border p-2">${item.products?.barcode || ""}</td>
+          <td class="border p-2">${item.product_batches?.batch_number || ""}</td>
+          <td class="border p-2">${item.quantity}</td>
+          <td class="border p-2">${Number(item.selling_price).toFixed(2)}</td>
+          <td class="border p-2">${Number(item.sub_total).toFixed(2)}</td>
         </tr>`;
     });
 
-    receiptHtml += "</table>";
+    receiptHtml += `
+        </tbody>
+      </table>
+    `;
 
+    // 5️⃣ Display in message container
     document.getElementById("message").innerHTML = receiptHtml;
 
   } catch (err) {
-    console.error("❌ Failed to load order:", err);
+    console.error("❌ Failed to load receipt:", err);
+    alert("❌ Failed to load receipt: " + err.message);
   }
 }
-
 
 // --- FIX printReceipt ---
 async function printReceipt(orderId) {
