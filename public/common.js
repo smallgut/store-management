@@ -448,6 +448,7 @@ async function populateCustomerDropdown() {
 
 // ✅ From now on, always load customer sales like this:
 // ✅ Load Customer Sales with live-calculated items_count & total_cost
+// ✅ Load Customer Sales with properly aligned columns
 async function loadCustomerSales() {
   console.log("📦 Loading customer sales...");
   const supabase = await ensureSupabaseClient();
@@ -482,10 +483,10 @@ async function loadCustomerSales() {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="border p-2">Order #${order.id}</td>
-        <td class="border p-2">${order.customer_name || ""}</td>
-        <td class="border p-2">${order.sale_date || ""}</td>
         <td class="border p-2">${itemsCount}</td>
         <td class="border p-2">${totalCost.toFixed(2)}</td>
+        <td class="border p-2">${order.sale_date || ""}</td>
+        <td class="border p-2">${order.customer_name || ""}</td>
         <td class="border p-2">
           <button class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
                   onclick="showReceipt(${order.id})">
@@ -499,7 +500,6 @@ async function loadCustomerSales() {
     console.error("❌ Error loading customer sales:", err);
   }
 }
-
 /* =========================================================
    Render Customer Sales Table
    ========================================================= */
