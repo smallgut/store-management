@@ -575,16 +575,15 @@ async function showReceipt(orderId) {
   const supabase = await ensureSupabaseClient();
 
   try {
-    // 🔹 Fetch order header
+    // Fetch order header
     const { data: order, error: orderError } = await supabase
       .from("customer_sales")
       .select("id, customer_name, sale_date")
       .eq("id", orderId)
       .single();
-
     if (orderError) throw orderError;
 
-    // 🔹 Fetch order items
+    // Fetch ALL order items
     const { data: items, error: itemsError } = await supabase
       .from("customer_sales_items")
       .select(`
@@ -595,14 +594,13 @@ async function showReceipt(orderId) {
         product_batches(batch_number)
       `)
       .eq("order_id", orderId);
-
     if (itemsError) throw itemsError;
 
-    // 🔹 Totals
+    // Compute totals
     const itemsCount = items.reduce((sum, i) => sum + i.quantity, 0);
     const totalCost = items.reduce((sum, i) => sum + Number(i.sub_total || 0), 0);
 
-    // 🔹 Build receipt HTML
+    // Build receipt HTML
     let receiptHtml = `
       <html>
         <head>
@@ -657,7 +655,7 @@ async function showReceipt(orderId) {
       </html>
     `;
 
-    // 🔹 Open popup window
+    // Open popup
     const receiptWindow = window.open("", "_blank", "width=800,height=600");
     receiptWindow.document.write(receiptHtml);
     receiptWindow.document.close();
@@ -667,6 +665,8 @@ async function showReceipt(orderId) {
     alert("❌ Failed to load receipt: " + err.message);
   }
 }
+
+
 // --- FIX printReceipt ---
 async function printReceipt(orderId) {
   const client = await ensureSupabaseClient();
