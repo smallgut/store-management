@@ -349,6 +349,40 @@ async function populateProductDropdown() {
 }
 
 
+/* =========================================================
+   Handlers: Product Selection + Barcode Input
+   ========================================================= */
+
+// ✅ Replace old handler for product selection
+async function handleProductSelection(e) {
+  const productId = e.target.value;
+  if (!productId) {
+    console.warn("⚠️ handleProductSelection called with empty productId");
+    return;
+  }
+  console.log("📌 handleProductSelection triggered for ID:", productId);
+  await loadProductAndBatches(productId, false);
+}
+
+// ✅ Replace old handler for barcode input
+async function handleBarcodeInput(e) {
+  const rawBarcode = e.target.value;
+  const barcode = rawBarcode.trim();
+
+  if (!barcode) {
+    console.warn("⚠️ handleBarcodeInput called with empty barcode");
+    return;
+  }
+
+  console.log("📌 handleBarcodeInput triggered with:", rawBarcode, "→ trimmed:", barcode);
+  const result = await loadProductAndBatches(barcode, true);
+
+  if (!result) {
+    console.warn("⚠️ No product matched for barcode:", barcode);
+    document.getElementById("stock-display").textContent = "Product not found";
+  }
+}
+
 async function populateVendorDropdown() {
   console.log('Populating vendor dropdown...');
   try {
