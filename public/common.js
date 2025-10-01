@@ -2190,60 +2190,68 @@ function adjustCartItem(index) {
  * ------------------------------------------------------------------
  */
 /* =========================================================
-   Checkout Order
+   Checkout Order (Option A, safe + patched)
    ========================================================= */
-// ✅ Checkout Order with customer_sales + customer_sales_items
 async function checkoutOrder() {
+  console.log("💳 Checking out order...", new Date().toISOString());
   const supabase = await ensureSupabaseClient();
-  if (cart.length === 0) {
-    alert("Cart is empty!");
-    return;
-  }
 
   try {
-    console.log("💳 Checking out order...", new Date().toISOString());
+    const customerName = document.getElementById("customer-name").value.trim();
+    const saleDateInput = document.getElementById("sale-date").value;
 
-    // Calculate totals
-    const totalCost = cart.reduce((sum, item) => sum + (item.sellingPrice * item.quantity), 0);
-    const itemsCount = cart.length;
+    if (!customerName || !saleDateInput) {
+      alert("⚠️ Please fill in customer name and sale date.");
+      return;
+    }
+    if (cart.length === 0) {
+      alert("⚠️ Cart is empty.");
+      return;
+    }
 
-    // Insert order into customer_sales (no quantity field anymore)
+    // ✅ Ensure sale_date is proper ISO (YYYY-MM-DD)
+    const saleDate = new Date(saleDateInput);
+    const saleDateISO = saleDate.toISOString().split("T")[0]; // YYYY-MM-DD
+
+    // 1️⃣ Insert new order
     const { data: order, error: orderError } = await supabase
       .from("customer_sales")
-      .insert([{
-        customer_name: document.getElementById("customer-name").value,
-        sale_date: document.getElementById("sale-date").value,
-        total_cost: totalCost,
-        items_count: itemsCount
-      }])
+      .insert([
+        {
+          customer_name: customerName,
+          sale_date: saleDateISO
+        }
+      ])
       .select("id")
       .single();
 
     if (orderError) throw orderError;
+    const orderId = order.id;
+    console.log("🆕 Order created:", orderId);
 
-    // Insert items into customer_sales_items
-    const itemsToInsert = cart.map(item => ({
-      order_id: order.id,
-      product_id: item.productId,
-      batch_id: item.batchId,
-      quantity: item.quantity,
-      selling_price: item.sellingPrice
-    }));
+    // 2️⃣ Insert order items + decrement stock safely
+    for (const item of cart) {
+      const { error: itemError } = await supabase
+        .from("customer_sales_items")
+        .insert([
+          {
+            order_id: orderId,
+            product_id: item.productId,
+            batch_id: item.batchId,
+            quantity: item.quantity,
+            selling_price: item.sellingPrice
+          }
+        ]);
 
-    const { error: itemsError } = await supabase
-      .from("customer_sales_items")
-      .insert(itemsToInsert);
+      if (itemError) throw itemError;
 
-    if (itemsError) throw itemsError;
-
-    // Decrement stock safely
-    for (let item of cart) {
+      // Safe stock decrement
       const { error: decError } = await supabase.rpc("decrement_remaining_quantity", {
-        batch_id: item.batchId,
-        qty: item.quantity
+        p_batch_id: item.batchId,
+        p_quantity: item.quantity
       });
+
       if (decError) throw decError;
-      console.log(`📉 Stock decremented for batch ${item.batchId} by ${item.quantity}`);
     }
 
     alert("✅ Checkout successful!");
@@ -2251,12 +2259,9 @@ async function checkoutOrder() {
     renderCart();
     loadCustomerSales();
 
-    // Auto-show receipt
-    showReceipt(order.id);
-
   } catch (err) {
     console.error("❌ Checkout failed:", err);
-    alert("Checkout failed: " + err.message);
+    alert("❌ Checkout failed: " + err.message);
   }
 }
 
