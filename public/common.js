@@ -2017,32 +2017,33 @@ async function loadBatches(productId) {
    Handle Product Selection + Barcode Input
    ========================================================= */
 // ✅ Shared function to load product + its batches
+/* =========================================================
+   Shared: Load Product + Batches with Debug Logging
+   ========================================================= */
 async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
   const supabase = await ensureSupabaseClient();
+  console.log("🔍 loadProductAndBatches called with:", productIdOrBarcode, "byBarcode:", byBarcode);
 
   try {
+    // 1️⃣ Fetch product
     let query = supabase.from("products").select("id, name, barcode");
-
     if (byBarcode) {
-      const trimmed = productIdOrBarcode.trim();
-      console.log("🔍 Looking up product by barcode:", trimmed);
-      query = query.eq("barcode", trimmed).maybeSingle();
+      query = query.eq("barcode", productIdOrBarcode).maybeSingle();
     } else {
-      console.log("🔍 Looking up product by ID:", productIdOrBarcode);
       query = query.eq("id", productIdOrBarcode).maybeSingle();
     }
 
     const { data: product, error: productError } = await query;
-
     if (productError) {
-      console.error("❌ Supabase product query error:", productError);
+      console.error("❌ Product query failed:", productError);
       return null;
     }
     if (!product) {
-      console.warn("⚠️ No product found for:", productIdOrBarcode, " (byBarcode:", byBarcode, ")");
+      console.warn("⚠️ No product found for:", productIdOrBarcode);
+      document.getElementById("stock-display").textContent = "Product not found";
       return null;
     }
-    console.log("✅ Found product:", product);
+    console.log("✅ Product loaded:", product);
 
     // 2️⃣ Fetch batches (remaining_quantity > 0)
     const { data: batches, error: batchError } = await supabase
@@ -2052,10 +2053,10 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
       .gt("remaining_quantity", 0);
 
     if (batchError) {
-      console.error("❌ Supabase batch query error:", batchError);
+      console.error("❌ Batch query failed:", batchError);
       return null;
     }
-    console.log(`📦 Found ${batches.length} batches for product ${product.id}`, batches);
+    console.log(`📦 Found ${batches.length} batch(es) for product`, product.id, batches);
 
     // 3️⃣ Update UI
     document.getElementById("product-select").value = product.id;
@@ -2077,7 +2078,7 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
 
     return { product, batches };
   } catch (err) {
-    console.error("❌ Unexpected error in loadProductAndBatches:", err);
+    console.error("❌ Error in loadProductAndBatches:", err);
     return null;
   }
 }
