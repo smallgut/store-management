@@ -540,9 +540,11 @@ async function loadCustomerSales() {
       <td class="border p-2">${formatDate(order.sale_date)}</td>
       <td class="border p-2">${order.customer_name || ""}</td>
       <td class="border p-2">
-        <button onclick="showReceipt(${order.id})"
-          class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Receipt</button>
-      </td>
+  <button class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+          onclick="showReceipt(${order.id})">Receipt</button>
+  <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 ml-2"
+          onclick="removeOrder(${order.id})">Remove</button>
+</td>
     `;
     tbody.appendChild(tr);
   });
@@ -708,6 +710,50 @@ async function showReceipt(orderId) {
   document.body.insertAdjacentHTML("beforeend", receiptHtml);
 }
 
+
+/* =========================================================
+   Remove Order + Restock Items
+   ========================================================= */
+async function removeOrder(orderId) {
+  if (!confirm(`Are you sure you want to delete order #${orderId}? This will restock all items.`)) return;
+
+  const supabase = await ensureSupabaseClient();
+  try {
+    console.log("🗑 Removing order:", orderId);
+
+    // 1️⃣ Load items of this order
+    const { data: items, error: itemsError } = await supabase
+      .from("customer_sales_items")
+      .select("id, batch_id, quantity")
+      .eq("order_id", orderId);
+
+    if (itemsError) throw itemsError;
+    console.log("📦 Items to restock:", items);
+
+    // 2️⃣ Restock each item (increment batch quantity)
+    for (const item of items) {
+      const { error: restockError } = await supabase.rpc("increment_remaining_quantity", {
+        p_batch_id: item.batch_id,
+        p_quantity: item.quantity
+      });
+      if (restockError) {
+        console.error("❌ Restock failed for batch", item.batch_id, restockError);
+      } else {
+        console.log(`✅ Restocked batch ${item.batch_id} by ${item.quantity}`);
+      }
+    }
+
+    // 3️⃣ Delete the order (cascade deletes items too)
+    const { error: deleteError } = await supabase.from("customer_sales").delete().eq("id", orderId);
+    if (deleteError) throw deleteError;
+
+    console.log("🗑 Order deleted:", orderId);
+    loadCustomerSales(); // refresh table
+  } catch (err) {
+    console.error("❌ Failed to remove order:", err);
+    alert("Failed to remove order. Check console for details.");
+  }
+}
 
 // --- FIX printReceipt ---
 async function printReceipt(orderId) {
