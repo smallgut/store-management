@@ -536,19 +536,22 @@ async function loadCustomerSales() {
     );
 
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="border p-2">Order #${order.id}</td>
-      <td class="border p-2">${itemsCount}</td>
-      <td class="border p-2">${totalCost.toFixed(2)}</td>
-      <td class="border p-2">${formatDate(order.sale_date)}</td>
-      <td class="border p-2">${order.customer_name || ""}</td>
-      <td class="border p-2">
-  <button class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-          onclick="showReceipt(${order.id})">Receipt</button>
-  <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 ml-2"
-          onclick="removeOrder(${order.id})">Remove</button>
-</td>
-    `;
+    tbody.innerHTML += `
+  <tr>
+    <td class="border p-2">
+      <a href="#" onclick="showReceipt(${sale.id})" class="text-blue-600 hover:underline">
+        Order #${sale.id}
+      </a>
+    </td>
+    <td class="border p-2">${itemsCount}</td>
+    <td class="border p-2">${totalCost.toFixed(2)}</td>
+    <td class="border p-2">${formatDate(sale.sale_date)}</td>
+    <td class="border p-2">${sale.customer_name}</td>
+    <td class="border p-2">
+      <button onclick="removeOrder(${sale.id})" class="text-red-600 hover:underline">Remove</button>
+    </td>
+  </tr>
+`;
     tbody.appendChild(tr);
   });
 }
@@ -2070,67 +2073,65 @@ async function loadBatches(productId) {
 /* =========================================================
    Shared: Load Product + Batches with Debug Logging
    ========================================================= */
-async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
+/* =========================================================
+   Load product + batches by productId or barcode
+   ========================================================= */
+async function loadProductAndBatches(identifier, byBarcode = false) {
+  console.log("🔍 loadProductAndBatches called with:", identifier, "byBarcode:", byBarcode);
   const supabase = await ensureSupabaseClient();
-  console.log("🔍 loadProductAndBatches called with:", productIdOrBarcode, "byBarcode:", byBarcode);
 
-  try {
-    // 1️⃣ Fetch product
-    let query = supabase.from("products").select("id, name, barcode");
-    if (byBarcode) {
-      query = query.eq("barcode", productIdOrBarcode).maybeSingle();
-    } else {
-      query = query.eq("id", productIdOrBarcode).maybeSingle();
-    }
+  let query = supabase.from("products").select("id, name, barcode");
+  if (byBarcode) {
+    query = query.eq("barcode", identifier);
+  } else {
+    query = query.eq("id", identifier);
+  }
 
-    const { data: product, error: productError } = await query;
-    if (productError) {
-      console.error("❌ Product query failed:", productError);
-      return null;
-    }
-    if (!product) {
-      console.warn("⚠️ No product found for:", productIdOrBarcode);
-      document.getElementById("stock-display").textContent = "Product not found";
-      return null;
-    }
-    console.log("✅ Product loaded:", product);
-
-    // 2️⃣ Fetch batches (remaining_quantity > 0)
-    const { data: batches, error: batchError } = await supabase
-      .from("product_batches")
-      .select("id, batch_number, remaining_quantity")
-      .eq("product_id", product.id)
-      .gt("remaining_quantity", 0);
-
-    if (batchError) {
-      console.error("❌ Batch query failed:", batchError);
-      return null;
-    }
-    console.log(`📦 Found ${batches.length} batch(es) for product`, product.id, batches);
-
-    // 3️⃣ Update UI
-    document.getElementById("product-select").value = product.id;
-    document.getElementById("product-barcode").value = product.barcode || "";
-
-    const batchSelect = document.getElementById("batch-no");
-    batchSelect.innerHTML = "";
-    batches.forEach(batch => {
-      const option = document.createElement("option");
-      option.value = batch.id;
-      option.textContent = `${batch.batch_number} (Stock: ${batch.remaining_quantity})`;
-      batchSelect.appendChild(option);
-    });
-
-    document.getElementById("stock-display").textContent =
-      batches.length > 0
-        ? `Available stock: ${batches.reduce((sum, b) => sum + (b.remaining_quantity || 0), 0)}`
-        : "No stock available";
-
-    return { product, batches };
-  } catch (err) {
-    console.error("❌ Error in loadProductAndBatches:", err);
+  const { data: product, error: productError } = await query.single();
+  if (productError || !product) {
+    console.error("❌ Product lookup failed:", productError || "Not found");
     return null;
   }
+
+  console.log("✅ Product loaded:", product);
+
+  // Load batches for this product
+  const { data: batches, error: batchError } = await supabase
+    .from("product_batches")
+    .select("id, batch_number, remaining_quantity")
+    .eq("product_id", product.id)
+    .gt("remaining_quantity", 0);
+
+  if (batchError) {
+    console.error("❌ Batch lookup failed:", batchError);
+    return null;
+  }
+
+  console.log(`📦 Found ${batches.length} batch(es) for product ${product.id}`, batches);
+
+  const batchSelect = document.getElementById("batch-no");
+  batchSelect.innerHTML = "";
+
+  if (batches.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No stock available";
+    batchSelect.appendChild(opt);
+    return { product, batches: [] };
+  }
+
+  batches.forEach(batch => {
+    const opt = document.createElement("option");
+    opt.value = batch.id;
+    opt.textContent = `${batch.batch_number} (Stock: ${batch.remaining_quantity})`;
+    batchSelect.appendChild(opt);
+  });
+
+  // Also update stock display
+  document.getElementById("stock-display").textContent =
+    `Stock available: ${batches.reduce((sum, b) => sum + b.remaining_quantity, 0)}`;
+
+  return { product, batches };
 }
 
 
