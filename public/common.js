@@ -496,67 +496,62 @@ async function populateCustomerDropdown() {
 // ✅ Load Customer Sales with live-calculated items_count & total_cost
 // ✅ Load Customer Sales with properly aligned columns
 // ✅ Patch: loadCustomerSales with live-calculated totals + line items count
+// ✅ Load customer sales into table with clickable Order #
 async function loadCustomerSales() {
-console.log("📦 Loading customer sales...");
-const supabase = await ensureSupabaseClient();
+  console.log("📦 Loading customer sales...");
+  const supabase = await ensureSupabaseClient();
 
+  try {
+    // 1️⃣ Fetch orders
+    const { data: sales, error } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date")
+      .order("id", { ascending: false });
 
-const { data: orders, error } = await supabase
-.from("customer_sales")
-.select(`
-id,
-customer_name,
-sale_date,
-customer_sales_items (
-id,
-quantity,
-selling_price,
-sub_total
-)
-`)
-.order("id", { ascending: false });
+    if (error) throw error;
 
+    console.log("✅ Customer sales loaded:", sales);
 
-if (error) {
-console.error("❌ Error loading customer sales:", error);
-return;
+    const tbody = document.getElementById("customer-sales-body");
+    tbody.innerHTML = "";
+
+    // 2️⃣ For each order, compute totals from customer_sales_items
+    for (const order of sales) {
+      const { data: items, error: itemsError } = await supabase
+        .from("customer_sales_items")
+        .select("quantity, price")
+        .eq("sale_id", order.id);
+
+      if (itemsError) {
+        console.error("❌ Failed to load items for order", order.id, itemsError);
+        continue;
+      }
+
+      const itemsCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
+      const totalCost = items.reduce((sum, i) => sum + (i.quantity * i.price || 0), 0);
+
+      // 3️⃣ Build row
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2 text-blue-600 underline cursor-pointer" onclick="showReceipt(${order.id})">
+          Order #${order.id}
+        </td>
+        <td class="border p-2">${itemsCount}</td>
+        <td class="border p-2">${totalCost.toFixed(2)}</td>
+        <td class="border p-2">${formatDate(order.sale_date)}</td>
+        <td class="border p-2">${order.customer_name || ""}</td>
+        <td class="border p-2">
+          <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                  onclick="removeOrder(${order.id})">Remove</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  } catch (err) {
+    console.error("❌ Error loading customer sales:", err);
+    document.getElementById("error").textContent = "Failed to load customer sales.";
+  }
 }
-
-
-console.log("✅ Customer sales loaded:", orders);
-
-
-const tbody = document.getElementById("customer-sales-body");
-tbody.innerHTML = "";
-
-
-orders.forEach(order => {
-const itemsCount = order.customer_sales_items.length;
-const totalCost = order.customer_sales_items.reduce(
-(sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0),
-0
-);
-
-
-const tr = document.createElement("tr");
-tr.innerHTML = `
-<td class="border p-2">
-<a href="#" onclick="showReceipt(${order.id})" class="text-blue-600 hover:underline">
-Order #${order.id}
-</a>
-</td>
-<td class="border p-2">${itemsCount}</td>
-<td class="border p-2">${totalCost.toFixed(2)}</td>
-<td class="border p-2">${formatDate(order.sale_date)}</td>
-<td class="border p-2">${order.customer_name || ""}</td>
-<td class="border p-2">
-<button onclick="removeOrder(${order.id})" class="text-red-600 hover:underline">Remove</button>
-</td>
-`;
-tbody.appendChild(tr);
-});
-}
-
 
 
 /* =========================================================
