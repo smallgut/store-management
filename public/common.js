@@ -526,32 +526,27 @@ async function loadCustomerSales() {
   tbody.innerHTML = "";
 
   orders.forEach(order => {
-    // ✅ Items = number of line items (rows)
     const itemsCount = order.customer_sales_items.length;
-
-    // ✅ Total cost = sum of subtotals
     const totalCost = order.customer_sales_items.reduce(
       (sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0),
       0
     );
 
     const tr = document.createElement("tr");
-    tbody.innerHTML += `
-  <tr>
-    <td class="border p-2">
-      <a href="#" onclick="showReceipt(${sale.id})" class="text-blue-600 hover:underline">
-        Order #${sale.id}
-      </a>
-    </td>
-    <td class="border p-2">${itemsCount}</td>
-    <td class="border p-2">${totalCost.toFixed(2)}</td>
-    <td class="border p-2">${formatDate(sale.sale_date)}</td>
-    <td class="border p-2">${sale.customer_name}</td>
-    <td class="border p-2">
-      <button onclick="removeOrder(${sale.id})" class="text-red-600 hover:underline">Remove</button>
-    </td>
-  </tr>
-`;
+    tr.innerHTML = `
+      <td class="border p-2">
+        <a href="#" onclick="showReceipt(${order.id})" class="text-blue-600 hover:underline">
+          Order #${order.id}
+        </a>
+      </td>
+      <td class="border p-2">${itemsCount}</td>
+      <td class="border p-2">${totalCost.toFixed(2)}</td>
+      <td class="border p-2">${formatDate(order.sale_date)}</td>
+      <td class="border p-2">${order.customer_name || ""}</td>
+      <td class="border p-2">
+        <button onclick="removeOrder(${order.id})" class="text-red-600 hover:underline">Remove</button>
+      </td>
+    `;
     tbody.appendChild(tr);
   });
 }
