@@ -497,58 +497,64 @@ async function populateCustomerDropdown() {
 // ✅ Load Customer Sales with properly aligned columns
 // ✅ Patch: loadCustomerSales with live-calculated totals + line items count
 async function loadCustomerSales() {
-  console.log("📦 Loading customer sales...");
-  const supabase = await ensureSupabaseClient();
+console.log("📦 Loading customer sales...");
+const supabase = await ensureSupabaseClient();
 
-  const { data: orders, error } = await supabase
-    .from("customer_sales")
-    .select(`
-      id,
-      customer_name,
-      sale_date,
-      customer_sales_items (
-        id,
-        quantity,
-        selling_price,
-        sub_total
-      )
-    `)
-    .order("id", { ascending: false });
 
-  if (error) {
-    console.error("❌ Error loading customer sales:", error);
-    return;
-  }
+const { data: orders, error } = await supabase
+.from("customer_sales")
+.select(`
+id,
+customer_name,
+sale_date,
+customer_sales_items (
+id,
+quantity,
+selling_price,
+sub_total
+)
+`)
+.order("id", { ascending: false });
 
-  console.log("✅ Customer sales loaded:", orders);
 
-  const tbody = document.getElementById("customer-sales-body");
-  tbody.innerHTML = "";
+if (error) {
+console.error("❌ Error loading customer sales:", error);
+return;
+}
 
-  orders.forEach(order => {
-    const itemsCount = order.customer_sales_items.length;
-    const totalCost = order.customer_sales_items.reduce(
-      (sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0),
-      0
-    );
 
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="border p-2">
-        <a href="#" onclick="showReceipt(${order.id})" class="text-blue-600 hover:underline">
-          Order #${order.id}
-        </a>
-      </td>
-      <td class="border p-2">${itemsCount}</td>
-      <td class="border p-2">${totalCost.toFixed(2)}</td>
-      <td class="border p-2">${formatDate(order.sale_date)}</td>
-      <td class="border p-2">${order.customer_name || ""}</td>
-      <td class="border p-2">
-        <button onclick="removeOrder(${order.id})" class="text-red-600 hover:underline">Remove</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+console.log("✅ Customer sales loaded:", orders);
+
+
+const tbody = document.getElementById("customer-sales-body");
+tbody.innerHTML = "";
+
+
+orders.forEach(order => {
+const itemsCount = order.customer_sales_items.length;
+const totalCost = order.customer_sales_items.reduce(
+(sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0),
+0
+);
+
+
+const tr = document.createElement("tr");
+tr.innerHTML = `
+<td class="border p-2">
+<a href="#" onclick="showReceipt(${order.id})" class="text-blue-600 hover:underline">
+Order #${order.id}
+</a>
+</td>
+<td class="border p-2">${itemsCount}</td>
+<td class="border p-2">${totalCost.toFixed(2)}</td>
+<td class="border p-2">${formatDate(order.sale_date)}</td>
+<td class="border p-2">${order.customer_name || ""}</td>
+<td class="border p-2">
+<button onclick="removeOrder(${order.id})" class="text-red-600 hover:underline">Remove</button>
+</td>
+`;
+tbody.appendChild(tr);
+});
 }
 
 
@@ -2068,65 +2074,76 @@ async function loadBatches(productId) {
 /* =========================================================
    Shared: Load Product + Batches with Debug Logging
    ========================================================= */
-/* =========================================================
-   Load product + batches by productId or barcode
-   ========================================================= */
-async function loadProductAndBatches(identifier, byBarcode = false) {
-  console.log("🔍 loadProductAndBatches called with:", identifier, "byBarcode:", byBarcode);
-  const supabase = await ensureSupabaseClient();
+// ✅ Load Product + Batches (patched with auto-select if only one batch)
+async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
+const supabase = await ensureSupabaseClient();
+console.log("🔍 loadProductAndBatches called with:", productIdOrBarcode, "byBarcode:", byBarcode);
 
-  let query = supabase.from("products").select("id, name, barcode");
-  if (byBarcode) {
-    query = query.eq("barcode", identifier);
-  } else {
-    query = query.eq("id", identifier);
-  }
 
-  const { data: product, error: productError } = await query.single();
-  if (productError || !product) {
-    console.error("❌ Product lookup failed:", productError || "Not found");
-    return null;
-  }
+try {
+// 1️⃣ Fetch product
+let query = supabase.from("products").select("id, name, barcode");
+if (byBarcode) {
+query = query.eq("barcode", productIdOrBarcode).maybeSingle();
+} else {
+query = query.eq("id", productIdOrBarcode).maybeSingle();
+}
 
-  console.log("✅ Product loaded:", product);
 
-  // Load batches for this product
-  const { data: batches, error: batchError } = await supabase
-    .from("product_batches")
-    .select("id, batch_number, remaining_quantity")
-    .eq("product_id", product.id)
-    .gt("remaining_quantity", 0);
+const { data: product, error: productError } = await query;
+if (productError) throw productError;
+if (!product) {
+console.warn("❌ Product not found for:", productIdOrBarcode);
+return null;
+}
+console.log("✅ Product loaded:", product);
 
-  if (batchError) {
-    console.error("❌ Batch lookup failed:", batchError);
-    return null;
-  }
 
-  console.log(`📦 Found ${batches.length} batch(es) for product ${product.id}`, batches);
+// 2️⃣ Fetch batches (remaining_quantity > 0)
+const { data: batches, error: batchError } = await supabase
+.from("product_batches")
+.select("id, batch_number, remaining_quantity")
+.eq("product_id", product.id)
+.gt("remaining_quantity", 0);
 
-  const batchSelect = document.getElementById("batch-no");
-  batchSelect.innerHTML = "";
 
-  if (batches.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "No stock available";
-    batchSelect.appendChild(opt);
-    return { product, batches: [] };
-  }
+if (batchError) throw batchError;
+console.log(`📦 Found ${batches.length} batch(es) for product`, product.id, batches);
 
-  batches.forEach(batch => {
-    const opt = document.createElement("option");
-    opt.value = batch.id;
-    opt.textContent = `${batch.batch_number} (Stock: ${batch.remaining_quantity})`;
-    batchSelect.appendChild(opt);
-  });
 
-  // Also update stock display
-  document.getElementById("stock-display").textContent =
-    `Stock available: ${batches.reduce((sum, b) => sum + b.remaining_quantity, 0)}`;
+// 3️⃣ Update UI
+document.getElementById("product-select").value = product.id;
+document.getElementById("product-barcode").value = product.barcode || "";
 
-  return { product, batches };
+
+const batchSelect = document.getElementById("batch-no");
+batchSelect.innerHTML = "";
+batches.forEach(batch => {
+const option = document.createElement("option");
+option.value = batch.id;
+option.textContent = `${batch.batch_number} (Stock: ${batch.remaining_quantity})`;
+batchSelect.appendChild(option);
+});
+
+
+// ✅ Auto-select if only one batch
+if (batches.length === 1) {
+batchSelect.value = batches[0].id;
+console.log("✅ Only one batch found, auto-selected:", batches[0]);
+}
+
+
+document.getElementById("stock-display").textContent =
+batches.length > 0
+? `Available stock: ${batches.reduce((sum, b) => sum + (b.remaining_quantity || 0), 0)}`
+: "No stock available";
+
+
+return { product, batches };
+} catch (err) {
+console.error("❌ Error in loadProductAndBatches:", err);
+return null;
+}
 }
 
 
