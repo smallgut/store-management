@@ -497,6 +497,7 @@ async function populateCustomerDropdown() {
 // ✅ Load Customer Sales with properly aligned columns
 // ✅ Patch: loadCustomerSales with live-calculated totals + line items count
 // ✅ Load customer sales into table with clickable Order #
+// ✅ Load customer sales into table with clickable Order #
 async function loadCustomerSales() {
   console.log("📦 Loading customer sales...");
   const supabase = await ensureSupabaseClient();
@@ -519,7 +520,7 @@ async function loadCustomerSales() {
     for (const order of sales) {
       const { data: items, error: itemsError } = await supabase
         .from("customer_sales_items")
-        .select("quantity, price")
+        .select("quantity, selling_price, sub_total")
         .eq("sale_id", order.id);
 
       if (itemsError) {
@@ -528,7 +529,7 @@ async function loadCustomerSales() {
       }
 
       const itemsCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
-      const totalCost = items.reduce((sum, i) => sum + (i.quantity * i.price || 0), 0);
+      const totalCost = items.reduce((sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0), 0);
 
       // 3️⃣ Build row
       const tr = document.createElement("tr");
@@ -551,6 +552,148 @@ async function loadCustomerSales() {
     console.error("❌ Error loading customer sales:", err);
     document.getElementById("error").textContent = "Failed to load customer sales.";
   }
+}
+
+// ✅ Receipt Modal with Print Support
+async function showReceipt(orderId) {
+  console.log("🧾 Loading receipt for order:", orderId);
+  const supabase = await ensureSupabaseClient();
+
+  try {
+    // Fetch order
+    const { data: order, error: orderError } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date")
+      .eq("id", orderId)
+      .single();
+
+    if (orderError) throw orderError;
+
+    // Fetch items
+    const { data: items, error: itemsError } = await supabase
+      .from("customer_sales_items")
+      .select(`
+        quantity,
+        selling_price,
+        sub_total,
+        products(name, barcode),
+        product_batches(batch_number)
+      `)
+      .eq("sale_id", orderId);
+
+    if (itemsError) throw itemsError;
+
+    const itemsCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
+    const totalCost = items.reduce((sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0), 0);
+
+    // Build receipt HTML
+    let receiptHtml = `
+      <p><strong>Order #:</strong> ${order.id}</p>
+      <p><strong>Customer:</strong> ${order.customer_name}</p>
+      <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
+      <p><strong>Items:</strong> ${itemsCount}</p>
+      <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
+      <hr class="my-2"/>
+      <table class="min-w-full border-collapse border text-sm">
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border p-2">Product</th>
+            <th class="border p-2">Barcode</th>
+            <th class="border p-2">Batch</th>
+            <th class="border p-2">Qty</th>
+            <th class="border p-2">Price</th>
+            <th class="border p-2">Sub-Total</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    items.forEach(item => {
+      receiptHtml += `
+        <tr>
+          <td class="border p-2">${item.products?.name || ""}</td>
+          <td class="border p-2">${item.products?.barcode || ""}</td>
+          <td class="border p-2">${item.product_batches?.batch_number || ""}</td>
+          <td class="border p-2">${item.quantity}</td>
+          <td class="border p-2">${item.selling_price.toFixed(2)}</td>
+          <td class="border p-2">${item.sub_total.toFixed(2)}</td>
+        </tr>
+      `;
+    });
+
+    receiptHtml += `
+        </tbody>
+      </table>
+      <div class="mt-4 text-right">
+        <button id="print-receipt" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">🖨 Print</button>
+      </div>
+    `;
+
+    // Inject into modal
+    document.getElementById("receipt-content").innerHTML = receiptHtml;
+    document.getElementById("receipt-modal").classList.remove("hidden");
+
+    // Bind print button
+    document.getElementById("print-receipt").addEventListener("click", () => {
+      printReceipt(order, items);
+    });
+  } catch (err) {
+    console.error("❌ Failed to load receipt:", err);
+    alert("Failed to load receipt");
+  }
+}
+
+function closeReceiptModal() {
+  document.getElementById("receipt-modal").classList.add("hidden");
+}
+
+// ✅ 58mm Print Function
+function printReceipt(order, items) {
+  const printWindow = window.open("", "PRINT", "height=600,width=400");
+  let content = `
+    <html><head><style>
+      body { font-family: monospace; width: 58mm; }
+      .center { text-align:center; }
+      .bold { font-weight:bold; }
+      .line { border-top:1px dashed #000; margin:4px 0; }
+      .item-line { display:flex; justify-content:space-between; }
+      .left { flex:1; }
+      .mid { width:40px; text-align:center; }
+      .right { width:60px; text-align:right; }
+    </style></head><body>
+    <div class="center bold">POS Receipt</div>
+    <div>日期: ${order.sale_date.split("T")[0]}</div>
+    <div>時間: ${new Date(order.sale_date).toLocaleTimeString("zh-TW",{hour12:false})}</div>
+    <div>客戶: ${order.customer_name || "(無)"}</div>
+    <div class="line"></div>
+    <div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>
+    <div class="line"></div>
+  `;
+
+  items.forEach(item => {
+    const subtotal = item.sub_total || (item.quantity * item.selling_price);
+    content += `
+      <div class="item-line">
+        <div class="left">${item.products?.name || ""}</div>
+        <div class="mid">${item.quantity}</div>
+        <div class="right">${subtotal.toFixed(2)}</div>
+      </div>
+    `;
+  });
+
+  content += `
+    <div class="line"></div>
+    <div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${items.reduce((s,i)=>s+(i.sub_total || i.quantity*i.selling_price),0).toFixed(2)}</div></div>
+    <div class="line"></div>
+    <div class="center">感謝您的惠顧</div>
+    </body></html>
+  `;
+
+  printWindow.document.write(content);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+  printWindow.close();
 }
 
 
