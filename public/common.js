@@ -633,90 +633,129 @@ async function deleteSale(id) {
 /* =========================================================
    Show Receipt in Modal
    ========================================================= */
-async function showReceipt(orderId) {
+// ✅ Receipt Modal with Print Support
+function showReceipt(orderId) {
   console.log("🧾 Loading receipt for order:", orderId);
-  const supabase = await ensureSupabaseClient();
 
-  try {
-    // 1️⃣ Fetch order
-    const { data: order, error: orderError } = await supabase
-      .from("customer_sales")
-      .select("id, customer_name, sale_date")
-      .eq("id", orderId)
-      .single();
-
-    if (orderError) throw orderError;
-    if (!order) {
-      alert("Order not found");
+  Promise.all([
+    supabase.from("customer_sales").select("id, customer_name, sale_date").eq("id", orderId).single(),
+    supabase.from("customer_sales_items")
+      .select("product_name, barcode, batch_number, quantity, price")
+      .eq("sale_id", orderId)
+  ]).then(([orderRes, itemsRes]) => {
+    if (orderRes.error) {
+      console.error("❌ Failed to load order:", orderRes.error);
+      return;
+    }
+    if (itemsRes.error) {
+      console.error("❌ Failed to load items:", itemsRes.error);
       return;
     }
 
-    // 2️⃣ Fetch items
-    const { data: items, error: itemsError } = await supabase
-      .from("customer_sales_items")
-      .select(`
-        quantity,
-        selling_price,
-        sub_total,
-        products(name, barcode),
-        product_batches(batch_number)
-      `)
-      .eq("order_id", orderId);
+    const order = orderRes.data;
+    const items = itemsRes.data || [];
 
-    if (itemsError) throw itemsError;
+    // Compute totals
+    const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
+    const totalCost = items.reduce((sum, i) => sum + i.quantity * i.price, 0);
 
-    // 3️⃣ Compute totals
-    const itemsCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-    const totalCost = items.reduce((sum, item) => sum + (item.sub_total || 0), 0);
-
-    // 4️⃣ Build HTML
-    let receiptHtml = `
+    // Build receipt HTML
+    const receiptHtml = `
+      <h2 class="text-lg font-bold mb-2">Receipt</h2>
       <p><strong>Order #:</strong> ${order.id}</p>
-      <p><strong>Customer:</strong> ${order.customer_name}</p>
+      <p><strong>Customer:</strong> ${order.customer_name || "(無)"}</p>
       <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
-      <p><strong>Items:</strong> ${itemsCount}</p>
+      <p><strong>Items:</strong> ${totalQty}</p>
       <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
-      <hr class="my-2"/>
-      <table class="min-w-full border-collapse border text-sm">
+
+      <table class="w-full border mt-3">
         <thead>
-          <tr class="bg-gray-100">
-            <th class="border p-2">Product</th>
-            <th class="border p-2">Barcode</th>
-            <th class="border p-2">Batch</th>
-            <th class="border p-2">Qty</th>
-            <th class="border p-2">Price</th>
-            <th class="border p-2">Sub-Total</th>
+          <tr class="border-b">
+            <th class="p-1 text-left">Product</th>
+            <th class="p-1">Barcode</th>
+            <th class="p-1">Batch</th>
+            <th class="p-1">Qty</th>
+            <th class="p-1">Price</th>
+            <th class="p-1">Sub-Total</th>
           </tr>
         </thead>
         <tbody>
+          ${items.map(i => `
+            <tr class="border-b">
+              <td class="p-1">${i.product_name}</td>
+              <td class="p-1">${i.barcode}</td>
+              <td class="p-1">${i.batch_number}</td>
+              <td class="p-1">${i.quantity}</td>
+              <td class="p-1">${i.price.toFixed(2)}</td>
+              <td class="p-1">${(i.quantity * i.price).toFixed(2)}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+
+      <div class="mt-4 text-right">
+        <button id="print-receipt" class="bg-blue-500 text-white px-3 py-1 rounded">🖨 Print</button>
+      </div>
     `;
 
-    items.forEach(item => {
-      receiptHtml += `
-        <tr>
-          <td class="border p-2">${item.products?.name || ""}</td>
-          <td class="border p-2">${item.products?.barcode || ""}</td>
-          <td class="border p-2">${item.product_batches?.batch_number || ""}</td>
-          <td class="border p-2">${item.quantity}</td>
-          <td class="border p-2">${item.selling_price.toFixed(2)}</td>
-          <td class="border p-2">${item.sub_total.toFixed(2)}</td>
-        </tr>
-      `;
+    // Inject into modal
+    const modal = document.getElementById("receipt-modal");
+    modal.querySelector(".modal-body").innerHTML = receiptHtml;
+    modal.classList.remove("hidden");
+
+    // ✅ Bind Print Button
+    document.getElementById("print-receipt").addEventListener("click", () => {
+      printReceipt(order, items);
     });
-
-    receiptHtml += "</tbody></table>";
-
-    // 5️⃣ Show modal
-    document.getElementById("receipt-content").innerHTML = receiptHtml;
-    document.getElementById("receipt-modal").classList.remove("hidden");
-  } catch (err) {
-    console.error("❌ Failed to load receipt:", err);
-    alert("Failed to load receipt");
-  }
+  });
 }
 
-function closeReceiptModal() {
-  document.getElementById("receipt-modal").classList.add("hidden");
+// ✅ 58mm Print Function
+function printReceipt(order, items) {
+  const printWindow = window.open("", "PRINT", "height=600,width=400");
+  let content = `
+    <html><head><style>
+      body { font-family: monospace; width: 58mm; }
+      .center { text-align:center; }
+      .bold { font-weight:bold; }
+      .line { border-top:1px dashed #000; margin:4px 0; }
+      .item-line { display:flex; justify-content:space-between; }
+      .left { flex:1; }
+      .mid { width:40px; text-align:center; }
+      .right { width:60px; text-align:right; }
+    </style></head><body>
+    <div class="center bold">POS Receipt</div>
+    <div>日期: ${order.sale_date.split("T")[0]}</div>
+    <div>時間: ${new Date(order.sale_date).toLocaleTimeString("zh-TW",{hour12:false})}</div>
+    <div>客戶: ${order.customer_name || "(無)"}</div>
+    <div class="line"></div>
+    <div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>
+    <div class="line"></div>
+  `;
+
+  items.forEach(item => {
+    const subtotal = item.quantity * item.price;
+    content += `
+      <div class="item-line">
+        <div class="left">${item.product_name}</div>
+        <div class="mid">${item.quantity}</div>
+        <div class="right">${subtotal.toFixed(2)}</div>
+      </div>
+    `;
+  });
+
+  content += `
+    <div class="line"></div>
+    <div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${items.reduce((s,i)=>s+i.quantity*i.price,0).toFixed(2)}</div></div>
+    <div class="line"></div>
+    <div class="center">感謝您的惠顧</div>
+    </body></html>
+  `;
+
+  printWindow.document.write(content);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+  printWindow.close();
 }
 
 /* =========================================================
