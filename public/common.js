@@ -634,82 +634,111 @@ async function deleteSale(id) {
    Show Receipt in Modal
    ========================================================= */
 // ✅ Receipt Modal with Print Support
-function showReceipt(orderId) {
+// ✅ Date formatter (reusable across Sales + Receipt)
+function formatDate(dateString) {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+// ✅ Show Receipt in Modal
+async function showReceipt(orderId) {
   console.log("🧾 Loading receipt for order:", orderId);
+  const supabase = await ensureSupabaseClient();
 
-  Promise.all([
-    supabase.from("customer_sales").select("id, customer_name, sale_date").eq("id", orderId).single(),
-    supabase.from("customer_sales_items")
+  try {
+    // 1️⃣ Fetch order
+    const { data: order, error: orderError } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date")
+      .eq("id", orderId)
+      .single();
+
+    if (orderError) throw orderError;
+    if (!order) {
+      alert("Order not found");
+      return;
+    }
+
+    // 2️⃣ Fetch items
+    const { data: items, error: itemsError } = await supabase
+      .from("customer_sales_items")
       .select("product_name, barcode, batch_number, quantity, price")
-      .eq("sale_id", orderId)
-  ]).then(([orderRes, itemsRes]) => {
-    if (orderRes.error) {
-      console.error("❌ Failed to load order:", orderRes.error);
-      return;
-    }
-    if (itemsRes.error) {
-      console.error("❌ Failed to load items:", itemsRes.error);
-      return;
-    }
+      .eq("sale_id", orderId);
 
-    const order = orderRes.data;
-    const items = itemsRes.data || [];
+    if (itemsError) throw itemsError;
 
-    // Compute totals
-    const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
-    const totalCost = items.reduce((sum, i) => sum + i.quantity * i.price, 0);
+    // 3️⃣ Compute totals
+    const totalQty = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
+    const totalCost = items.reduce((sum, i) => sum + (i.quantity * i.price || 0), 0);
 
-    // Build receipt HTML
-    const receiptHtml = `
-      <h2 class="text-lg font-bold mb-2">Receipt</h2>
+    // 4️⃣ Build receipt HTML (modal-friendly)
+    let receiptHtml = `
       <p><strong>Order #:</strong> ${order.id}</p>
       <p><strong>Customer:</strong> ${order.customer_name || "(無)"}</p>
       <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
       <p><strong>Items:</strong> ${totalQty}</p>
       <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
-
-      <table class="w-full border mt-3">
+      <hr class="my-2"/>
+      <table class="min-w-full border-collapse border text-sm">
         <thead>
-          <tr class="border-b">
-            <th class="p-1 text-left">Product</th>
-            <th class="p-1">Barcode</th>
-            <th class="p-1">Batch</th>
-            <th class="p-1">Qty</th>
-            <th class="p-1">Price</th>
-            <th class="p-1">Sub-Total</th>
+          <tr class="bg-gray-100">
+            <th class="border p-2">Product</th>
+            <th class="border p-2">Barcode</th>
+            <th class="border p-2">Batch</th>
+            <th class="border p-2">Qty</th>
+            <th class="border p-2">Price</th>
+            <th class="border p-2">Sub-Total</th>
           </tr>
         </thead>
         <tbody>
-          ${items.map(i => `
-            <tr class="border-b">
-              <td class="p-1">${i.product_name}</td>
-              <td class="p-1">${i.barcode}</td>
-              <td class="p-1">${i.batch_number}</td>
-              <td class="p-1">${i.quantity}</td>
-              <td class="p-1">${i.price.toFixed(2)}</td>
-              <td class="p-1">${(i.quantity * i.price).toFixed(2)}</td>
-            </tr>`).join("")}
+    `;
+
+    items.forEach(i => {
+      receiptHtml += `
+        <tr>
+          <td class="border p-2">${i.product_name}</td>
+          <td class="border p-2">${i.barcode}</td>
+          <td class="border p-2">${i.batch_number}</td>
+          <td class="border p-2">${i.quantity}</td>
+          <td class="border p-2">${i.price.toFixed(2)}</td>
+          <td class="border p-2">${(i.quantity * i.price).toFixed(2)}</td>
+        </tr>
+      `;
+    });
+
+    receiptHtml += `
         </tbody>
       </table>
-
       <div class="mt-4 text-right">
-        <button id="print-receipt" class="bg-blue-500 text-white px-3 py-1 rounded">🖨 Print</button>
+        <button id="print-receipt" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">🖨 Print</button>
       </div>
     `;
 
-    // Inject into modal
-    const modal = document.getElementById("receipt-modal");
-    modal.querySelector(".modal-body").innerHTML = receiptHtml;
-    modal.classList.remove("hidden");
+    // 5️⃣ Show modal
+    document.getElementById("receipt-content").innerHTML = receiptHtml;
+    document.getElementById("receipt-modal").classList.remove("hidden");
 
-    // ✅ Bind Print Button
+    // ✅ Print binding
     document.getElementById("print-receipt").addEventListener("click", () => {
       printReceipt(order, items);
     });
-  });
+
+  } catch (err) {
+    console.error("❌ Failed to load receipt:", err);
+    alert("Failed to load receipt");
+  }
 }
 
-// ✅ 58mm Print Function
+// ✅ Close modal
+function closeReceiptModal() {
+  document.getElementById("receipt-modal").classList.add("hidden");
+}
+
+// ✅ Print-friendly 58mm layout
 function printReceipt(order, items) {
   const printWindow = window.open("", "PRINT", "height=600,width=400");
   let content = `
