@@ -365,22 +365,25 @@ async function handleProductSelection(e) {
 }
 
 // ✅ Replace old handler for barcode input
+let barcodeTimer;
 async function handleBarcodeInput(e) {
+  clearTimeout(barcodeTimer);
   const rawBarcode = e.target.value;
   const barcode = rawBarcode.trim();
 
-  if (!barcode) {
-    console.warn("⚠️ handleBarcodeInput called with empty barcode");
-    return;
-  }
+  barcodeTimer = setTimeout(async () => {
+    if (!barcode) {
+      console.warn("⚠️ Empty barcode input");
+      return;
+    }
+    console.log("📌 Searching product by barcode:", barcode);
+    const result = await loadProductAndBatches(barcode, true);
 
-  console.log("📌 handleBarcodeInput triggered with:", rawBarcode, "→ trimmed:", barcode);
-  const result = await loadProductAndBatches(barcode, true);
-
-  if (!result) {
-    console.warn("⚠️ No product matched for barcode:", barcode);
-    document.getElementById("stock-display").textContent = "Product not found";
-  }
+    if (!result) {
+      console.warn("⚠️ No product matched for barcode:", barcode);
+      document.getElementById("stock-display").textContent = "Product not found";
+    }
+  }, 400); // wait 400ms after typing stops
 }
 
 async function populateVendorDropdown() {
@@ -623,93 +626,94 @@ async function deleteSale(id) {
    Show Receipt (Option A)
    ========================================================= */
 // ✅ Patch: showReceipt with formatted Sale Date and full details
+/* =========================================================
+   Show Receipt in Modal
+   ========================================================= */
 async function showReceipt(orderId) {
   console.log("🧾 Loading receipt for order:", orderId);
   const supabase = await ensureSupabaseClient();
 
-  // Fetch order + items together
-  const { data: order, error: orderError } = await supabase
-    .from("customer_sales")
-    .select(`
-      id,
-      customer_name,
-      sale_date,
-      customer_sales_items (
+  try {
+    // 1️⃣ Fetch order
+    const { data: order, error: orderError } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date")
+      .eq("id", orderId)
+      .single();
+
+    if (orderError) throw orderError;
+    if (!order) {
+      alert("Order not found");
+      return;
+    }
+
+    // 2️⃣ Fetch items
+    const { data: items, error: itemsError } = await supabase
+      .from("customer_sales_items")
+      .select(`
         quantity,
         selling_price,
         sub_total,
         products(name, barcode),
         product_batches(batch_number)
-      )
-    `)
-    .eq("id", orderId)
-    .single();
+      `)
+      .eq("order_id", orderId);
 
-  if (orderError) {
-    console.error("❌ Failed to load order:", orderError);
-    return;
-  }
+    if (itemsError) throw itemsError;
 
-  // Compute totals
-  const itemsCount = order.customer_sales_items.length;
-  const totalCost = order.customer_sales_items.reduce(
-    (sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0),
-    0
-  );
+    // 3️⃣ Compute totals
+    const itemsCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const totalCost = items.reduce((sum, item) => sum + (item.sub_total || 0), 0);
 
-  // Build receipt HTML
-  let receiptHtml = `
-    <div id="receipt-popup" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded shadow-lg w-3/4 max-w-2xl">
-        <h2 class="text-xl font-bold mb-4">Receipt</h2>
-        <p><strong>Order #:</strong> ${order.id}</p>
-        <p><strong>Customer:</strong> ${order.customer_name || ""}</p>
-        <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
-        <p><strong>Items:</strong> ${itemsCount}</p>
-        <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
-        <table class="w-full border-collapse border mt-4 text-sm">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="border p-2">Product</th>
-              <th class="border p-2">Barcode</th>
-              <th class="border p-2">Batch</th>
-              <th class="border p-2">Qty</th>
-              <th class="border p-2">Price</th>
-              <th class="border p-2">Sub-Total</th>
-            </tr>
-          </thead>
-          <tbody>
-  `;
-
-  order.customer_sales_items.forEach(item => {
-    receiptHtml += `
-      <tr>
-        <td class="border p-2">${item.products?.name || ""}</td>
-        <td class="border p-2">${item.products?.barcode || ""}</td>
-        <td class="border p-2">${item.product_batches?.batch_number || ""}</td>
-        <td class="border p-2">${item.quantity}</td>
-        <td class="border p-2">${item.selling_price.toFixed(2)}</td>
-        <td class="border p-2">${item.sub_total.toFixed(2)}</td>
-      </tr>
+    // 4️⃣ Build HTML
+    let receiptHtml = `
+      <p><strong>Order #:</strong> ${order.id}</p>
+      <p><strong>Customer:</strong> ${order.customer_name}</p>
+      <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
+      <p><strong>Items:</strong> ${itemsCount}</p>
+      <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
+      <hr class="my-2"/>
+      <table class="min-w-full border-collapse border text-sm">
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border p-2">Product</th>
+            <th class="border p-2">Barcode</th>
+            <th class="border p-2">Batch</th>
+            <th class="border p-2">Qty</th>
+            <th class="border p-2">Price</th>
+            <th class="border p-2">Sub-Total</th>
+          </tr>
+        </thead>
+        <tbody>
     `;
-  });
 
-  receiptHtml += `
-          </tbody>
-        </table>
-        <div class="mt-4 text-right">
-          <button onclick="document.getElementById('receipt-popup').remove()"
-            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Close</button>
-          <button onclick="window.print()"
-            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ml-2">Print</button>
-        </div>
-      </div>
-    </div>
-  `;
+    items.forEach(item => {
+      receiptHtml += `
+        <tr>
+          <td class="border p-2">${item.products?.name || ""}</td>
+          <td class="border p-2">${item.products?.barcode || ""}</td>
+          <td class="border p-2">${item.product_batches?.batch_number || ""}</td>
+          <td class="border p-2">${item.quantity}</td>
+          <td class="border p-2">${item.selling_price.toFixed(2)}</td>
+          <td class="border p-2">${item.sub_total.toFixed(2)}</td>
+        </tr>
+      `;
+    });
 
-  document.body.insertAdjacentHTML("beforeend", receiptHtml);
+    receiptHtml += "</tbody></table>";
+
+    // 5️⃣ Show modal
+    document.getElementById("receipt-content").innerHTML = receiptHtml;
+    document.getElementById("receipt-modal").classList.remove("hidden");
+  } catch (err) {
+    console.error("❌ Failed to load receipt:", err);
+    alert("Failed to load receipt");
+  }
 }
 
+function closeReceiptModal() {
+  document.getElementById("receipt-modal").classList.add("hidden");
+}
 
 /* =========================================================
    Remove Order + Restock Items
