@@ -9,6 +9,7 @@
   <script src="common.js"></script>
 </head>
 <body id="lang-body" class="bg-gray-100">
+  <!-- 🔹 Navbar -->
   <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
     <ul class="flex space-x-4">
       <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
@@ -21,7 +22,6 @@
       <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
       <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
     </ul>
-    <!-- 🔒 Logout button -->
     <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
   </nav>
 
@@ -32,73 +32,47 @@
     <div id="message" class="text-green-600"></div>
     <div id="error" class="text-red-600"></div>
 
-    <!-- Add to Cart Form -->
+    <!-- 🔹 Add Sale Form -->
     <div class="mb-6 space-y-4 bg-white p-4 rounded-xl shadow">
       <h2 class="text-xl font-semibold" data-lang-key="add-customer-sale">Add Customer Sale</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label for="customer-name" class="block text-sm font-medium" data-lang-key="customer-name">Customer Name</label>
-          <input id="customer-name" type="text" class="border p-2 w-full rounded" required />
+          <label for="customer-name" data-lang-key="customer-name" class="block text-sm">Customer Name</label>
+          <input id="customer-name" type="text" class="border p-2 w-full rounded" />
         </div>
         <div>
-          <label for="sale-date" class="block text-sm font-medium" data-lang-key="sale-date">Sale Date</label>
-          <input id="sale-date" type="date" class="border p-2 w-full rounded" required />
+          <label for="sale-date" data-lang-key="sale-date" class="block text-sm">Sale Date</label>
+          <input id="sale-date" type="date" class="border p-2 w-full rounded" />
         </div>
         <div>
-          <label for="product-select" class="block text-sm font-medium" data-lang-key="select-product">Select Product (or input barcode)</label>
+          <label for="product-select" data-lang-key="select-product" class="block text-sm">Select Product</label>
           <select id="product-select" class="border p-2 w-full rounded"></select>
         </div>
         <div>
-          <label for="product-barcode" class="block text-sm font-medium" data-lang-key="product-barcode">Product Barcode</label>
+          <label for="product-barcode" data-lang-key="product-barcode" class="block text-sm">Product Barcode</label>
           <input id="product-barcode" type="text" class="border p-2 w-full rounded" />
           <div id="stock-display" class="text-sm text-gray-600"></div>
         </div>
         <div>
-          <label for="batch-no" class="block text-sm font-medium" data-lang-key="batch-no">Batch No.</label>
+          <label for="batch-no" data-lang-key="batch-no" class="block text-sm">Batch No.</label>
           <select id="batch-no" class="border p-2 w-full rounded"></select>
         </div>
         <div>
-          <label for="quantity" class="block text-sm font-medium" data-lang-key="quantity">Quantity</label>
-          <input id="quantity" type="number" min="1" class="border p-2 w-full rounded" required />
+          <label for="quantity" data-lang-key="quantity" class="block text-sm">Quantity</label>
+          <input id="quantity" type="number" class="border p-2 w-full rounded" />
         </div>
         <div>
-          <label for="selling-price" class="block text-sm font-medium" data-lang-key="selling-price">Selling Price</label>
-          <input id="selling-price" type="number" step="0.01" min="0" class="border p-2 w-full rounded" required />
+          <label for="selling-price" data-lang-key="selling-price" class="block text-sm">Selling Price</label>
+          <input id="selling-price" type="number" step="0.01" class="border p-2 w-full rounded" />
         </div>
       </div>
-      <div class="flex gap-3">
-        <button type="button" id="add-item" data-lang-key="add-item" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Add Item</button>
-        <button type="button" id="reset-form" class="px-4 py-2 border rounded">Reset</button>
+      <div class="flex gap-3 mt-3">
+        <button id="add-item" class="bg-green-600 text-white px-4 py-2 rounded">Add Item</button>
+        <button id="reset-form" class="px-4 py-2 border rounded">Reset</button>
       </div>
     </div>
 
-    <!-- Cart -->
-    <div class="mb-6 bg-white p-4 rounded-xl shadow">
-      <h3 class="text-lg font-semibold mb-2" data-lang-key="cart">Cart</h3>
-      <div class="overflow-x-auto">
-        <table id="cart-table" class="min-w-full border-collapse border text-sm">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="border p-2">Product Name</th>
-              <th class="border p-2">Barcode</th>
-              <th class="border p-2">Batch No.</th>
-              <th class="border p-2">Quantity</th>
-              <th class="border p-2">Selling Price</th>
-              <th class="border p-2">Sub-Total</th>
-              <th class="border p-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="text-right mt-2">
-        <span data-lang-key="total-cost" class="font-bold">Total Cost:</span>
-        <span id="total-cost">0.00</span>
-      </div>
-      <button id="checkout" data-lang-key="checkout" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-2">Checkout</button>
-    </div>
-
-    <!-- Sales Table -->
+    <!-- 🔹 Sales Table -->
     <h2 class="text-xl font-semibold" data-lang-key="customer-sales">Customer Sales</h2>
     <div class="overflow-x-auto bg-white p-4 rounded-xl shadow">
       <table id="customer-sales-table" class="min-w-full border-collapse border text-sm">
@@ -108,7 +82,7 @@
             <th class="border p-2">Items</th>
             <th class="border p-2">Total Cost</th>
             <th class="border p-2">Sale Date</th>
-            <th class="border p-2">Customer Name</th>
+            <th class="border p-2">Customer</th>
             <th class="border p-2">Actions</th>
           </tr>
         </thead>
@@ -117,7 +91,7 @@
     </div>
   </div>
 
-  <!-- ✅ Receipt Modal -->
+  <!-- 🔹 Receipt Modal -->
   <div id="receipt-modal" class="fixed inset-0 hidden bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white p-6 rounded-xl shadow-lg w-3/4 max-w-2xl">
       <div class="flex justify-between items-center mb-4">
@@ -128,45 +102,30 @@
     </div>
   </div>
 
+  <!-- 🔹 Page Init -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       const supabase = await ensureSupabaseClient();
-
-      // 🔒 Auth Guard
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.warn("❌ Not logged in. Redirecting...");
         window.location.href = "login.html";
         return;
       }
 
-      // 🔑 Logout button
-      const logoutBtn = document.getElementById("logout-btn");
-      if (logoutBtn) {
-        logoutBtn.addEventListener("click", async () => {
-          await supabase.auth.signOut();
-          window.location.href = "login.html";
-        });
-      }
+      document.getElementById("logout-btn").addEventListener("click", async () => {
+        await supabase.auth.signOut();
+        window.location.href = "login.html";
+      });
 
-      console.log("✅ Authenticated, initializing page...");
       applyTranslations();
       populateProductDropdown();
       loadCustomerSales();
 
-      document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
-      document.getElementById('add-item').addEventListener('click', addItemToCart);
-      document.getElementById('checkout').addEventListener('click', checkoutOrder);
-      document.getElementById('reset-form').addEventListener('click', () => {
-        document.getElementById('product-select').value = '';
-        document.getElementById('product-barcode').value = '';
-        document.getElementById('batch-no').innerHTML = '';
-        document.getElementById('quantity').value = '';
-        document.getElementById('selling-price').value = '';
-        document.getElementById('stock-display').textContent = '';
-      });
-      document.getElementById('product-select').addEventListener('change', handleProductSelection);
-      document.getElementById('product-barcode').addEventListener('input', handleBarcodeInput);
+      document.getElementById("toggle-language").addEventListener("click", toggleLanguage);
+      document.getElementById("add-item").addEventListener("click", addItemToCart);
+      document.getElementById("checkout").addEventListener("click", checkoutOrder);
+      document.getElementById("product-select").addEventListener("change", handleProductSelection);
+      document.getElementById("product-barcode").addEventListener("input", handleBarcodeInput);
     });
   </script>
 </body>
