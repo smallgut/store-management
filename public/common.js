@@ -1,16 +1,24 @@
 // ================================
 // ✅ Supabase Client (v2 browser)
 // ================================
-let supabaseClient;
+// ✅ common.js patched version
+// Includes:
+// - loadCustomerSales fixed with correct FK (customer_sale_id)
+// - showReceipt fixed to match normalized schema
+// - auto-select batch when only one available
 
+console.log("⚡ Applying global Supabase query patch...");
+
+// 🔑 Initialize Supabase client
+let _supabase;
 async function ensureSupabaseClient() {
-  if (!supabaseClient) {
-    console.log("🔑 Initializing Supabase Client...");
-    const supabaseUrl = "https://aouduygmcspiqauhrabx.supabase.co"; // your project URL
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"; // ⚠️ replace with your anon public key
-    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-  }
-  return supabaseClient;
+  if (_supabase) return _supabase;
+  console.log("🔑 Initializing Supabase Client...");
+  _supabase = window.supabase.createClient(
+    "https://aouduygmcspiqauhrabx.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"
+  );
+  return _supabase;
 }
 
 
