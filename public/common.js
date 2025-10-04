@@ -625,13 +625,10 @@ async function deleteSale(id) {
    ========================================================= */
 // ✅ Receipt Modal with Print Support
 // ✅ Date formatter (reusable across Sales + Receipt)
-function formatDate(dateString) {
-  if (!dateString) return "";
-  const d = new Date(dateString);
-  return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+function formatDate(dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
 // ✅ Show Receipt in Modal
