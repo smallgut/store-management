@@ -505,7 +505,7 @@ async function loadCustomerSales() {
   try {
     const { data: sales, error } = await supabase
       .from("customer_sales")
-      .select("id, customer_name, sale_date, total_cost")
+      .select("id, customer_name, sale_date")
       .order("id", { ascending: false });
 
     if (error) throw error;
@@ -520,7 +520,7 @@ async function loadCustomerSales() {
       const { data: items, error: itemsError } = await supabase
         .from("customer_sales_items")
         .select("quantity, selling_price, sub_total")
-        .eq("customer_sale_id", sale.id); // 🔥 FIXED FK
+        .eq("customer_sale_id", sale.id);
 
       if (itemsError) {
         console.error("❌ Failed to load items for order", sale.id, itemsError);
@@ -528,12 +528,16 @@ async function loadCustomerSales() {
       }
 
       const itemCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
+      const totalCost = items.reduce(
+        (sum, i) => sum + (i.sub_total || i.quantity * i.selling_price),
+        0
+      );
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="border p-2 text-blue-600 cursor-pointer" onclick="showReceipt(${sale.id})">#${sale.id}</td>
         <td class="border p-2">${itemCount}</td>
-        <td class="border p-2">${(sale.total_cost || 0).toFixed(2)}</td>
+        <td class="border p-2">${totalCost.toFixed(2)}</td>
         <td class="border p-2">${formatDate(sale.sale_date)}</td>
         <td class="border p-2">${sale.customer_name || ""}</td>
         <td class="border p-2">
