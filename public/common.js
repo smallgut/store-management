@@ -211,15 +211,7 @@ function getGMT8Date() {
   return `${today[2]}${today[1]}${today[0].slice(-2)}`;
 }
 
-// ✅ Date formatter (reusable across Sales + Receipt)
-function formatDate(dateString) {
-  if (!dateString) return "";
-  const d = new Date(dateString);
-  return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
+
 /* ===============================
    🌐 GLOBAL PATCH FOR common.js
    - Fixes Supabase client usage
