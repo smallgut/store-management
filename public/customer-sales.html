@@ -28,6 +28,7 @@
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4" data-lang-key="record-customer-sales">Record Customer Sales</h1>
 
+    <!-- Status messages -->
     <div id="loading" class="hidden text-center text-blue-500">Loading...</div>
     <div id="message" class="text-green-600"></div>
     <div id="error" class="text-red-600"></div>
@@ -72,7 +73,33 @@
       </div>
     </div>
 
-    <!-- 🔹 Sales Table -->
+    <!-- 🔹 Cart -->
+    <div class="mb-6 bg-white p-4 rounded-xl shadow">
+      <h3 class="text-lg font-semibold mb-2" data-lang-key="cart">Cart</h3>
+      <div class="overflow-x-auto">
+        <table id="cart-table" class="min-w-full border-collapse border text-sm">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="border p-2">Product</th>
+              <th class="border p-2">Barcode</th>
+              <th class="border p-2">Batch</th>
+              <th class="border p-2">Qty</th>
+              <th class="border p-2">Price</th>
+              <th class="border p-2">Sub-Total</th>
+              <th class="border p-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="text-right mt-2">
+        <span class="font-bold">Total Cost:</span>
+        <span id="total-cost">0.00</span>
+      </div>
+      <button id="checkout" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-2">Checkout</button>
+    </div>
+
+    <!-- 🔹 Customer Sales -->
     <h2 class="text-xl font-semibold" data-lang-key="customer-sales">Customer Sales</h2>
     <div class="overflow-x-auto bg-white p-4 rounded-xl shadow">
       <table id="customer-sales-table" class="min-w-full border-collapse border text-sm">
@@ -117,6 +144,7 @@
         window.location.href = "login.html";
       });
 
+      console.log("✅ Authenticated, initializing page...");
       applyTranslations();
       populateProductDropdown();
       loadCustomerSales();
@@ -124,6 +152,14 @@
       document.getElementById("toggle-language").addEventListener("click", toggleLanguage);
       document.getElementById("add-item").addEventListener("click", addItemToCart);
       document.getElementById("checkout").addEventListener("click", checkoutOrder);
+      document.getElementById("reset-form").addEventListener("click", () => {
+        document.getElementById("product-select").value = "";
+        document.getElementById("product-barcode").value = "";
+        document.getElementById("batch-no").innerHTML = "";
+        document.getElementById("quantity").value = "";
+        document.getElementById("selling-price").value = "";
+        document.getElementById("stock-display").textContent = "";
+      });
       document.getElementById("product-select").addEventListener("change", handleProductSelection);
       document.getElementById("product-barcode").addEventListener("input", handleBarcodeInput);
     });
