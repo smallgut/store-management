@@ -2416,18 +2416,7 @@ async function viewOrderDetails(orderId) {
   alert(details); // or show in modal
 }
 
-async function deleteOrder(orderId) {
-  if (!confirm("Are you sure you want to delete this order?")) return;
-  const supabase = await ensureSupabaseClient();
-  const { error } = await supabase.from('orders').delete().eq('order_id', orderId);
-  if (error) {
-    console.error("Delete error:", error);
-    alert("Failed to delete order.");
-  } else {
-    alert("Order deleted.");
-    loadCustomerSales();
-  }
-}
+
 // -------------------------------------------------------------
 // Keep all your existing functions below (translations, loadCustomerSales,
 // populateProductDropdown, loadLoanRecords, etc.) untouched.
