@@ -7,20 +7,17 @@
 // - showReceipt fixed to match normalized schema
 // - auto-select batch when only one available
 
-console.log("⚡ Applying global Supabase query patch...");
-
 // 🔑 Initialize Supabase client
 let _supabase;
 async function ensureSupabaseClient() {
-  if (_supabase) return _supabase;
-  console.log("🔑 Initializing Supabase Client...");
-  _supabase = window.supabase.createClient(
-    "https://aouduygmcspiqauhrabx.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"
-  );
-  return _supabase;
+if (_supabase) return _supabase;
+console.log("🔑 Initializing Supabase Client...");
+_supabase = window.supabase.createClient(
+"https://aouduygmcspiqauhrabx.supabase.co",
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"
+);
+return _supabase;
 }
-
 
 // ⬇️ Add here
 /* ------------------------------------------------------------------
@@ -355,35 +352,26 @@ async function populateProductDropdown() {
 
 // ✅ Replace old handler for product selection
 // ✅ Product selection handler
+// ✅ Product Handlers
 async function handleProductSelection(e) {
-  const productId = e.target.value;
-  if (!productId) {
-    console.warn("⚠️ handleProductSelection called with empty productId");
-    return;
-  }
-  console.log("📌 handleProductSelection triggered for ID:", productId);
-  await loadProductAndBatches(productId, false);
+const productId = e.target.value;
+if (!productId) return;
+console.log("📌 handleProductSelection triggered for ID:", productId);
+await loadProductAndBatches(productId, false);
 }
 
 // ✅ Replace old handler for barcode input
 let barcodeTimer;
-// ✅ Barcode input handler
 async function handleBarcodeInput(e) {
-  const rawBarcode = e.target.value;
-  const barcode = rawBarcode.trim();
-
-  if (!barcode) {
-    console.warn("⚠️ handleBarcodeInput called with empty barcode");
-    return;
-  }
-
-  console.log("📌 handleBarcodeInput triggered with:", rawBarcode, "→ trimmed:", barcode);
-  const result = await loadProductAndBatches(barcode, true);
-
-  if (!result) {
-    console.warn("⚠️ No product matched for barcode:", barcode);
-    document.getElementById("stock-display").textContent = "Product not found";
-  }
+const rawBarcode = e.target.value;
+const barcode = rawBarcode.trim();
+if (!barcode) return;
+console.log("📌 handleBarcodeInput triggered with:", rawBarcode, "→", barcode);
+const result = await loadProductAndBatches(barcode, true);
+if (!result) {
+console.warn("⚠️ No product matched for barcode:", barcode);
+document.getElementById("stock-display").textContent = "Product not found";
+}
 }
 
 async function populateVendorDropdown() {
@@ -498,57 +486,63 @@ async function populateCustomerDropdown() {
 // ✅ Patch: loadCustomerSales with live-calculated totals + line items count
 // ✅ Load customer sales into table with clickable Order #
 // ✅ Load Customer Sales
+// ✅ Load Customer Sales
 async function loadCustomerSales() {
-  const supabase = await ensureSupabaseClient();
-  console.log("📦 Loading customer sales...");
+const supabase = await ensureSupabaseClient();
+console.log("📦 Loading customer sales...");
 
-  try {
-    const { data: sales, error } = await supabase
-      .from("customer_sales")
-      .select("id, customer_name, sale_date")
-      .order("id", { ascending: false });
 
-    if (error) throw error;
+try {
+const { data: sales, error } = await supabase
+.from("customer_sales")
+.select("id, customer_name, sale_date")
+.order("id", { ascending: false });
 
-    console.log("✅ Customer sales loaded:", sales);
-    const tbody = document.getElementById("customer-sales-body");
-    if (!tbody) return;
-    tbody.innerHTML = "";
 
-    for (const sale of sales) {
-      // Fetch items for each sale
-      const { data: items, error: itemsError } = await supabase
-        .from("customer_sales_items")
-        .select("quantity, selling_price, sub_total")
-        .eq("customer_sale_id", sale.id);
+if (error) throw error;
 
-      if (itemsError) {
-        console.error("❌ Failed to load items for order", sale.id, itemsError);
-        continue;
-      }
 
-      const itemCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
-      const totalCost = items.reduce(
-        (sum, i) => sum + (i.sub_total || i.quantity * i.selling_price),
-        0
-      );
+console.log("✅ Customer sales loaded:", sales);
+const tbody = document.getElementById("customer-sales-body");
+if (!tbody) return;
+tbody.innerHTML = "";
 
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2 text-blue-600 cursor-pointer" onclick="showReceipt(${sale.id})">#${sale.id}</td>
-        <td class="border p-2">${itemCount}</td>
-        <td class="border p-2">${totalCost.toFixed(2)}</td>
-        <td class="border p-2">${formatDate(sale.sale_date)}</td>
-        <td class="border p-2">${sale.customer_name || ""}</td>
-        <td class="border p-2">
-          <button onclick="showReceipt(${sale.id})" class="bg-gray-200 px-2 py-1 rounded">Receipt</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    }
-  } catch (err) {
-    console.error("❌ loadCustomerSales failed:", err);
-  }
+
+for (const sale of sales) {
+// Fetch items per order
+const { data: items, error: itemsError } = await supabase
+.from("customer_sales_items")
+.select("quantity, selling_price, sub_total")
+.eq("order_id", sale.id); // ✅ FIXED FK
+
+
+if (itemsError) {
+console.error("❌ Failed to load items for order", sale.id, itemsError);
+continue;
+}
+
+
+const itemCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
+const totalCost = items.reduce(
+(sum, i) => sum + (i.sub_total || i.quantity * i.selling_price || 0),
+0
+);
+
+
+const tr = document.createElement("tr");
+tr.innerHTML = `
+<td class="border p-2 text-blue-600 cursor-pointer" onclick="showReceipt(${sale.id})">#${sale.id}</td>
+<td class="border p-2">${itemCount}</td>
+<td class="border p-2">${totalCost.toFixed(2)}</td>
+<td class="border p-2">${formatDate(sale.sale_date)}</td>
+<td class="border p-2">${sale.customer_name || ""}</td>
+<td class="border p-2"><button onclick="showReceipt(${sale.id})" class="bg-gray-200 px-2 py-1 rounded">Receipt</button></td>
+`;
+tbody.appendChild(tr);
+}
+} catch (err) {
+console.error("❌ loadCustomerSales failed:", err);
+}
 }
 
 
@@ -629,155 +623,89 @@ async function deleteSale(id) {
    ========================================================= */
 // ✅ Receipt Modal with Print Support
 // ✅ Date formatter (reusable across Sales + Receipt)
+// ✅ Utility: Format date (zh-TW)
 function formatDate(dateStr) {
-  if (!dateStr) return "-";
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" });
+if (!dateStr) return "-";
+const d = new Date(dateStr);
+return d.toLocaleDateString("zh-TW", {
+year: "numeric",
+month: "2-digit",
+day: "2-digit",
+});
 }
 
 // ✅ Show Receipt in Modal
-// ✅ Receipt Modal with Print Support
 async function showReceipt(orderId) {
-  console.log("🧾 Loading receipt for order:", orderId);
-  const supabase = await ensureSupabaseClient();
-
-  try {
-    // Fetch order
-    const { data: order, error: orderError } = await supabase
-      .from("customer_sales")
-      .select("id, customer_name, sale_date")
-      .eq("id", orderId)
-      .single();
-
-    if (orderError) throw orderError;
-
-    // Fetch items
-    const { data: items, error: itemsError } = await supabase
-      .from("customer_sales_items")
-      .select(`
-        quantity,
-        selling_price,
-        sub_total,
-        products(name, barcode),
-        product_batches(batch_number)
-      `)
-      .eq("customer_sale_id", orderId); // 🔥 FIXED FK
-
-    if (itemsError) throw itemsError;
-
-    const itemsCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
-    const totalCost = items.reduce((sum, i) => sum + (i.sub_total || (i.quantity * i.selling_price) || 0), 0);
-
-    // Build receipt HTML
-    let receiptHtml = `
-      <p><strong>Order #:</strong> ${order.id}</p>
-      <p><strong>Customer:</strong> ${order.customer_name}</p>
-      <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
-      <p><strong>Items:</strong> ${itemsCount}</p>
-      <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
-      <hr class="my-2"/>
-      <table class="min-w-full border-collapse border text-sm">
-        <thead>
-          <tr class="bg-gray-100">
-            <th class="border p-2">Product</th>
-            <th class="border p-2">Barcode</th>
-            <th class="border p-2">Batch</th>
-            <th class="border p-2">Qty</th>
-            <th class="border p-2">Price</th>
-            <th class="border p-2">Sub-Total</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    items.forEach(item => {
-      receiptHtml += `
-        <tr>
-          <td class="border p-2">${item.products?.name || ""}</td>
-          <td class="border p-2">${item.products?.barcode || ""}</td>
-          <td class="border p-2">${item.product_batches?.batch_number || ""}</td>
-          <td class="border p-2">${item.quantity}</td>
-          <td class="border p-2">${item.selling_price.toFixed(2)}</td>
-          <td class="border p-2">${item.sub_total.toFixed(2)}</td>
-        </tr>
-      `;
-    });
-
-    receiptHtml += `
-        </tbody>
-      </table>
-      <div class="mt-4 text-right">
-        <button id="print-receipt" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">🖨 Print</button>
-      </div>
-    `;
-
-    // Inject into modal
-    document.getElementById("receipt-content").innerHTML = receiptHtml;
-    document.getElementById("receipt-modal").classList.remove("hidden");
-
-    // Bind print button
-    document.getElementById("print-receipt").addEventListener("click", () => {
-      printReceipt(order, items);
-    });
-  } catch (err) {
-    console.error("❌ Failed to load receipt:", err);
-    alert("Failed to load receipt");
-  }
-}
+console.log("🧾 Loading receipt for order:", orderId);
+const supabase = await ensureSupabaseClient();
 
 
-// ✅ Close modal
-function closeReceiptModal() {
-  document.getElementById("receipt-modal").classList.add("hidden");
-}
+try {
+// Fetch order
+const { data: order, error: orderError } = await supabase
+.from("customer_sales")
+.select("id, customer_name, sale_date")
+.eq("id", orderId)
+.single();
 
-// ✅ 58mm Print Function
-function printReceipt(order, items) {
-  const printWindow = window.open("", "PRINT", "height=600,width=400");
-  let content = `
-    <html><head><style>
-      body { font-family: monospace; width: 58mm; }
-      .center { text-align:center; }
-      .bold { font-weight:bold; }
-      .line { border-top:1px dashed #000; margin:4px 0; }
-      .item-line { display:flex; justify-content:space-between; }
-      .left { flex:1; }
-      .mid { width:40px; text-align:center; }
-      .right { width:60px; text-align:right; }
-    </style></head><body>
-    <div class="center bold">POS Receipt</div>
-    <div>日期: ${order.sale_date.split("T")[0]}</div>
-    <div>時間: ${new Date(order.sale_date).toLocaleTimeString("zh-TW",{hour12:false})}</div>
-    <div>客戶: ${order.customer_name || "(無)"}</div>
-    <div class="line"></div>
-    <div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>
-    <div class="line"></div>
-  `;
 
-  items.forEach(item => {
-    const subtotal = item.sub_total || (item.quantity * item.selling_price);
-    content += `
-      <div class="item-line">
-        <div class="left">${item.products?.name || ""}</div>
-        <div class="mid">${item.quantity}</div>
-        <div class="right">${subtotal.toFixed(2)}</div>
-      </div>
-    `;
-  });
+if (orderError) throw orderError;
 
-  content += `
-    <div class="line"></div>
-    <div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${items.reduce((s,i)=>s+(i.sub_total || i.quantity*i.selling_price),0).toFixed(2)}</div></div>
-    <div class="line"></div>
-    <div class="center">感謝您的惠顧</div>
-    </body></html>
-  `;
 
-  printWindow.document.write(content);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
-  printWindow.close();
+// Fetch items
+const { data: items, error: itemsError } = await supabase
+.from("customer_sales_items")
+.select(`
+quantity,
+selling_price,
+sub_total,
+products(name, barcode),
+product_batches(batch_number)
+`)
+.eq("order_id", orderId); // ✅ FIXED FK
+
+
+if (itemsError) throw itemsError;
+
+
+const itemsCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
+const totalCost = items.reduce(
+(sum, i) => sum + (i.sub_total || i.quantity * i.selling_price || 0),
+0
+);
+
+
+let receiptHtml = `
+<p><strong>Order #:</strong> ${order.id}</p>
+<p><strong>Customer:</strong> ${order.customer_name}</p>
+<p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
+<p><strong>Items:</strong> ${itemsCount}</p>
+<p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
+<hr class="my-2"/>
+<table class="min-w-full border-collapse border text-sm">
+<thead>
+<tr class="bg-gray-100">
+<th class="border p-2">Product</th>
+<th class="border p-2">Barcode</th>
+<th class="border p-2">Batch</th>
+<th class="border p-2">Qty</th>
+<th class="border p-2">Price</th>
+<th class="border p-2">Sub-Total</th>
+</tr>
+</thead>
+<tbody>
+`;
+
+
+items.forEach((item) => {
+receiptHtml += `
+<tr>
+<td class="border p-2">${item.products?.name || ""}</td>
+<td class="border p-2">${item.products?.barcode || ""}</td>
+<td class="border p-2">${item.product_batches?.batch_number || ""}</td>
+<td class="border p-2">${item.quantity}</td>
+<td class="border p-2">${item.selling_price.toFixed(2)}</td>
+<td class="border p-2">${item.sub_total.toFixed(2)}</td>
 }
 
 /* =========================================================
@@ -2137,45 +2065,55 @@ async function loadBatches(productId) {
    ========================================================= */
 // ✅ Load Product + Batches (patched with auto-select if only one batch)
 // ✅ loadProductAndBatches auto-select batch
+// ✅ loadProductAndBatches
 async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
-  const supabase = await ensureSupabaseClient();
-  console.log("🔍 loadProductAndBatches called with:", productIdOrBarcode, "byBarcode:", byBarcode);
+const supabase = await ensureSupabaseClient();
+console.log("🔍 loadProductAndBatches called with:", productIdOrBarcode, "byBarcode:", byBarcode);
 
-  try {
-    const query = supabase.from("products").select("id, name, barcode");
-    if (byBarcode) query.eq("barcode", productIdOrBarcode);
-    else query.eq("id", productIdOrBarcode);
 
-    const { data: product, error: productError } = await query.single();
-    if (productError) throw productError;
+try {
+let query = supabase.from("products").select("id, name, barcode");
+if (byBarcode) query = query.eq("barcode", productIdOrBarcode);
+else query = query.eq("id", productIdOrBarcode);
 
-    console.log("✅ Product loaded:", product);
 
-    // Fetch batches
-    const { data: batches, error: batchError } = await supabase
-      .from("product_batches")
-      .select("id, batch_number")
-      .eq("product_id", product.id);
+const { data: product, error: productError } = await query.single();
+if (productError) throw productError;
 
-    if (batchError) throw batchError;
 
-    console.log("📦 Found", batches.length, "batch(es) for product", product.id, batches);
-    const batchSelect = document.getElementById("batch-no");
-    if (!batchSelect) return;
+console.log("✅ Product loaded:", product);
 
-    batchSelect.innerHTML = batches.map(b => `<option value="${b.id}">${b.batch_number}</option>`).join("");
 
-    // 🔥 Auto-select if only one batch
-    if (batches.length === 1) {
-      batchSelect.value = batches[0].id;
-      console.log("✅ Auto-selected batch:", batches[0]);
-    }
+const { data: batches, error: batchError } = await supabase
+.from("product_batches")
+.select("id, batch_number")
+.eq("product_id", product.id);
 
-    return { product, batches };
-  } catch (err) {
-    console.error("❌ loadProductAndBatches failed:", err);
-    return null;
-  }
+
+if (batchError) throw batchError;
+
+
+console.log("📦 Found", batches.length, "batch(es) for product", product.id, batches);
+const batchSelect = document.getElementById("batch-no");
+if (!batchSelect) return;
+
+
+batchSelect.innerHTML = batches
+.map((b) => `<option value="${b.id}">${b.batch_number}</option>`)
+.join("");
+
+
+if (batches.length === 1) {
+batchSelect.value = batches[0].id;
+console.log("✅ Auto-selected batch:", batches[0]);
+}
+
+
+return { product, batches };
+} catch (err) {
+console.error("❌ loadProductAndBatches failed:", err);
+return null;
+}
 }
 
 
