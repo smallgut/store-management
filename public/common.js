@@ -715,7 +715,8 @@ receiptHtml += `
    Remove Order + Restock Items
    ========================================================= */
 async function removeOrder(orderId) {
-  
+  if (!confirm(`Are you sure you want to delete order #${orderId}? This will restock all items.`)) return;
+
   const supabase = await ensureSupabaseClient();
   try {
     console.log("🗑 Removing order:", orderId);
