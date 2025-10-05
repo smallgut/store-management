@@ -1,24 +1,27 @@
 // ================================
-// ✅ Supabase Client (v2 browser)
+// ✅ common.js (Clean Patched Version)
 // ================================
-// ✅ common.js patched version
-// Fixes applied:
-// - customer_sales_items now uses correct FK: order_id
-// - loadCustomerSales + showReceipt corrected
-// - Receipt modal + print support
-// - loadProductAndBatches auto-selects batch when only one exists
-// - Consistent zh-TW formatDate
+// Fixes:
+// - No more invalid confirm() strings
+// - Removed obsolete deleteOrder()
+// - Correct FK: order_id in customer_sales_items
+// - loadCustomerSales + showReceipt working
+// - Cart functions restored
+// - Auto-select batch if only one
 // ================================
-let supabaseClient;
 
+console.log("⚡ common.js loaded");
+
+// 🔑 Supabase Client
+let _supabase;
 async function ensureSupabaseClient() {
-  if (!supabaseClient) {
-    console.log("🔑 Initializing Supabase Client...");
-    const supabaseUrl = "https://aouduygmcspiqauhrabx.supabase.co"; // your project URL
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"; // ⚠️ replace with your anon public key
-    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-  }
-  return supabaseClient;
+  if (_supabase) return _supabase;
+  console.log("🔑 Initializing Supabase Client...");
+  _supabase = window.supabase.createClient(
+    "https://aouduygmcspiqauhrabx.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"
+  );
+  return _supabase;
 }
 
 
@@ -490,62 +493,56 @@ async function populateCustomerDropdown() {
 // ✅ Load customer sales into table with clickable Order #
 // ✅ Load Customer Sales
 // ✅ Load Customer Sales
+/* =========================================================
+   Load Customer Sales
+   ========================================================= */
 async function loadCustomerSales() {
-const supabase = await ensureSupabaseClient();
-console.log("📦 Loading customer sales...");
+  const supabase = await ensureSupabaseClient();
+  console.log("📦 Loading customer sales...");
 
+  try {
+    const { data: sales, error } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date")
+      .order("id", { ascending: false });
 
-try {
-const { data: sales, error } = await supabase
-.from("customer_sales")
-.select("id, customer_name, sale_date")
-.order("id", { ascending: false });
+    if (error) throw error;
+    console.log("✅ Customer sales loaded:", sales);
 
+    const tbody = document.getElementById("customer-sales-body");
+    if (!tbody) return;
+    tbody.innerHTML = "";
 
-if (error) throw error;
+    for (const sale of sales) {
+      // Load items count
+      const { data: items, error: itemsError } = await supabase
+        .from("customer_sales_items")
+        .select("quantity")
+        .eq("order_id", sale.id);
 
+      if (itemsError) {
+        console.error("❌ Failed to load items for order", sale.id, itemsError);
+        continue;
+      }
 
-console.log("✅ Customer sales loaded:", sales);
-const tbody = document.getElementById("customer-sales-body");
-if (!tbody) return;
-tbody.innerHTML = "";
+      const itemCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
 
-
-for (const sale of sales) {
-// Fetch items per order
-const { data: items, error: itemsError } = await supabase
-.from("customer_sales_items")
-.select("quantity, selling_price, sub_total")
-.eq("order_id", sale.id); // ✅ FIXED FK
-
-
-if (itemsError) {
-console.error("❌ Failed to load items for order", sale.id, itemsError);
-continue;
-}
-
-
-const itemCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
-const totalCost = items.reduce(
-(sum, i) => sum + (i.sub_total || i.quantity * i.selling_price || 0),
-0
-);
-
-
-const tr = document.createElement("tr");
-tr.innerHTML = `
-<td class="border p-2 text-blue-600 cursor-pointer" onclick="showReceipt(${sale.id})">#${sale.id}</td>
-<td class="border p-2">${itemCount}</td>
-<td class="border p-2">${totalCost.toFixed(2)}</td>
-<td class="border p-2">${formatDate(sale.sale_date)}</td>
-<td class="border p-2">${sale.customer_name || ""}</td>
-<td class="border p-2"><button onclick="showReceipt(${sale.id})" class="bg-gray-200 px-2 py-1 rounded">Receipt</button></td>
-`;
-tbody.appendChild(tr);
-}
-} catch (err) {
-console.error("❌ loadCustomerSales failed:", err);
-}
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2 text-blue-600 cursor-pointer" onclick="showReceipt(${sale.id})">#${sale.id}</td>
+        <td class="border p-2">${itemCount}</td>
+        <td class="border p-2">—</td>
+        <td class="border p-2">${formatDate(sale.sale_date)}</td>
+        <td class="border p-2">${sale.customer_name || ""}</td>
+        <td class="border p-2">
+          <button onclick="showReceipt(${sale.id})" class="bg-gray-200 px-2 py-1 rounded">Receipt</button>
+          <button onclick="removeOrder(${sale.id})" class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
+  } catch (err) {
+    console.error("❌ loadCustomerSales failed:", err);
+  }
 }
 
 
@@ -598,7 +595,7 @@ function renderOrders(orders) {
 }
 
 /* =========================================================
-   Delete Sale Helper
+   Delete Helpers
    ========================================================= */
 async function deleteSale(id) {
   if (!confirm("Are you sure you want to delete this sale?")) return;
@@ -606,14 +603,46 @@ async function deleteSale(id) {
     const client = await ensureSupabaseClient();
     const { error } = await client.from("customer_sales").delete().eq("id", id);
     if (error) throw error;
-
     console.log(`🗑️ Deleted sale ID ${id}`);
-    if (typeof loadCustomerSales === "function") {
-      loadCustomerSales();
-    }
+    if (typeof loadCustomerSales === "function") loadCustomerSales();
   } catch (err) {
     console.error("❌ Failed to delete sale:", err);
     alert("Failed to delete sale: " + err.message);
+  }
+}
+
+async function removeOrder(orderId) {
+  if (!confirm("Are you sure you want to continue?")) return;
+
+  const supabase = await ensureSupabaseClient();
+  try {
+    console.log("🗑 Removing order:", orderId);
+
+    // 1️⃣ Load items
+    const { data: items, error: itemsError } = await supabase
+      .from("customer_sales_items")
+      .select("id, batch_id, quantity")
+      .eq("order_id", orderId);
+
+    if (itemsError) throw itemsError;
+
+    // 2️⃣ Restock
+    for (const item of items) {
+      await supabase.rpc("increment_remaining_quantity", {
+        p_batch_id: item.batch_id,
+        p_quantity: item.quantity
+      });
+    }
+
+    // 3️⃣ Delete order
+    const { error: deleteError } = await supabase.from("customer_sales").delete().eq("id", orderId);
+    if (deleteError) throw deleteError;
+
+    console.log("🗑 Order deleted:", orderId);
+    loadCustomerSales();
+  } catch (err) {
+    console.error("❌ Failed to remove order:", err);
+    alert("Failed to remove order. Check console for details.");
   }
 }
 
@@ -625,90 +654,141 @@ async function deleteSale(id) {
    Show Receipt in Modal
    ========================================================= */
 // ✅ Receipt Modal with Print Support
-// ✅ Date formatter (reusable across Sales + Receipt)
-// ✅ Utility: Format date (zh-TW)
+// ✅ Utility: Format date
 function formatDate(dateStr) {
-if (!dateStr) return "-";
-const d = new Date(dateStr);
-return d.toLocaleDateString("zh-TW", {
-year: "numeric",
-month: "2-digit",
-day: "2-digit",
-});
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("zh-TW", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
 }
 
-// ✅ Show Receipt in Modal
+/* =========================================================
+   Receipt Modal + Print Support
+   ========================================================= */
 async function showReceipt(orderId) {
-console.log("🧾 Loading receipt for order:", orderId);
-const supabase = await ensureSupabaseClient();
+  console.log("🧾 Loading receipt for order:", orderId);
+  const supabase = await ensureSupabaseClient();
 
+  try {
+    const { data: order, error: orderError } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date")
+      .eq("id", orderId)
+      .single();
+    if (orderError) throw orderError;
 
-try {
-// Fetch order
-const { data: order, error: orderError } = await supabase
-.from("customer_sales")
-.select("id, customer_name, sale_date")
-.eq("id", orderId)
-.single();
+    const { data: items, error: itemsError } = await supabase
+      .from("customer_sales_items")
+      .select("quantity, selling_price, sub_total, products(name, barcode), product_batches(batch_number)")
+      .eq("order_id", orderId);
 
+    if (itemsError) throw itemsError;
 
-if (orderError) throw orderError;
+    const totalCost = items.reduce(
+      (sum, i) => sum + (i.sub_total || i.quantity * i.selling_price),
+      0
+    );
 
+    let receiptHtml = `
+      <p><strong>Order #:</strong> ${order.id}</p>
+      <p><strong>Customer:</strong> ${order.customer_name}</p>
+      <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
+      <p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
+      <hr class="my-2"/>
+      <table class="min-w-full border-collapse border text-sm">
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border p-2">Product</th>
+            <th class="border p-2">Barcode</th>
+            <th class="border p-2">Batch</th>
+            <th class="border p-2">Qty</th>
+            <th class="border p-2">Price</th>
+            <th class="border p-2">Sub-Total</th>
+          </tr>
+        </thead>
+        <tbody>`;
 
-// Fetch items
-const { data: items, error: itemsError } = await supabase
-.from("customer_sales_items")
-.select(`
-quantity,
-selling_price,
-sub_total,
-products(name, barcode),
-product_batches(batch_number)
-`)
-.eq("order_id", orderId); // ✅ FIXED FK
+    items.forEach(item => {
+      receiptHtml += `
+        <tr>
+          <td class="border p-2">${item.products?.name || ""}</td>
+          <td class="border p-2">${item.products?.barcode || ""}</td>
+          <td class="border p-2">${item.product_batches?.batch_number || ""}</td>
+          <td class="border p-2">${item.quantity}</td>
+          <td class="border p-2">${Number(item.selling_price).toFixed(2)}</td>
+          <td class="border p-2">${Number(item.sub_total).toFixed(2)}</td>
+        </tr>`;
+    });
 
+    receiptHtml += `
+        </tbody>
+      </table>
+      <div class="mt-4 text-right">
+        <button id="print-receipt" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">🖨 Print</button>
+      </div>`;
 
-if (itemsError) throw itemsError;
+    document.getElementById("receipt-content").innerHTML = receiptHtml;
+    document.getElementById("receipt-modal").classList.remove("hidden");
 
+    document.getElementById("print-receipt").addEventListener("click", () => {
+      printReceipt(order, items);
+    });
+  } catch (err) {
+    console.error("❌ Failed to load receipt:", err);
+    alert("Failed to load receipt");
+  }
+}
 
-const itemsCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
-const totalCost = items.reduce(
-(sum, i) => sum + (i.sub_total || i.quantity * i.selling_price || 0),
-0
-);
+function closeReceiptModal() {
+  document.getElementById("receipt-modal").classList.add("hidden");
+}
 
+function printReceipt(order, items) {
+  const printWindow = window.open("", "PRINT", "height=600,width=400");
+  let content = `
+    <html><head><style>
+      body { font-family: monospace; width: 58mm; }
+      .center { text-align:center; }
+      .bold { font-weight:bold; }
+      .line { border-top:1px dashed #000; margin:4px 0; }
+      .item-line { display:flex; justify-content:space-between; }
+      .left { flex:1; }
+      .mid { width:40px; text-align:center; }
+      .right { width:60px; text-align:right; }
+    </style></head><body>
+    <div class="center bold">POS Receipt</div>
+    <div>日期: ${order.sale_date.split("T")[0]}</div>
+    <div>時間: ${new Date(order.sale_date).toLocaleTimeString("zh-TW",{hour12:false})}</div>
+    <div>客戶: ${order.customer_name || "(無)"}</div>
+    <div class="line"></div>
+    <div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>
+    <div class="line"></div>`;
 
-let receiptHtml = `
-<p><strong>Order #:</strong> ${order.id}</p>
-<p><strong>Customer:</strong> ${order.customer_name}</p>
-<p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
-<p><strong>Items:</strong> ${itemsCount}</p>
-<p><strong>Total Cost:</strong> ${totalCost.toFixed(2)}</p>
-<hr class="my-2"/>
-<table class="min-w-full border-collapse border text-sm">
-<thead>
-<tr class="bg-gray-100">
-<th class="border p-2">Product</th>
-<th class="border p-2">Barcode</th>
-<th class="border p-2">Batch</th>
-<th class="border p-2">Qty</th>
-<th class="border p-2">Price</th>
-<th class="border p-2">Sub-Total</th>
-</tr>
-</thead>
-<tbody>
-`;
+  items.forEach(item => {
+    const subtotal = item.sub_total || (item.quantity * item.selling_price);
+    content += `
+      <div class="item-line">
+        <div class="left">${item.products?.name || ""}</div>
+        <div class="mid">${item.quantity}</div>
+        <div class="right">${subtotal.toFixed(2)}</div>
+      </div>`;
+  });
 
+  content += `
+    <div class="line"></div>
+    <div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${items.reduce((s,i)=>s+(i.sub_total || i.quantity*i.selling_price),0).toFixed(2)}</div></div>
+    <div class="line"></div>
+    <div class="center">感謝您的惠顧</div>
+    </body></html>`;
 
-items.forEach((item) => {
-receiptHtml += `
-<tr>
-<td class="border p-2">${item.products?.name || ""}</td>
-<td class="border p-2">${item.products?.barcode || ""}</td>
-<td class="border p-2">${item.product_batches?.batch_number || ""}</td>
-<td class="border p-2">${item.quantity}</td>
-<td class="border p-2">${item.selling_price.toFixed(2)}</td>
-<td class="border p-2">${item.sub_total.toFixed(2)}</td>
+  printWindow.document.write(content);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+  printWindow.close();
 }
 
 /* =========================================================
@@ -1621,42 +1701,24 @@ async function loadProducts() {
 // ✅ Delete Batch
 // ================================
 async function deleteBatch(batchId) {
-  try {
-    const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
-    if (!row) {
-      alert("Row not found.");
-      return;
-    }
-
-    const batchNumber = row.getAttribute("data-batch-number");
-    const productId = row.getAttribute("data-product-id");
-
-    const confirmed = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
-    if (!confirmed) return;
-
-    const supabase = await ensureSupabaseClient();
-    console.log("🗑️ Deleting batch from Supabase:", batchId);
-
-    const { error } = await supabase.from("product_batches").delete().eq("id", batchId);
-
-    if (error) throw error;
-
-    console.log("🗑️ Batch deleted:", batchId);
-    row.remove();
-
-    // check if this product has any remaining batches in DOM
-    const stillHasBatches = document.querySelector(`tr[data-product-id="${productId}"]`);
-    if (!stillHasBatches) {
-      console.log(`🗑️ Product ${productId} has no more batches → removing product row`);
-    }
-
-    const msg = document.getElementById("message");
-    msg.innerText = "Batch deleted successfully ✅";
-    setTimeout(() => (msg.innerText = ""), 2500);
-  } catch (err) {
-    console.error("❌ Unexpected error deleting batch:", err);
-    document.getElementById("error").innerText = "Unexpected error deleting batch.";
+  const row = document.querySelector(`tr[data-batch-id="${batchId}"]`);
+  if (!row) {
+    alert("Row not found.");
+    return;
   }
+  const batchNumber = row.getAttribute("data-batch-number");
+  const confirmed = confirm(`Are you sure you want to delete batch ${batchNumber}?`);
+  if (!confirmed) return;
+
+  const supabase = await ensureSupabaseClient();
+  const { error } = await supabase.from("product_batches").delete().eq("id", batchId);
+  if (error) {
+    console.error("❌ Error deleting batch:", error);
+    alert("Failed to delete batch");
+    return;
+  }
+  row.remove();
+  console.log("🗑 Batch deleted:", batchId);
 }
 
 
