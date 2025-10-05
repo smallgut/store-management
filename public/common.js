@@ -2,41 +2,26 @@
 // ✅ Supabase Client (v2 browser)
 // ================================
 // ✅ common.js patched version
-// Includes:
-// - loadCustomerSales fixed with correct FK (customer_sale_id)
-// - showReceipt fixed to match normalized schema
-// - auto-select batch when only one available
-// ✅ common.js patched version
 // Fixes applied:
 // - customer_sales_items now uses correct FK: order_id
 // - loadCustomerSales + showReceipt corrected
 // - Receipt modal + print support
 // - loadProductAndBatches auto-selects batch when only one exists
 // - Consistent zh-TW formatDate
-
+// ================================
 
 console.log("⚡ Applying global Supabase query patch...");
+
 // 🔑 Initialize Supabase client
 let _supabase;
 async function ensureSupabaseClient() {
-if (_supabase) return _supabase;
-console.log("🔑 Initializing Supabase Client...");
-_supabase = window.supabase.createClient(
-"https://aouduygmcspiqauhrabx.supabase.co",
-"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"
-);
-return _supabase;
-}
-
-// ⬇️ Add here
-/* ------------------------------------------------------------------
-   🔧 Global Patch: Fix wrong column names in Supabase queries
-   ------------------------------------------------------------------ */
-console.log("⚡ Applying global Supabase query patch...");
-
-// ✅ Helper: always get client
-async function getClient() {
-  return await ensureSupabaseClient();
+  if (_supabase) return _supabase;
+  console.log("🔑 Initializing Supabase Client...");
+  _supabase = window.supabase.createClient(
+    "https://aouduygmcspiqauhrabx.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"
+  );
+  return _supabase;
 }
 
 const translations = {
@@ -722,7 +707,6 @@ receiptHtml += `
    ========================================================= */
 async function removeOrder(orderId) {
   if (!confirm(`Are you sure you want to delete order #${orderId}? This will restock all items.`)) return;
-
   const supabase = await ensureSupabaseClient();
   try {
     console.log("🗑 Removing order:", orderId);
