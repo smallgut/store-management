@@ -6,7 +6,16 @@
 // - loadCustomerSales fixed with correct FK (customer_sale_id)
 // - showReceipt fixed to match normalized schema
 // - auto-select batch when only one available
+// ✅ common.js patched version
+// Fixes applied:
+// - customer_sales_items now uses correct FK: order_id
+// - loadCustomerSales + showReceipt corrected
+// - Receipt modal + print support
+// - loadProductAndBatches auto-selects batch when only one exists
+// - Consistent zh-TW formatDate
 
+
+console.log("⚡ Applying global Supabase query patch...");
 // 🔑 Initialize Supabase client
 let _supabase;
 async function ensureSupabaseClient() {
