@@ -1,69 +1,67 @@
 <!DOCTYPE html>
-<html lang="en" id="lang-body" class="lang-en">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-lang-key="nav-analytics">Analytics</title>
+  <title>Analytics</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
 <body class="bg-gray-100 p-4">
-  <!-- 🔹 Navbar -->
-  <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
-    <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
-      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
-      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
-      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
-    </ul>
-    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
+  <nav class="bg-blue-500 p-4 text-white flex justify-between">
+    <span class="font-bold">Analytics</span>
+    <a href="index.html" class="underline">Home</a>
   </nav>
 
-  <h1 class="text-2xl font-bold mb-4" data-lang-key="analytics">Analytics</h1>
+  <h1 class="text-2xl font-bold my-4">Sales Analytics</h1>
 
-  <div id="analytics-error" class="text-red-600 mb-4"></div>
-
-  <!-- Sales by Day -->
-  <h2 class="text-xl font-semibold mt-6 mb-2">Sales by Day</h2>
-  <table class="min-w-full bg-white rounded shadow border">
-    <thead class="bg-gray-200">
-      <tr>
-        <th class="border p-2">Date</th>
-        <th class="border p-2">Total Sales</th>
-      </tr>
-    </thead>
-    <tbody id="sales-by-day-body"></tbody>
-  </table>
-
-  <!-- Sales by Product -->
-  <h2 class="text-xl font-semibold mt-6 mb-2">Sales by Product</h2>
-  <table class="min-w-full bg-white rounded shadow border">
-    <thead class="bg-gray-200">
-      <tr>
-        <th class="border p-2">Product</th>
-        <th class="border p-2">Total Sales</th>
-      </tr>
-    </thead>
-    <tbody id="sales-by-product-body"></tbody>
-  </table>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-lg font-semibold mb-2">Total Sales by Day</h2>
+      <canvas id="salesByDay"></canvas>
+    </div>
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-lg font-semibold mb-2">Total Sales by Product</h2>
+      <canvas id="salesByProduct"></canvas>
+    </div>
+  </div>
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       const supabase = await ensureSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = "login.html";
-        return;
-      }
-      console.log("✅ Authenticated, initializing Analytics page...");
-      applyTranslations();
-      loadAnalytics();
+      if (!session) { window.location.href="login.html"; return; }
+
+      const { byDay, byProduct } = await loadAnalytics();
+
+      // 🔹 Sales by Day
+      const dayMap = {};
+      byDay.forEach(r => {
+        const d = new Date(r.sale_date).toLocaleDateString();
+        dayMap[d] = (dayMap[d] || 0) + (r.total || 0);
+      });
+      new Chart(document.getElementById("salesByDay"), {
+        type: "line",
+        data: {
+          labels: Object.keys(dayMap),
+          datasets: [{ label:"Total Sales", data:Object.values(dayMap) }]
+        }
+      });
+
+      // 🔹 Sales by Product
+      const prodMap = {};
+      byProduct.forEach(r => {
+        const name = r.products?.name || "Unknown";
+        prodMap[name] = (prodMap[name] || 0) + (r.quantity * r.selling_price);
+      });
+      new Chart(document.getElementById("salesByProduct"), {
+        type: "bar",
+        data: {
+          labels: Object.keys(prodMap),
+          datasets: [{ label:"Sales", data:Object.values(prodMap) }]
+        }
+      });
     });
   </script>
 </body>
