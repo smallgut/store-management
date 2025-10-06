@@ -508,3 +508,6 @@ async function loadAnalytics() {
     if (errorDiv) errorDiv.textContent = "Failed to load analytics. See console.";
   }
 }
+
+
+async function loadVendors
