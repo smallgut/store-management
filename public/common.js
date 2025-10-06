@@ -4,9 +4,7 @@
 
 console.log("⚡ common.js loaded");
 
-// --------------------
-// 🔑 Supabase Client
-// --------------------
+// 🔑 Initialize Supabase
 let _supabase;
 async function ensureSupabaseClient() {
   if (_supabase) return _supabase;
@@ -18,15 +16,14 @@ async function ensureSupabaseClient() {
   return _supabase;
 }
 
-// --------------------
-// 🌐 Language / i18n
-// --------------------
+/* =========================================================
+   🌐 Language (stub only, to prevent errors)
+   ========================================================= */
 function applyTranslations() {
   console.log("🌐 Translations applied on DOM ready");
-  // Stub for now – plug in your actual translation logic
 }
 function toggleLanguage() {
-  console.log("🌐 Language toggled");
+  console.log("🌐 toggleLanguage clicked");
 }
 
 // ---------------------------------------------------------
@@ -159,97 +156,110 @@ async function loadProductAndBatches(productId, byBarcode = false) {
 }
 
 
-// --------------------
-// 📦 Cart System (single definition)
-// --------------------
+/* =========================================================
+   🛒 Cart (global state)
+   ========================================================= */
 let cart = [];
 
-function addItemToCart(item) {
+function renderCart() {
+  const tbody = document.querySelector("#cart-table tbody");
+  const totalEl = document.getElementById("total-cost");
+  if (!tbody || !totalEl) return;
+
+  tbody.innerHTML = "";
+  let total = 0;
+  cart.forEach((item, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="border p-2">${item.productName}</td>
+      <td class="border p-2">${item.barcode || ""}</td>
+      <td class="border p-2">${item.batchNumber}</td>
+      <td class="border p-2">${item.quantity}</td>
+      <td class="border p-2">${item.sellingPrice.toFixed(2)}</td>
+      <td class="border p-2">${item.subTotal.toFixed(2)}</td>
+      <td class="border p-2">
+        <button onclick="removeFromCart(${i})" class="text-red-600">✕</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+    total += item.subTotal;
+  });
+  totalEl.textContent = total.toFixed(2);
+}
+
+function removeFromCart(index) {
+  cart.splice(index, 1);
+  renderCart();
+}
+
+async function addItemToCart() {
+  const productSel = document.getElementById("product-select");
+  const batchSel = document.getElementById("batch-no");
+  const qtyEl = document.getElementById("quantity");
+  const priceEl = document.getElementById("selling-price");
+
+  const productId = parseInt(productSel.value);
+  if (!productId) return alert("Please select a product.");
+
+  const batchId = parseInt(batchSel.value);
+  const batchNumber = batchSel.options[batchSel.selectedIndex]?.text || "";
+  const qty = parseInt(qtyEl.value) || 1;
+  const sellingPrice = parseFloat(priceEl.value) || 0;
+
+  const productName = productSel.options[productSel.selectedIndex]?.text || "";
+  const barcode = productSel.options[productSel.selectedIndex]?.getAttribute("data-barcode") || "";
+
+  const item = {
+    productId,
+    productName,
+    barcode,
+    batchId,
+    batchNumber,
+    quantity: qty,
+    sellingPrice,
+    subTotal: qty * sellingPrice
+  };
+
   cart.push(item);
   console.log("🛒 Added to cart:", item);
   renderCart();
 }
 
-function removeCartItem(index) {
-  cart.splice(index, 1);
-  console.log("🗑️ Removed item at index:", index);
-  renderCart();
-}
-
-function renderCart() {
-  const tbody = document.querySelector("#cart-table tbody");
-  if (!tbody) return;
-  tbody.innerHTML = "";
-  let total = 0;
-
-  cart.forEach((item, idx) => {
-    const row = document.createElement("tr");
-    const subtotal = item.quantity * item.sellingPrice;
-    total += subtotal;
-
-    row.innerHTML = `
-      <td class="border p-2">${item.productName}</td>
-      <td class="border p-2">${item.batchNumber}</td>
-      <td class="border p-2">${item.quantity}</td>
-      <td class="border p-2">${item.sellingPrice.toFixed(2)}</td>
-      <td class="border p-2">${subtotal.toFixed(2)}</td>
-      <td class="border p-2"><button class="bg-red-500 text-white px-2 rounded" data-index="${idx}">X</button></td>
-    `;
-    tbody.appendChild(row);
-  });
-
-  const totalEl = document.getElementById("cart-total");
-  if (totalEl) totalEl.textContent = total.toFixed(2);
-
-  tbody.querySelectorAll("button[data-index]").forEach(btn => {
-    btn.addEventListener("click", e => {
-      removeCartItem(parseInt(e.target.dataset.index));
-    });
-  });
-}
-
 // ---------------------------------------------------------
 // 💳 Checkout
 // ---------------------------------------------------------
-/* =========================================================
-   Checkout Order → Save to customer_sales + customer_sales_items
-   ========================================================= */
-async function checkoutOrder(customerName) {
-  console.log("💳 Checking out order...", new Date().toISOString());
+async function checkoutOrder() {
+  if (cart.length === 0) return alert("Cart empty.");
+
   const supabase = await ensureSupabaseClient();
-  if (!cart.length) {
-    alert("Cart is empty");
-    return;
-  }
+  const customerName = document.getElementById("customer-name").value || "Anonymous";
+  const saleDate = document.getElementById("sale-date").value || new Date().toISOString();
+  const total = cart.reduce((sum, x) => sum + x.subTotal, 0);
 
   try {
-    // Insert order
-    const total = cart.reduce((sum, i) => sum + i.quantity * i.sellingPrice, 0);
-    const { data: order, error: orderError } = await supabase
+    console.log("💳 Checking out order...", new Date().toISOString());
+
+    // 1️⃣ Insert into customer_sales
+    const { data: sale, error: saleErr } = await supabase
       .from("customer_sales")
-      .insert([{ customer_name: customerName, sale_date: new Date(), total }])
+      .insert([{ customer_name: customerName, sale_date: saleDate, total }])
       .select()
       .single();
+    if (saleErr) throw saleErr;
+    console.log("🆕 Order created:", sale);
 
-    if (orderError) throw orderError;
-    console.log("🆕 Order created:", order);
-
-    // Insert items
-    const itemsPayload = cart.map(i => ({
-      order_id: order.id,
+    // 2️⃣ Insert items
+    const items = cart.map(i => ({
+      order_id: sale.id,
       product_id: i.productId,
       batch_id: i.batchId,
       quantity: i.quantity,
       selling_price: i.sellingPrice
     }));
+    const { error: itemsErr } = await supabase.from("customer_sales_items").insert(items);
+    if (itemsErr) throw itemsErr;
 
-    const { error: itemsError } = await supabase
-      .from("customer_sales_items")
-      .insert(itemsPayload);
-
-    if (itemsError) throw itemsError;
-
-    alert("Order completed ✅");
+    alert("Order saved successfully ✅");
     cart = [];
     renderCart();
     loadCustomerSales();
@@ -258,7 +268,6 @@ async function checkoutOrder(customerName) {
     alert("Checkout failed: " + err.message);
   }
 }
-
 // --------------------
 // 📊 Loaders per page
 // --------------------
@@ -294,16 +303,29 @@ async function loadCustomerSales() {
 }
 
 
-// Products
+/* =========================================================
+   📦 Products / Vendors / Loans stubs
+   ========================================================= */
 async function loadProducts() {
   const supabase = await ensureSupabaseClient();
   console.log("📦 Loading products...");
   const { data, error } = await supabase.from("products").select("*");
-  if (error) {
-    console.error("❌ loadProducts failed:", error);
-    return;
-  }
+  if (error) console.error(error);
   console.log("✅ Products loaded:", data);
+}
+function setupAddProductForm() {
+  console.log("setupAddProductForm stub");
+}
+
+async function loadVendors() {
+  const supabase = await ensureSupabaseClient();
+  console.log("📦 Loading vendors...");
+  const { data, error } = await supabase.from("vendors").select("*");
+  if (error) console.error(error);
+  console.log("✅ Vendors loaded:", data);
+}
+function handleAddVendor() {
+  console.log("handleAddVendor stub");
 }
 
 // ---------------------------------------------------------
@@ -375,32 +397,24 @@ async function printReceipt(orderId) {
 /* =========================================================
    Analytics Functions
    ========================================================= */
-// Analytics
+/* =========================================================
+   📊 Analytics helpers
+   ========================================================= */
 async function loadAnalytics() {
   const supabase = await ensureSupabaseClient();
   console.log("📊 Loading analytics...");
 
-  // Total sales by day
-  const { data: byDay, error: dayErr } = await supabase
+  // Sales by day
+  const { data: byDay } = await supabase
     .from("customer_sales")
-    .select("sale_date, total");
-
-  if (dayErr) {
-    console.error("❌ Analytics day error:", dayErr);
-  } else {
-    console.log("📊 Sales by day:", byDay);
-  }
-
-  // Total sales by product
-  const { data: byProduct, error: prodErr } = await supabase
+    .select("sale_date,total");
+  // Sales by product
+  const { data: byProduct } = await supabase
     .from("customer_sales_items")
-    .select("product_id, quantity, sub_total");
+    .select("quantity,selling_price, product_id, products(name)")
+    .eq("products.id", "product_id");
 
-  if (prodErr) {
-    console.error("❌ Analytics product error:", prodErr);
-  } else {
-    console.log("📊 Sales by product:", byProduct);
-  }
+  return { byDay, byProduct };
 }
 
 
@@ -417,17 +431,17 @@ async function loadVendors() {
 }
 
 
-// Loan Records
 async function loadLoanRecords() {
   const supabase = await ensureSupabaseClient();
   console.log("📦 Loading loan records...");
   const { data, error } = await supabase.from("vendor_loans").select("*");
-  if (error) {
-    console.error("❌ loadLoanRecords failed:", error);
-    return;
-  }
+  if (error) console.error(error);
   console.log("✅ Loan records loaded:", data);
 }
+function populateVendorDropdown() {
+  console.log("populateVendorDropdown stub");
+}
+
 
 // --------------------
 // DOM Ready Hook
