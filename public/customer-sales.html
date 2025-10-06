@@ -28,7 +28,6 @@
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4" data-lang-key="record-customer-sales">Record Customer Sales</h1>
 
-    <!-- Status messages -->
     <div id="loading" class="hidden text-center text-blue-500">Loading...</div>
     <div id="message" class="text-green-600"></div>
     <div id="error" class="text-red-600"></div>
@@ -51,8 +50,8 @@
         </div>
         <div>
           <label for="product-barcode" data-lang-key="product-barcode" class="block text-sm">Product Barcode</label>
-          <input id="product-barcode" type="text" class="border p-2 w-full rounded" />
-          <div id="stock-display" class="text-sm text-gray-600"></div>
+          <input id="product-barcode" type="text" class="border p-2 w-full rounded" placeholder="Scan or enter barcode"/>
+          <div id="stock-display" class="text-sm text-gray-600 mt-1"></div>
         </div>
         <div>
           <label for="batch-no" data-lang-key="batch-no" class="block text-sm">Batch No.</label>
@@ -60,11 +59,11 @@
         </div>
         <div>
           <label for="quantity" data-lang-key="quantity" class="block text-sm">Quantity</label>
-          <input id="quantity" type="number" class="border p-2 w-full rounded" />
+          <input id="quantity" type="number" min="1" class="border p-2 w-full rounded" />
         </div>
         <div>
           <label for="selling-price" data-lang-key="selling-price" class="block text-sm">Selling Price</label>
-          <input id="selling-price" type="number" step="0.01" class="border p-2 w-full rounded" />
+          <input id="selling-price" type="number" step="0.01" min="0" class="border p-2 w-full rounded" />
         </div>
       </div>
       <div class="flex gap-3 mt-3">
@@ -73,7 +72,7 @@
       </div>
     </div>
 
-    <!-- 🔹 Cart -->
+    <!-- 🔹 Cart Section -->
     <div class="mb-6 bg-white p-4 rounded-xl shadow">
       <h3 class="text-lg font-semibold mb-2" data-lang-key="cart">Cart</h3>
       <div class="overflow-x-auto">
@@ -93,13 +92,13 @@
         </table>
       </div>
       <div class="text-right mt-2">
-        <span class="font-bold">Total Cost:</span>
+        <span class="font-bold" data-lang-key="total-cost">Total Cost:</span>
         <span id="total-cost">0.00</span>
       </div>
       <button id="checkout" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-2">Checkout</button>
     </div>
 
-    <!-- 🔹 Customer Sales -->
+    <!-- 🔹 Sales Table -->
     <h2 class="text-xl font-semibold" data-lang-key="customer-sales">Customer Sales</h2>
     <div class="overflow-x-auto bg-white p-4 rounded-xl shadow">
       <table id="customer-sales-table" class="min-w-full border-collapse border text-sm">
@@ -107,7 +106,7 @@
           <tr class="bg-gray-100">
             <th class="border p-2">Order #</th>
             <th class="border p-2">Items</th>
-            <th class="border p-2">Total Cost</th>
+            <th class="border p-2">Total</th>
             <th class="border p-2">Sale Date</th>
             <th class="border p-2">Customer</th>
             <th class="border p-2">Actions</th>
@@ -144,24 +143,29 @@
         window.location.href = "login.html";
       });
 
-      console.log("✅ Authenticated, initializing page...");
       applyTranslations();
       populateProductDropdown();
       loadCustomerSales();
 
+      // Event listeners
       document.getElementById("toggle-language").addEventListener("click", toggleLanguage);
       document.getElementById("add-item").addEventListener("click", addItemToCart);
       document.getElementById("checkout").addEventListener("click", checkoutOrder);
       document.getElementById("reset-form").addEventListener("click", () => {
-        document.getElementById("product-select").value = "";
-        document.getElementById("product-barcode").value = "";
-        document.getElementById("batch-no").innerHTML = "";
-        document.getElementById("quantity").value = "";
-        document.getElementById("selling-price").value = "";
-        document.getElementById("stock-display").textContent = "";
+        document.getElementById("product-select").value = '';
+        document.getElementById("product-barcode").value = '';
+        document.getElementById("batch-no").innerHTML = '';
+        document.getElementById("quantity").value = '';
+        document.getElementById("selling-price").value = '';
+        document.getElementById("stock-display").textContent = '';
       });
       document.getElementById("product-select").addEventListener("change", handleProductSelection);
-      document.getElementById("product-barcode").addEventListener("input", handleBarcodeInput);
+      document.getElementById("product-barcode").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleBarcodeInput(e);
+        }
+      });
     });
   </script>
 </body>
