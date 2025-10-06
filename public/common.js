@@ -364,3 +364,69 @@ async function printReceipt(orderId) {
   printWin.document.write(`<p><strong>Total:</strong> ${order.total ? parseFloat(order.total).toFixed(2) : "0.00"}</p>`);
   printWin.print();
 }
+
+/* =========================================================
+   Analytics Functions
+   ========================================================= */
+async function loadAnalytics() {
+  const client = await ensureSupabaseClient();
+
+  console.log("📊 Loading analytics data...");
+
+  try {
+    // 1️⃣ Sales by day
+    const { data: salesByDay, error: dayError } = await client
+      .from("customer_sales")
+      .select("sale_date, total");
+
+    if (dayError) throw dayError;
+
+    // Aggregate by day
+    const dayMap = {};
+    salesByDay.forEach(sale => {
+      const day = new Date(sale.sale_date).toLocaleDateString("zh-TW");
+      dayMap[day] = (dayMap[day] || 0) + Number(sale.total || 0);
+    });
+
+    const dailyResults = Object.entries(dayMap).map(([day, total]) => ({ day, total }));
+
+    console.log("📊 Sales by day:", dailyResults);
+
+    // Render sales by day
+    const tbodyDay = document.getElementById("sales-by-day-body");
+    if (tbodyDay) {
+      tbodyDay.innerHTML = dailyResults
+        .map(row => `<tr><td class="border p-2">${row.day}</td><td class="border p-2">${row.total.toFixed(2)}</td></tr>`)
+        .join("");
+    }
+
+    // 2️⃣ Sales by product
+    const { data: items, error: itemsError } = await client
+      .from("customer_sales_items")
+      .select("sub_total, product_id, products(name)");
+
+    if (itemsError) throw itemsError;
+
+    const productMap = {};
+    items.forEach(item => {
+      const name = item.products?.name || "Unknown";
+      productMap[name] = (productMap[name] || 0) + Number(item.sub_total || 0);
+    });
+
+    const productResults = Object.entries(productMap).map(([name, total]) => ({ name, total }));
+
+    console.log("📊 Sales by product:", productResults);
+
+    // Render sales by product
+    const tbodyProduct = document.getElementById("sales-by-product-body");
+    if (tbodyProduct) {
+      tbodyProduct.innerHTML = productResults
+        .map(row => `<tr><td class="border p-2">${row.name}</td><td class="border p-2">${row.total.toFixed(2)}</td></tr>`)
+        .join("");
+    }
+  } catch (err) {
+    console.error("❌ Failed to load analytics:", err);
+    const errorDiv = document.getElementById("analytics-error");
+    if (errorDiv) errorDiv.textContent = "Failed to load analytics. See console.";
+  }
+}
