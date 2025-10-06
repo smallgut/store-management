@@ -182,49 +182,73 @@ function removeCartItem(idx) {
 // ---------------------------------------------------------
 // 💳 Checkout
 // ---------------------------------------------------------
+/* =========================================================
+   Checkout Order → Save to customer_sales + customer_sales_items
+   ========================================================= */
 async function checkoutOrder() {
-  if (cart.length === 0) {
-    alert("Cart is empty");
-    return;
-  }
   const supabase = await ensureSupabaseClient();
-  const customerName = document.getElementById("customer-name").value || "Guest";
-  const saleDate = document.getElementById("sale-date").value || new Date().toISOString();
-  const total = cart.reduce((sum, i) => sum + i.subTotal, 0);
 
-  console.log("💳 Checking out order...", new Date().toISOString());
+  try {
+    console.log("💳 Checking out order...", new Date().toISOString());
 
-  const { data: order, error: orderError } = await supabase.from("customer_sales").insert({
-    customer_name: customerName,
-    sale_date: saleDate,
-    total
-  }).select().single();
+    const customerName = document.getElementById("customer-name").value.trim() || null;
+    const saleDate = document.getElementById("sale-date").value || new Date().toISOString();
 
-  if (orderError) {
-    console.error("❌ Failed to create order:", orderError);
-    alert("Order creation failed.");
-    return;
-  }
-  console.log("🆕 Order created:", order.id);
+    if (!cart.length) {
+      alert("Cart is empty!");
+      return;
+    }
 
-  for (const item of cart) {
-    const { error: itemError } = await supabase.from("customer_sales_items").insert({
-      order_id: order.id,
+    // 1️⃣ Insert into customer_sales
+    const totalCost = cart.reduce((sum, item) => sum + (item.subTotal || 0), 0);
+    const { data: sale, error: saleError } = await supabase
+      .from("customer_sales")
+      .insert([
+        {
+          customer_name: customerName,
+          sale_date: saleDate,
+          total: totalCost
+        }
+      ])
+      .select()
+      .single();
+
+    if (saleError) throw saleError;
+    console.log("🆕 Order created:", sale);
+
+    // 2️⃣ Insert items into customer_sales_items
+    const itemsPayload = cart.map(item => ({
+      order_id: sale.id,
       product_id: item.productId,
       batch_id: item.batchId,
       quantity: item.quantity,
-      selling_price: item.sellingPrice
-    });
-    if (itemError) {
-      console.error("❌ Failed to insert item:", itemError);
-    } else {
-      console.log("📦 Item inserted:", item);
-    }
-  }
+      selling_price: item.price,
+      // sub_total will auto-generate in DB
+    }));
 
-  cart = [];
-  renderCart();
-  loadCustomerSales();
+    const { error: itemsError } = await supabase
+      .from("customer_sales_items")
+      .insert(itemsPayload);
+
+    if (itemsError) {
+      console.error("❌ Failed inserting items, rolling back order...");
+      // rollback the order if items insert fails
+      await supabase.from("customer_sales").delete().eq("id", sale.id);
+      throw itemsError;
+    }
+
+    console.log("✅ Items inserted for order:", sale.id);
+
+    // 3️⃣ Clear cart + refresh
+    cart = [];
+    renderCart();
+    loadCustomerSales();
+    alert(`Order #${sale.id} completed successfully ✅`);
+
+  } catch (err) {
+    console.error("❌ checkoutOrder failed:", err);
+    alert("Failed to complete order: " + (err.message || err));
+  }
 }
 
 // ---------------------------------------------------------
