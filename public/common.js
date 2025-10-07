@@ -42,10 +42,12 @@ function toggleLanguage() {
 // ----------------------
 // Helpers
 // ----------------------
+// ---------- Utilities ----------
 function formatDate(dateStr) {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
-  return d.toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return d.toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" }) +
+         " " + d.toLocaleTimeString("zh-TW", { hour12: false });
 }
 
 function showMessage(msg) {
@@ -71,21 +73,51 @@ function showError(err) {
 // ----------------------
 
 
+// ---------- Products dropdown (only products that have remaining stock) ----------
 async function populateProductDropdown() {
-  const supabase = await ensureSupabaseClient();
-  const { data, error } = await supabase.from("products").select("id, name, barcode");
-  if (error) return console.error("❌ Failed to load products:", error);
+  try {
+    const supabase = await ensureSupabaseClient();
+    // find product_ids that have remaining_quantity > 0
+    const { data: batches, error: batchErr } = await supabase
+      .from("product_batches")
+      .select("product_id")
+      .gt("remaining_quantity", 0);
 
-  console.log("📦 Products for dropdown:", data);
-  const select = document.getElementById("product-select");
-  if (!select) return;
-  select.innerHTML = `<option value="">-- Select --</option>`;
-  data.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = `${p.name} (${p.barcode})`;
-    select.appendChild(opt);
-  });
+    if (batchErr) {
+      console.error("Failed to fetch batches:", batchErr);
+      return;
+    }
+
+    const prodIds = Array.from(new Set((batches || []).map(b => b.product_id))).filter(Boolean);
+    let products = [];
+    if (prodIds.length > 0) {
+      const { data: prods, error: prodErr } = await supabase
+        .from("products")
+        .select("id, name, barcode, price")
+        .in("id", prodIds);
+      if (prodErr) {
+        console.error("Failed to fetch products:", prodErr);
+      } else {
+        products = prods || [];
+      }
+    }
+
+    const sel = document.getElementById("product-select");
+    if (!sel) return;
+    sel.innerHTML = `<option value="">-- Select --</option>`;
+    products.forEach(p => {
+      const txt = `${p.name} (${p.barcode || ""})`;
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.text = txt;
+      opt.setAttribute("data-barcode", p.barcode || "");
+      opt.setAttribute("data-price", p.price || 0);
+      sel.appendChild(opt);
+    });
+    console.log("📦 Products for dropdown:", products);
+  } catch (err) {
+    console.error("populateProductDropdown failed:", err);
+  }
 }
 
 // ---------------------------------------------------------
@@ -108,91 +140,159 @@ async function handleBarcodeInput(e) {
   }
 }
 
+// ---------- Product selection handler ----------
 async function handleProductSelection(e) {
   const productId = e.target.value;
-  if (!productId) return;
+  if (!productId) {
+    // clear batch list
+    const batchSelect = document.getElementById("batch-no");
+    if (batchSelect) batchSelect.innerHTML = "";
+    return;
+  }
   console.log("📌 handleProductSelection triggered for ID:", productId);
   await loadProductAndBatches(productId, false);
 }
 
-async function loadProductAndBatches(productId, byBarcode = false) {
-  console.log("🔍 loadProductAndBatches called with:", productId, "byBarcode:", byBarcode);
-  const supabase = await ensureSupabaseClient();
-  let product;
+// ---------- Load product and batches ----------
+async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
+  try {
+    const supabase = await ensureSupabaseClient();
+    // find product either by id or barcode
+    let productQuery = supabase.from("products").select("id,name,barcode,price");
+    if (byBarcode) productQuery = productQuery.eq("barcode", productIdOrBarcode);
+    else productQuery = productQuery.eq("id", productIdOrBarcode);
 
-  if (byBarcode) {
-    const { data, error } = await supabase.from("products").select("*").eq("barcode", productId).single();
-    if (error || !data) {
-      document.getElementById("stock-display").innerText = "Product not found";
-      return;
+    const { data: productData, error: productErr } = await productQuery.limit(1).maybeSingle();
+    if (productErr) {
+      console.error("Failed to load product:", productErr);
+      return null;
     }
-    product = data;
-  } else {
-    const { data, error } = await supabase.from("products").select("*").eq("id", productId).single();
-    if (error || !data) {
-      showError("Product not found.");
-      return;
+    if (!productData) {
+      console.log("No product found for", productIdOrBarcode);
+      return null;
     }
-    product = data;
+    const product = productData;
+    console.log("✅ Product loaded:", product);
+
+    const { data: batches, error: batchErr } = await supabase
+      .from("product_batches")
+      .select("id,batch_number,remaining_quantity")
+      .eq("product_id", product.id)
+      .order("created_at", { ascending: false });
+
+    if (batchErr) {
+      console.error("Failed to load batches:", batchErr);
+      return { product, batches: [] };
+    }
+
+    // populate batch select (if present)
+    const batchSelect = document.getElementById("batch-no");
+    if (batchSelect) {
+      // show all batches but indicate stock; filter option not to show zero stock if you prefer
+      batchSelect.innerHTML = batches.map(b => {
+        const stockText = typeof b.remaining_quantity === "number" ? ` (Stock: ${b.remaining_quantity})` : "";
+        return `<option value="${b.id}">${b.batch_number}${stockText}</option>`;
+      }).join("");
+    }
+
+    // auto-select if only one batch available
+    if (Array.isArray(batches) && batches.length === 1 && batchSelect) {
+      batchSelect.value = String(batches[0].id);
+      console.log("✅ Auto-selected batch:", batches[0]);
+    }
+
+    // also set suggested selling price
+    const priceInput = document.getElementById("selling-price");
+    if (priceInput && product.price != null) priceInput.value = product.price;
+
+    // show stock in stock-display (sum of remaining quantities for product)
+    const stockDisplay = document.getElementById("stock-display");
+    if (stockDisplay) {
+      const totalRemain = (batches || []).reduce((s, b) => s + (Number(b.remaining_quantity) || 0), 0);
+      stockDisplay.textContent = `Stock: ${totalRemain}`;
+    }
+
+    return { product, batches };
+  } catch (err) {
+    console.error("loadProductAndBatches failed:", err);
+    return null;
   }
-
-  console.log("✅ Product loaded:", product);
-
-  const { data: batches, error: bErr } = await supabase.from("product_batches")
-    .select("*")
-    .eq("product_id", product.id);
-  if (bErr) return showError("Failed to load batches");
-
-  console.log("📦 Found", batches.length, "batch(es) for product", product.id, batches);
-
-  const batchSelect = document.getElementById("batch-no");
-  batchSelect.innerHTML = "";
-  batches.forEach(b => {
-    const opt = document.createElement("option");
-    opt.value = b.id;
-    opt.textContent = `${b.batch_number} (Stock: ${b.remaining_quantity})`;
-    batchSelect.appendChild(opt);
-  });
-
-  if (batches.length === 1) {
-    batchSelect.value = batches[0].id;
-    console.log("✅ Auto-selected batch:", batches[0]);
-  }
-
-  document.getElementById("stock-display").innerText =
-    batches.length > 0 ? `Stock: ${batches[0].remaining_quantity}` : "No stock available";
-
-  return product;
 }
 
+// ---------- Barcode handling ----------
+// Called on input (debug) and on Enter (final)
+function handleBarcodeInputEvent(e) {
+  const v = e.target.value.trim();
+  console.log("🔍 Barcode entered:", v);
+  // don't auto-search on each keystroke — only on Enter we'll treat as final.
+}
 
-/* =========================================================
-   🛒 Cart (global state)
-   ========================================================= */
-let cart = [];
+async function handleBarcodeEnter(e) {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const val = e.target.value.trim();
+  if (!val) return;
+  const supabase = await ensureSupabaseClient();
+  try {
+    const { data: product } = await supabase
+      .from("products")
+      .select("id,name,barcode,price")
+      .eq("barcode", val)
+      .limit(1)
+      .maybeSingle();
+    if (!product) {
+      document.getElementById("stock-display").textContent = "Product not found";
+      return;
+    }
+    // load batches and auto-fill selects
+    const res = await loadProductAndBatches(product.id, false);
+    // pick defaults and add to cart automatically
+    const batchId = (res?.batches && res.batches.length) ? res.batches[0].id : null;
+    const sellingPrice = product.price || 0;
+    // prepare a quick add: set form fields so addItemToCart works
+    const productSelect = document.getElementById("product-select");
+    if (productSelect) productSelect.value = product.id;
+    const batchSelect = document.getElementById("batch-no");
+    if (batchSelect && batchId) batchSelect.value = batchId;
+    const priceInput = document.getElementById("selling-price");
+    if (priceInput) priceInput.value = sellingPrice;
+    // add one item to cart
+    addItemToCart();
+    // clear barcode input
+    e.target.value = "";
+  } catch (err) {
+    console.error("barcode lookup failed:", err);
+    document.getElementById("stock-display").textContent = "Lookup error";
+  }
+}
+
+// ---------- Global cart ----------
+let cart = []; // each item: {productId, productName, barcode, batchId, batchNumber, quantity, sellingPrice, subTotal}
 
 function renderCart() {
   const tbody = document.querySelector("#cart-table tbody");
   const totalEl = document.getElementById("total-cost");
-  if (!tbody || !totalEl) return;
-
+  if (!tbody || !totalEl) {
+    // not on POS page
+    return;
+  }
   tbody.innerHTML = "";
   let total = 0;
-  cart.forEach((item, i) => {
+  cart.forEach((it, idx) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="border p-2">${item.productName}</td>
-      <td class="border p-2">${item.barcode || ""}</td>
-      <td class="border p-2">${item.batchNumber}</td>
-      <td class="border p-2">${item.quantity}</td>
-      <td class="border p-2">${item.sellingPrice.toFixed(2)}</td>
-      <td class="border p-2">${item.subTotal.toFixed(2)}</td>
+      <td class="border p-2">${escapeHtml(it.productName)}</td>
+      <td class="border p-2">${escapeHtml(it.barcode || "")}</td>
+      <td class="border p-2">${escapeHtml(it.batchNumber || "")}</td>
+      <td class="border p-2">${it.quantity}</td>
+      <td class="border p-2">${Number(it.sellingPrice).toFixed(2)}</td>
+      <td class="border p-2">${Number(it.subTotal).toFixed(2)}</td>
       <td class="border p-2">
-        <button onclick="removeFromCart(${i})" class="text-red-600">✕</button>
+        <button class="text-red-600" onclick="removeFromCart(${idx})">✕</button>
       </td>
     `;
     tbody.appendChild(tr);
-    total += item.subTotal;
+    total += Number(it.subTotal || 0);
   });
   totalEl.textContent = total.toFixed(2);
 }
@@ -202,22 +302,39 @@ function removeFromCart(index) {
   renderCart();
 }
 
-async function addItemToCart() {
-  const productSel = document.getElementById("product-select");
-  const batchSel = document.getElementById("batch-no");
-  const qtyEl = document.getElementById("quantity");
-  const priceEl = document.getElementById("selling-price");
+function escapeHtml(s) {
+  if (!s && s !== 0) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
-  const productId = parseInt(productSel.value);
+
+
+// ---------- Add item to cart (from form) ----------
+async function addItemToCart(e) {
+  // If called from click event, cancel the event
+  if (e && e.preventDefault) e.preventDefault();
+
+  const productSelect = document.getElementById("product-select");
+  const batchSelect = document.getElementById("batch-no");
+  const qtyInput = document.getElementById("quantity");
+  const priceInput = document.getElementById("selling-price");
+
+  if (!productSelect) return alert("Product selector not found on page.");
+  const productId = Number(productSelect.value);
   if (!productId) return alert("Please select a product.");
 
-  const batchId = parseInt(batchSel.value);
-  const batchNumber = batchSel.options[batchSel.selectedIndex]?.text || "";
-  const qty = parseInt(qtyEl.value) || 1;
-  const sellingPrice = parseFloat(priceEl.value) || 0;
+  const batchId = batchSelect ? Number(batchSelect.value) : null;
+  const batchNumber = batchSelect ? batchSelect.options[batchSelect.selectedIndex]?.text : "";
+  const qty = qtyInput ? Math.max(1, parseInt(qtyInput.value || "1")) : 1;
+  const sellingPrice = priceInput ? parseFloat(priceInput.value || "0") : 0;
 
-  const productName = productSel.options[productSel.selectedIndex]?.text || "";
-  const barcode = productSel.options[productSel.selectedIndex]?.getAttribute("data-barcode") || "";
+  // productName and barcode from option attributes
+  const productName = productSelect.options[productSelect.selectedIndex]?.text || "";
+  const barcode = productSelect.options[productSelect.selectedIndex]?.getAttribute("data-barcode") || "";
 
   const item = {
     productId,
@@ -227,115 +344,154 @@ async function addItemToCart() {
     batchNumber,
     quantity: qty,
     sellingPrice,
-    subTotal: qty * sellingPrice
+    subTotal: Number((qty * sellingPrice).toFixed(2))
   };
 
   cart.push(item);
   console.log("🛒 Added to cart:", item);
   renderCart();
+
+  // reset quantity to 1 for quick adds
+  if (qtyInput) qtyInput.value = "1";
 }
 
-// ---------------------------------------------------------
-// 💳 Checkout
-// ---------------------------------------------------------
-async function checkoutOrder() {
-  if (cart.length === 0) return alert("Cart empty.");
 
+// ---------- Checkout: write sale + items ----------
+async function checkoutOrder() {
+  if (cart.length === 0) return alert("Cart is empty.");
   const supabase = await ensureSupabaseClient();
-  const customerName = document.getElementById("customer-name").value || "Anonymous";
-  const saleDate = document.getElementById("sale-date").value || new Date().toISOString();
-  const total = cart.reduce((sum, x) => sum + x.subTotal, 0);
+  const customerName = document.getElementById("customer-name")?.value || "";
+  const saleDateRaw = document.getElementById("sale-date")?.value;
+  const saleDate = saleDateRaw ? new Date(saleDateRaw).toISOString() : new Date().toISOString();
+  const total = cart.reduce((s, i) => s + Number(i.subTotal), 0);
 
   try {
     console.log("💳 Checking out order...", new Date().toISOString());
-
-    // 1️⃣ Insert into customer_sales
-    const { data: sale, error: saleErr } = await supabase
+    // 1) create sale
+    const { data: sale, error: saleError } = await supabase
       .from("customer_sales")
       .insert([{ customer_name: customerName, sale_date: saleDate, total }])
       .select()
       .single();
-    if (saleErr) throw saleErr;
+    if (saleError) throw saleError;
     console.log("🆕 Order created:", sale);
 
-    // 2️⃣ Insert items
-    const items = cart.map(i => ({
-      order_id: sale.id,
+    const orderId = sale.id;
+    // 2) insert items
+    const itemsToInsert = cart.map(i => ({
+      order_id: orderId,
       product_id: i.productId,
       batch_id: i.batchId,
       quantity: i.quantity,
       selling_price: i.sellingPrice
     }));
-    const { error: itemsErr } = await supabase.from("customer_sales_items").insert(items);
-    if (itemsErr) throw itemsErr;
 
-    alert("Order saved successfully ✅");
+    const { error: itemsError } = await supabase.from("customer_sales_items").insert(itemsToInsert);
+    if (itemsError) {
+      // attempt rollback: delete sale
+      console.error("❌ Failed inserting items, rolling back order...", itemsError);
+      await supabase.from("customer_sales").delete().eq("id", orderId);
+      throw itemsError;
+    }
+
+    alert("Order saved!");
     cart = [];
     renderCart();
     loadCustomerSales();
   } catch (err) {
     console.error("❌ checkoutOrder failed:", err);
-    alert("Checkout failed: " + err.message);
+    alert("Checkout failed: " + (err.message || JSON.stringify(err)));
   }
 }
+
+
 // --------------------
 // 📊 Loaders per page
 // --------------------
 
-// Customer Sales
+// ---------- Load Customer Sales (fix mapping & columns) ----------
 async function loadCustomerSales() {
-  const supabase = await ensureSupabaseClient();
-  console.log("📦 Loading customer sales...");
-  const { data, error } = await supabase
-    .from("customer_sales")
-    .select("id, customer_name, sale_date, total")
-    .order("id", { ascending: false });
+  try {
+    const supabase = await ensureSupabaseClient();
+    console.log("📦 Loading customer sales...");
+    const { data: sales, error } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date, total")
+      .order("id", { ascending: false });
 
-  if (error) {
-    console.error("❌ loadCustomerSales failed:", error);
-    return;
+    if (error) throw error;
+    const tbody = document.getElementById("customer-sales-body");
+    if (!tbody) {
+      console.warn("customer-sales-body not found on page.");
+      return;
+    }
+    tbody.innerHTML = "";
+
+    for (const sale of sales || []) {
+      // fetch items for this sale
+      const { data: items, error: itemsErr } = await supabase
+        .from("customer_sales_items")
+        .select("quantity, selling_price, sub_total")
+        .eq("order_id", sale.id);
+
+      if (itemsErr) {
+        console.error("❌ Failed to load items for order", sale.id, itemsErr);
+      }
+      const itemCount = (items || []).reduce((s, it) => s + (it.quantity || 0), 0);
+      const totalCost = sale.total != null ? sale.total : (items || []).reduce((s, it) => s + (Number(it.sub_total || (it.quantity * it.selling_price)) || 0), 0);
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2 text-blue-600 cursor-pointer" onclick="showReceipt(${sale.id})">#${sale.id}</td>
+        <td class="border p-2">${itemCount}</td>
+        <td class="border p-2">${Number(totalCost || 0).toFixed(2)}</td>
+        <td class="border p-2">${formatDate(sale.sale_date)}</td>
+        <td class="border p-2">${escapeHtml(sale.customer_name || "")}</td>
+        <td class="border p-2">
+          <button onclick="showReceipt(${sale.id})" class="bg-gray-200 px-2 py-1 rounded">Receipt</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+    console.log("✅ Customer sales loaded:", sales);
+  } catch (err) {
+    console.error("❌ loadCustomerSales failed:", err);
   }
-  console.log("✅ Customer sales loaded:", data);
-  const tbody = document.querySelector("#customer-sales-table tbody");
-  if (!tbody) return;
-  tbody.innerHTML = "";
-
-  data.forEach(sale => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td class="border p-2"><a href="#" onclick="showReceipt(${sale.id})">#${sale.id}</a></td>
-      <td class="border p-2">${sale.customer_name}</td>
-      <td class="border p-2">${new Date(sale.sale_date).toLocaleDateString()}</td>
-      <td class="border p-2">${sale.total?.toFixed(2) ?? "0.00"}</td>
-    `;
-    tbody.appendChild(row);
-  });
 }
-
 
 /* =========================================================
    📦 Products / Vendors / Loans stubs
    ========================================================= */
+// ---------- Simple safe stubs and loaders for other pages ----------
+
 async function loadProducts() {
-  const supabase = await ensureSupabaseClient();
-  console.log("📦 Loading products...");
-  const { data, error } = await supabase.from("products").select("*");
-  if (error) console.error(error);
-  console.log("✅ Products loaded:", data);
+  try {
+    const supabase = await ensureSupabaseClient();
+    const { data, error } = await supabase.from("products").select("*");
+    if (error) console.error(error);
+    console.log("Products loaded:", data);
+    // If page defines renderProducts, call it.
+    if (typeof renderProducts === "function") renderProducts(data || []);
+  } catch (err) {
+    console.error("loadProducts error", err);
+  }
 }
-function setupAddProductForm() {
-  console.log("setupAddProductForm stub");
-}
+function setupAddProductForm() { /* stub - implement per site */ }
 
 async function loadVendors() {
-  const supabase = await ensureSupabaseClient();
-  console.log("📦 Loading vendors...");
-  const { data, error } = await supabase.from("vendors").select("*");
-  if (error) console.error(error);
-  console.log("✅ Vendors loaded:", data);
+  try {
+    const supabase = await ensureSupabaseClient();
+    const { data, error } = await supabase.from("vendors").select("*");
+    if (error) console.error(error);
+    console.log("Vendors loaded:", data);
+    if (typeof renderVendors === "function") renderVendors(data || []);
+  } catch (err) {
+    console.error("loadVendors error", err);
+  }
 }
-function handleAddVendor() {
-  console.log("handleAddVendor stub");
+function handleAddVendor() { /* stub */ }
+function populateVendorDropdown() {
+  console.log("populateVendorDropdown stub");
 }
 
 // ---------------------------------------------------------
@@ -343,66 +499,105 @@ function handleAddVendor() {
 // ---------------------------------------------------------
 // --------------------
 // 🧾 Show Receipt
-// --------------------
+// ---------- Receipt modal + print ----------
 async function showReceipt(orderId) {
-  console.log("🧾 Loading receipt for order:", orderId);
-  const supabase = await ensureSupabaseClient();
+  try {
+    console.log("🧾 Loading receipt for order:", orderId);
+    const supabase = await ensureSupabaseClient();
+    const { data: order, error: orderErr } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date, total")
+      .eq("id", orderId)
+      .single();
+    if (orderErr) throw orderErr;
 
-  const { data: order, error: orderErr } = await supabase
-    .from("customer_sales")
-    .select("*")
-    .eq("id", orderId)
-    .single();
+    const { data: items, error: itemsErr } = await supabase
+      .from("customer_sales_items")
+      .select("quantity, selling_price, sub_total, product_id, batch_id, products(name, barcode), product_batches(batch_number)")
+      .eq("order_id", orderId);
+    if (itemsErr) throw itemsErr;
 
-  if (orderErr) {
-    console.error("❌ Failed to fetch order:", orderErr);
-    return;
+    const modal = document.getElementById("receipt-modal");
+    const contentEl = document.getElementById("receipt-content");
+    if (!modal || !contentEl) {
+      alert("Receipt modal markup missing from page.");
+      return;
+    }
+
+    let html = `
+      <h2 class="text-lg font-bold mb-2">Receipt</h2>
+      <p><strong>Order #:</strong> ${order.id}</p>
+      <p><strong>Customer:</strong> ${escapeHtml(order.customer_name || "(無)")}</p>
+      <p><strong>Date:</strong> ${formatDate(order.sale_date)}</p>
+      <p><strong>Total:</strong> ${Number(order.total || 0).toFixed(2)}</p>
+      <div class="line my-2" style="border-top:1px dashed #ddd;margin:8px 0;"></div>
+      <table class="w-full text-sm">
+        <thead><tr><th class="text-left">Product</th><th>Qty</th><th>Price</th><th>Sub</th></tr></thead>
+        <tbody>
+    `;
+
+    (items || []).forEach(it => {
+      const name = it.products?.name || `#${it.product_id}`;
+      const qty = it.quantity || 0;
+      const price = Number(it.selling_price || 0).toFixed(2);
+      const sub = Number(it.sub_total || (qty * (it.selling_price || 0))).toFixed(2);
+      html += `<tr><td>${escapeHtml(name)}</td><td>${qty}</td><td>${price}</td><td>${sub}</td></tr>`;
+    });
+
+    html += `</tbody></table><div class="mt-4 text-right"><button id="print-receipt" class="bg-blue-600 text-white px-3 py-1 rounded">🖨 Print</button> <button id="close-receipt" class="ml-2 px-3 py-1 border rounded">Close</button></div>`;
+
+    contentEl.innerHTML = html;
+    modal.classList.remove("hidden");
+
+    document.getElementById("close-receipt").addEventListener("click", closeReceiptModal);
+    document.getElementById("print-receipt").addEventListener("click", () => printReceipt(order, items || []));
+  } catch (err) {
+    console.error("❌ Failed to load receipt:", err);
+    alert("Failed to load receipt");
   }
-
-  const { data: items, error: itemsErr } = await supabase
-    .from("customer_sales_items")
-    .select("*, products(name)")
-    .eq("order_id", orderId);
-
-  if (itemsErr) {
-    console.error("❌ Failed to fetch items:", itemsErr);
-    return;
-  }
-
-  console.log("🧾 Receipt:", { order, items });
-  alert(`Receipt for Order #${order.id}\nCustomer: ${order.customer_name}\nItems: ${items.length}`);
+}
+function closeReceiptModal() {
+  const modal = document.getElementById("receipt-modal");
+  if (modal) modal.classList.add("hidden");
 }
 
-async function printReceipt(orderId) {
-  const supabase = await ensureSupabaseClient();
-  console.log("🧾 Printing receipt for order:", orderId);
-  const { data: order, error } = await supabase.from("customer_sales").select("*").eq("id", orderId).single();
-  if (error || !order) {
-    console.error("❌ Failed to fetch order for print:", error);
-    return;
-  }
-  const { data: items } = await supabase.from("customer_sales_items")
-    .select("*, products(name, barcode), product_batches(batch_number)")
-    .eq("order_id", orderId);
-  let printWin = window.open("", "_blank");
-  printWin.document.write(`<h1>Receipt #${order.id}</h1>`);
-  printWin.document.write(`<p>Date: ${formatDate(order.sale_date)}</p>`);
-  printWin.document.write(`<p>Customer: ${order.customer_name}</p>`);
-  printWin.document.write("<table border='1'><tr><th>Product</th><th>Barcode</th><th>Batch</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>");
-  items.forEach(i => {
-    printWin.document.write(`<tr>
-      <td>${i.products?.name || ""}</td>
-      <td>${i.products?.barcode || ""}</td>
-      <td>${i.product_batches?.batch_number || ""}</td>
-      <td>${i.quantity}</td>
-      <td>${parseFloat(i.selling_price).toFixed(2)}</td>
-      <td>${parseFloat(i.sub_total).toFixed(2)}</td>
-    </tr>`);
+// 58mm printing
+function printReceipt(order, items) {
+  const printWindow = window.open("", "PRINT", "height=600,width=400");
+  let content = `<!doctype html><html><head><meta charset="utf-8"><style>
+    body{font-family:monospace;width:58mm;padding:4px}
+    .center{text-align:center}.bold{font-weight:bold}
+    .line{border-top:1px dashed #000;margin:6px 0}
+    .item-line{display:flex;justify-content:space-between}
+    .left{flex:1}.mid{width:40px;text-align:center}.right{width:60px;text-align:right}
+  </style></head><body>`;
+  content += `<div class="center bold">POS Receipt</div>`;
+  content += `<div>日期: ${order.sale_date ? String(order.sale_date).split("T")[0] : ""}</div>`;
+  content += `<div>客戶: ${escapeHtml(order.customer_name || "(無)")}</div>`;
+  content += `<div class="line"></div>`;
+  content += `<div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>`;
+  content += `<div class="line"></div>`;
+  let total = 0;
+  (items || []).forEach(it => {
+    const name = it.products?.name || `#${it.product_id}`;
+    const qty = it.quantity || 0;
+    const price = Number(it.selling_price || 0);
+    const subtotal = Number(it.sub_total || qty * price);
+    total += subtotal;
+    content += `<div class="item-line"><div class="left">${escapeHtml(name)}</div><div class="mid">${qty}</div><div class="right">${subtotal.toFixed(2)}</div></div>`;
   });
-  printWin.document.write("</table>");
-  printWin.document.write(`<p><strong>Total:</strong> ${order.total ? parseFloat(order.total).toFixed(2) : "0.00"}</p>`);
-  printWin.print();
+  content += `<div class="line"></div>`;
+  content += `<div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${total.toFixed(2)}</div></div>`;
+  content += `<div class="line"></div><div class="center">感謝您的惠顧</div>`;
+  content += `</body></html>`;
+
+  printWindow.document.write(content);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+  printWindow.close();
 }
+
 
 /* =========================================================
    Analytics Functions
@@ -442,21 +637,73 @@ async function loadVendors() {
 
 
 async function loadLoanRecords() {
+  try {
+    const supabase = await ensureSupabaseClient();
+    const { data, error } = await supabase.from("vendor_loans").select("*");
+    if (error) console.error(error);
+    console.log("Loan records loaded:", data);
+    if (typeof renderLoanRecords === "function") renderLoanRecords(data || []);
+  } catch (err) {
+    console.error("loadLoanRecords error", err);
+  }
+}
+function addLoanRecord(e) { e?.preventDefault?.(); alert("addLoanRecord stub"); }
+
+
+// ---------- Analytics helper: returns raw rows for page script ----------
+async function fetchAnalyticsRaw() {
   const supabase = await ensureSupabaseClient();
-  console.log("📦 Loading loan records...");
-  const { data, error } = await supabase.from("vendor_loans").select("*");
-  if (error) console.error(error);
-  console.log("✅ Loan records loaded:", data);
-}
-function populateVendorDropdown() {
-  console.log("populateVendorDropdown stub");
+  // sales by day (sale_date, total)
+  const { data: sales, error: salesErr } = await supabase
+    .from("customer_sales")
+    .select("sale_date, total");
+  if (salesErr) console.error("fetchAnalyticsRaw salesErr:", salesErr);
+
+  // sales items with product info
+  const { data: items, error: itemsErr } = await supabase
+    .from("customer_sales_items")
+    .select("quantity, selling_price, product_id, products(name)")
+  if (itemsErr) console.error("fetchAnalyticsRaw itemsErr:", itemsErr);
+
+  return { sales: sales || [], items: items || [] };
 }
 
-
-// --------------------
-// DOM Ready Hook
-// --------------------
-document.addEventListener("DOMContentLoaded", () => {
+// ---------- DOM ready wiring for pages that include this file ----------
+document.addEventListener("DOMContentLoaded", async () => {
   console.log("✅ DOM ready:", new Date().toISOString());
-  applyTranslations();
+  // Ensure supabase client created early (non-blocking)
+  ensureSupabaseClient().catch(() => { /* ignore init errors here */ });
+
+  // Wire common page controls where present
+  if (document.getElementById("product-select")) {
+    populateProductDropdown();
+    document.getElementById("product-select").addEventListener("change", handleProductSelection);
+  }
+  if (document.getElementById("product-barcode")) {
+    const bc = document.getElementById("product-barcode");
+    bc.addEventListener("input", handleBarcodeInputEvent);
+    bc.addEventListener("keydown", handleBarcodeEnter);
+  }
+  if (document.getElementById("add-item")) {
+    document.getElementById("add-item").addEventListener("click", addItemToCart);
+  }
+  if (document.getElementById("checkout")) {
+    document.getElementById("checkout").addEventListener("click", checkoutOrder);
+  }
+  if (document.getElementById("reset-form")) {
+    document.getElementById("reset-form").addEventListener("click", () => {
+      document.getElementById("product-select").value = "";
+      if (document.getElementById("product-barcode")) document.getElementById("product-barcode").value = "";
+      if (document.getElementById("batch-no")) document.getElementById("batch-no").innerHTML = "";
+      if (document.getElementById("quantity")) document.getElementById("quantity").value = "1";
+      if (document.getElementById("selling-price")) document.getElementById("selling-price").value = "";
+      if (document.getElementById("stock-display")) document.getElementById("stock-display").textContent = "";
+    });
+  }
+
+  // Initialize page-specific loaders (if functions exist on the page)
+  if (typeof loadCustomerSales === "function") loadCustomerSales();
+  if (typeof loadProducts === "function") loadProducts();
+  if (typeof loadVendors === "function") loadVendors();
+  if (typeof loadLoanRecords === "function") loadLoanRecords();
 });
