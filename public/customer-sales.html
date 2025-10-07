@@ -1,172 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="lang-body" class="lang-en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title data-lang-key="record-customer-sales">Record Customer Sales</title>
+  <title data-lang-key="nav-record-customer-sales">Record Customer Sales</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
-<body id="lang-body" class="bg-gray-100">
-  <!-- 🔹 Navbar -->
+<body class="bg-gray-100 p-4">
+  <!-- Navbar -->
   <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
     <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
-      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
-      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
-      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="analytics.html">Analytics</a></li>
+      <li><a href="products.html">Manage Products</a></li>
+      <li><a href="vendors.html">Manage Vendors</a></li>
+      <li><a href="customer-sales.html">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html">Vendor Loan Record</a></li>
+      <li><a href="product-catalog.html">Product Catalog</a></li>
     </ul>
     <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
   </nav>
 
-  <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-4" data-lang-key="record-customer-sales">Record Customer Sales</h1>
-
-    <div id="loading" class="hidden text-center text-blue-500">Loading...</div>
-    <div id="message" class="text-green-600"></div>
-    <div id="error" class="text-red-600"></div>
-
-    <!-- 🔹 Add Sale Form -->
-    <div class="mb-6 space-y-4 bg-white p-4 rounded-xl shadow">
-      <h2 class="text-xl font-semibold" data-lang-key="add-customer-sale">Add Customer Sale</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label for="customer-name" data-lang-key="customer-name" class="block text-sm">Customer Name</label>
-          <input id="customer-name" type="text" class="border p-2 w-full rounded" />
-        </div>
-        <div>
-          <label for="sale-date" data-lang-key="sale-date" class="block text-sm">Sale Date</label>
-          <input id="sale-date" type="date" class="border p-2 w-full rounded" />
-        </div>
-        <div>
-          <label for="product-select" data-lang-key="select-product" class="block text-sm">Select Product</label>
-          <select id="product-select" class="border p-2 w-full rounded"></select>
-        </div>
-        <div>
-          <label for="product-barcode" data-lang-key="product-barcode" class="block text-sm">Product Barcode</label>
-          <input id="product-barcode" type="text" class="border p-2 w-full rounded" placeholder="Scan or enter barcode"/>
-          <div id="stock-display" class="text-sm text-gray-600 mt-1"></div>
-        </div>
-        <div>
-          <label for="batch-no" data-lang-key="batch-no" class="block text-sm">Batch No.</label>
-          <select id="batch-no" class="border p-2 w-full rounded"></select>
-        </div>
-        <div>
-          <label for="quantity" data-lang-key="quantity" class="block text-sm">Quantity</label>
-          <input id="quantity" type="number" min="1" class="border p-2 w-full rounded" />
-        </div>
-        <div>
-          <label for="selling-price" data-lang-key="selling-price" class="block text-sm">Selling Price</label>
-          <input id="selling-price" type="number" step="0.01" min="0" class="border p-2 w-full rounded" />
-        </div>
+  <!-- Form -->
+  <h1 class="text-2xl font-bold my-4">Record Customer Sales</h1>
+  <form id="sales-form" class="bg-white p-4 rounded shadow mb-6">
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="customer-name" class="block font-semibold">Customer Name</label>
+        <input type="text" id="customer-name" class="border p-2 w-full" />
       </div>
-      <div class="flex gap-3 mt-3">
-        <button id="add-item" class="bg-green-600 text-white px-4 py-2 rounded">Add Item</button>
-        <button id="reset-form" class="px-4 py-2 border rounded">Reset</button>
+      <div>
+        <label for="sale-date" class="block font-semibold">Sale Date</label>
+        <input type="date" id="sale-date" class="border p-2 w-full" />
+      </div>
+      <div>
+        <label for="product-barcode" class="block font-semibold">Product Barcode</label>
+        <input type="text" id="product-barcode" class="border p-2 w-full" />
+        <div id="stock-display" class="text-sm text-gray-500"></div>
+      </div>
+      <div>
+        <label for="product-select" class="block font-semibold">Select Product</label>
+        <select id="product-select" class="border p-2 w-full"></select>
+      </div>
+      <div>
+        <label for="batch-no" class="block font-semibold">Batch No.</label>
+        <select id="batch-no" class="border p-2 w-full"></select>
+      </div>
+      <div>
+        <label for="quantity" class="block font-semibold">Quantity</label>
+        <input type="number" id="quantity" class="border p-2 w-full" min="1" value="1" />
+      </div>
+      <div>
+        <label for="selling-price" class="block font-semibold">Selling Price</label>
+        <input type="number" id="selling-price" class="border p-2 w-full" step="0.01" />
       </div>
     </div>
-
-    <!-- 🔹 Cart Section -->
-    <div class="mb-6 bg-white p-4 rounded-xl shadow">
-      <h3 class="text-lg font-semibold mb-2" data-lang-key="cart">Cart</h3>
-      <div class="overflow-x-auto">
-        <table id="cart-table" class="min-w-full border-collapse border text-sm">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="border p-2">Product</th>
-              <th class="border p-2">Barcode</th>
-              <th class="border p-2">Batch</th>
-              <th class="border p-2">Qty</th>
-              <th class="border p-2">Price</th>
-              <th class="border p-2">Sub-Total</th>
-              <th class="border p-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="text-right mt-2">
-        <span class="font-bold" data-lang-key="total-cost">Total Cost:</span>
-        <span id="total-cost">0.00</span>
-      </div>
-      <button id="checkout" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-2">Checkout</button>
+    <div class="mt-4">
+      <button id="add-item" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Add to Cart</button>
+      <button id="reset-form" type="button" class="ml-2 px-4 py-2 border rounded">Reset</button>
     </div>
+  </form>
 
-    <!-- 🔹 Sales Table -->
-    <h2 class="text-xl font-semibold" data-lang-key="customer-sales">Customer Sales</h2>
-    <div class="overflow-x-auto bg-white p-4 rounded-xl shadow">
-      <table id="customer-sales-table" class="min-w-full border-collapse border text-sm">
-        <thead>
-          <tr class="bg-gray-100">
-            <th class="border p-2">Order #</th>
-            <th class="border p-2">Items</th>
-            <th class="border p-2">Total</th>
-            <th class="border p-2">Sale Date</th>
-            <th class="border p-2">Customer</th>
-            <th class="border p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="customer-sales-body"></tbody>
-      </table>
-    </div>
+  <!-- Cart -->
+  <h2 class="text-xl font-semibold mb-2">Cart</h2>
+  <table id="cart-table" class="w-full bg-white rounded shadow mb-4">
+    <thead>
+      <tr class="bg-gray-200">
+        <th class="border p-2">Product</th>
+        <th class="border p-2">Barcode</th>
+        <th class="border p-2">Batch</th>
+        <th class="border p-2">Qty</th>
+        <th class="border p-2">Price</th>
+        <th class="border p-2">Subtotal</th>
+        <th class="border p-2">Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div class="text-right font-bold text-lg mb-6">
+    Total: $<span id="total-cost">0.00</span>
+  </div>
+  <div class="flex justify-end space-x-2 mb-6">
+    <button id="checkout" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Checkout</button>
   </div>
 
-  <!-- 🔹 Receipt Modal -->
+  <!-- Customer Sales Table -->
+  <h2 class="text-xl font-semibold mb-2">Customer Sales</h2>
+  <table class="w-full bg-white rounded shadow">
+    <thead>
+      <tr class="bg-gray-200">
+        <th class="border p-2">Order #</th>
+        <th class="border p-2">Items</th>
+        <th class="border p-2">Total</th>
+        <th class="border p-2">Sale Date</th>
+        <th class="border p-2">Customer</th>
+        <th class="border p-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="customer-sales-body"></tbody>
+  </table>
+
+  <!-- Receipt Modal -->
   <div id="receipt-modal" class="fixed inset-0 hidden bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white p-6 rounded-xl shadow-lg w-3/4 max-w-2xl">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold">Receipt</h2>
-        <button onclick="closeReceiptModal()" class="text-gray-500 hover:text-gray-800">✕</button>
-      </div>
-      <div id="receipt-content" class="overflow-auto max-h-[70vh]"></div>
+      <div id="receipt-content"></div>
     </div>
   </div>
-
-  <!-- 🔹 Page Init -->
-  <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      const supabase = await ensureSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = "login.html";
-        return;
-      }
-
-      document.getElementById("logout-btn").addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        window.location.href = "login.html";
-      });
-
-      applyTranslations();
-      populateProductDropdown();
-      loadCustomerSales();
-
-      // Event listeners
-      document.getElementById("toggle-language").addEventListener("click", toggleLanguage);
-      document.getElementById("add-item").addEventListener("click", addItemToCart);
-      document.getElementById("checkout").addEventListener("click", checkoutOrder);
-      document.getElementById("reset-form").addEventListener("click", () => {
-        document.getElementById("product-select").value = '';
-        document.getElementById("product-barcode").value = '';
-        document.getElementById("batch-no").innerHTML = '';
-        document.getElementById("quantity").value = '';
-        document.getElementById("selling-price").value = '';
-        document.getElementById("stock-display").textContent = '';
-      });
-      document.getElementById("product-select").addEventListener("change", handleProductSelection);
-      document.getElementById("product-barcode").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          handleBarcodeInput(e);
-        }
-      });
-    });
-  </script>
 </body>
 </html>
