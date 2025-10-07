@@ -1,20 +1,30 @@
-// ================================
-// ✅ common.js – All-in-One Patched Version
-// ================================
+/* =========================================================
+   common.js — Cleaned & patched (all-in-one)
+   - Works with normalized schema:
+     customer_sales (id, customer_name, sale_date, total)
+     customer_sales_items (id, order_id, product_id, batch_id, quantity, selling_price, sub_total)
+   - Auto-select single batch
+   - Barcode Enter handling
+   - Checkout writes sale + items
+   - Receipt modal + print (58mm)
+   - Defensive stubs for other pages
+   ========================================================= */
 
 console.log("⚡ common.js loaded");
 
-// 🔑 Initialize Supabase
+// ---------- Supabase client ----------
 let _supabase;
 async function ensureSupabaseClient() {
   if (_supabase) return _supabase;
   console.log("🔑 Initializing Supabase Client...");
+  // <-- REPLACE the anon key below with your Supabase anon/public key
   _supabase = window.supabase.createClient(
     "https://aouduygmcspiqauhrabx.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"
   );
   return _supabase;
 }
+
 
 /* =========================================================
    🌐 Language (stub only, to prevent errors)
