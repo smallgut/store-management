@@ -356,7 +356,7 @@ async function addItemToCart(e) {
 }
 
 
-// ---------- Checkout: write sale + items ----------
+// ---------- Checkout: write sale + items and decrement stock ----------
 async function checkoutOrder() {
   if (cart.length === 0) return alert("Cart is empty.");
   const supabase = await ensureSupabaseClient();
@@ -388,10 +388,23 @@ async function checkoutOrder() {
 
     const { error: itemsError } = await supabase.from("customer_sales_items").insert(itemsToInsert);
     if (itemsError) {
-      // attempt rollback: delete sale
       console.error("❌ Failed inserting items, rolling back order...", itemsError);
       await supabase.from("customer_sales").delete().eq("id", orderId);
       throw itemsError;
+    }
+
+    // 3) decrement stock for each batch
+    for (const i of cart) {
+      if (!i.batchId) continue;
+      const { error: updErr } = await supabase.rpc("decrement_remaining_quantity", {
+        p_batch_id: i.batchId,
+        p_quantity: i.quantity
+      });
+      if (updErr) {
+        console.error("❌ Failed to decrement stock for batch", i.batchId, updErr);
+      } else {
+        console.log(`✅ Decremented stock for batch ${i.batchId} by ${i.quantity}`);
+      }
     }
 
     alert("Order saved!");
