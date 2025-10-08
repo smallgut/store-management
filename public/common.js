@@ -30,15 +30,37 @@ async function ensureSupabaseClient() {
 }
 
 
-/* =========================================================
-   🌐 Language (stub only, to prevent errors)
-   ========================================================= */
-function applyTranslations() {
-  console.log("🌐 Translations applied on DOM ready");
-}
+// -----------------------------
+// Lightweight i18n toggle (ZH/TW)
+// -----------------------------
+let CURRENT_LANG = localStorage.getItem("lang") || "en";
 function toggleLanguage() {
-  console.log("🌐 toggleLanguage clicked");
+  CURRENT_LANG = CURRENT_LANG === "en" ? "zh" : "en";
+  localStorage.setItem("lang", CURRENT_LANG);
+  applyTranslations();
 }
+function applyTranslations() {
+  // simple translator stub — you can extend this map
+  const map = {
+    "nav-home": { en: "Home", zh: "首頁" },
+    "nav-login": { en: "Login", zh: "登入" },
+    "nav-analytics": { en: "Analytics", zh: "分析" },
+    "nav-manage-products": { en: "Manage Products", zh: "管理產品" },
+    "nav-manage-vendors": { en: "Manage Vendors", zh: "管理供應商" },
+    "nav-record-customer-sales": { en: "Record Customer Sales", zh: "記錄銷售" },
+    "toggle-language": { en: "Toggle Language", zh: "切換語言" },
+    "checkout": { en: "Checkout", zh: "結帳" },
+    "add-item": { en: "Add Item", zh: "加入" }
+  };
+  document.querySelectorAll("[data-lang-key]").forEach(el => {
+    const key = el.getAttribute("data-lang-key");
+    if (!key) return;
+    const txt = (map[key] && map[key][CURRENT_LANG]) || el.textContent;
+    el.textContent = txt;
+  });
+  document.documentElement.lang = CURRENT_LANG === "zh" ? "zh-TW" : "en";
+}
+
 
 // ---------------------------------------------------------
 // 📅 Date Formatter
@@ -46,12 +68,25 @@ function toggleLanguage() {
 // ----------------------
 // Helpers
 // ----------------------
-// ---------- Utilities ----------
+// -----------------------------
+// Utilities
+// -----------------------------
+function debugLog(...args) {
+  // toggle with a flag if needed
+  console.log(...args);
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
-  return d.toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" }) +
-         " " + d.toLocaleTimeString("zh-TW", { hour12: false });
+  return d.toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" })
+       + " " + d.toLocaleTimeString("zh-TW", { hour12: false });
+}
+
+function shortDate(dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("zh-TW");
 }
 
 function showMessage(msg) {
@@ -77,50 +112,36 @@ function showError(err) {
 // ----------------------
 
 
-// ---------- Products dropdown (only products that have remaining stock) ----------
+// Populate product dropdown (only show products having batches with remaining_quantity > 0 OR at least one batch)
 async function populateProductDropdown() {
+  const supabase = await ensureSupabaseClient();
   try {
-    const supabase = await ensureSupabaseClient();
-    // find product_ids that have remaining_quantity > 0
-    const { data: batches, error: batchErr } = await supabase
-      .from("product_batches")
-      .select("product_id")
-      .gt("remaining_quantity", 0);
+    // Get products; then filter client-side to those with batches
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("id, name, barcode, units, price")
+      .order("name", { ascending: true });
 
-    if (batchErr) {
-      console.error("Failed to fetch batches:", batchErr);
-      return;
-    }
-
-    const prodIds = Array.from(new Set((batches || []).map(b => b.product_id))).filter(Boolean);
-    let products = [];
-    if (prodIds.length > 0) {
-      const { data: prods, error: prodErr } = await supabase
-        .from("products")
-        .select("id, name, barcode, price")
-        .in("id", prodIds);
-      if (prodErr) {
-        console.error("Failed to fetch products:", prodErr);
-      } else {
-        products = prods || [];
+    if (error) throw error;
+    const out = [];
+    for (const p of products || []) {
+      const { data: batches } = await supabase
+        .from("product_batches")
+        .select("id, remaining_quantity")
+        .eq("product_id", p.id)
+        .limit(1);
+      if (batches && batches.length > 0) {
+        out.push(p);
       }
     }
 
     const sel = document.getElementById("product-select");
     if (!sel) return;
-    sel.innerHTML = `<option value="">-- Select --</option>`;
-    products.forEach(p => {
-      const txt = `${p.name} (${p.barcode || ""})`;
-      const opt = document.createElement("option");
-      opt.value = p.id;
-      opt.text = txt;
-      opt.setAttribute("data-barcode", p.barcode || "");
-      opt.setAttribute("data-price", p.price || 0);
-      sel.appendChild(opt);
-    });
-    console.log("📦 Products for dropdown:", products);
+    sel.innerHTML = `<option value="">-- Select a Product --</option>` +
+      out.map(p => `<option value="${p.id}">${p.name} ${p.barcode ? "(" + p.barcode + ")" : ""}</option>`).join("");
+    debugLog("📦 Products for dropdown:", out);
   } catch (err) {
-    console.error("populateProductDropdown failed:", err);
+    console.error("populateProductDropdown error:", err);
   }
 }
 
@@ -157,66 +178,36 @@ async function handleProductSelection(e) {
   await loadProductAndBatches(productId, false);
 }
 
-// ---------- Load product and batches ----------
+// -----------------------------
+// Products & batches helpers
+// -----------------------------
+/*
+  loadProductAndBatches(productIdOrBarcode, byBarcode=false)
+  returns { product, batches } or null on error
+  Batches include remaining_quantity
+*/
 async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
+  const supabase = await ensureSupabaseClient();
   try {
-    const supabase = await ensureSupabaseClient();
-    // find product either by id or barcode
-    let productQuery = supabase.from("products").select("id,name,barcode,price");
+    let productQuery = supabase.from("products").select("id, name, barcode, price, units, vendor_id").limit(1);
     if (byBarcode) productQuery = productQuery.eq("barcode", productIdOrBarcode);
     else productQuery = productQuery.eq("id", productIdOrBarcode);
 
-    const { data: productData, error: productErr } = await productQuery.limit(1).maybeSingle();
-    if (productErr) {
-      console.error("Failed to load product:", productErr);
-      return null;
-    }
-    if (!productData) {
-      console.log("No product found for", productIdOrBarcode);
-      return null;
-    }
-    const product = productData;
-    console.log("✅ Product loaded:", product);
+    const { data: productArr, error: prodErr } = await productQuery;
+    if (prodErr) throw prodErr;
+    if (!productArr || productArr.length === 0) return null;
+    const product = productArr[0];
 
+    // batches that belong to product and have remaining quantity (we might include zero to allow seeing no stock)
     const { data: batches, error: batchErr } = await supabase
       .from("product_batches")
-      .select("id,batch_number,remaining_quantity")
+      .select("id, batch_number, remaining_quantity")
       .eq("product_id", product.id)
       .order("created_at", { ascending: false });
 
-    if (batchErr) {
-      console.error("Failed to load batches:", batchErr);
-      return { product, batches: [] };
-    }
+    if (batchErr) throw batchErr;
 
-    // populate batch select (if present)
-    const batchSelect = document.getElementById("batch-no");
-    if (batchSelect) {
-      // show all batches but indicate stock; filter option not to show zero stock if you prefer
-      batchSelect.innerHTML = batches.map(b => {
-        const stockText = typeof b.remaining_quantity === "number" ? ` (Stock: ${b.remaining_quantity})` : "";
-        return `<option value="${b.id}">${b.batch_number}${stockText}</option>`;
-      }).join("");
-    }
-
-    // auto-select if only one batch available
-    if (Array.isArray(batches) && batches.length === 1 && batchSelect) {
-      batchSelect.value = String(batches[0].id);
-      console.log("✅ Auto-selected batch:", batches[0]);
-    }
-
-    // also set suggested selling price
-    const priceInput = document.getElementById("selling-price");
-    if (priceInput && product.price != null) priceInput.value = product.price;
-
-    // show stock in stock-display (sum of remaining quantities for product)
-    const stockDisplay = document.getElementById("stock-display");
-    if (stockDisplay) {
-      const totalRemain = (batches || []).reduce((s, b) => s + (Number(b.remaining_quantity) || 0), 0);
-      stockDisplay.textContent = `Stock: ${totalRemain}`;
-    }
-
-    return { product, batches };
+    return { product, batches: batches || [] };
   } catch (err) {
     console.error("loadProductAndBatches failed:", err);
     return null;
@@ -270,35 +261,81 @@ async function handleBarcodeEnter(e) {
   }
 }
 
-// ---------- Global cart ----------
-let cart = []; // each item: {productId, productName, barcode, batchId, batchNumber, quantity, sellingPrice, subTotal}
+// populate vendor dropdown (for vendor-loan form)
+async function populateVendorDropdown() {
+  const supabase = await ensureSupabaseClient();
+  try {
+    const { data: vendors } = await supabase.from("vendors").select("id, name").order("name");
+    const sel = document.getElementById("vendor-name");
+    if (!sel) return;
+    sel.innerHTML = `<option value="">-- Select a Vendor --</option>` + (vendors || []).map(v => `<option value="${v.id}">${v.name}</option>`).join("");
+  } catch (err) {
+    console.error("populateVendorDropdown stub", err);
+  }
+}
 
+
+// -----------------------------
+// Cart (single declaration to avoid duplicates)
+// -----------------------------
+let cart = []; // each item: {productId, productName, barcode, batchId, batchNumber, quantity, sellingPrice, units}
+
+// Render cart table in the UI (assumes #cart-table tbody exists)
 function renderCart() {
   const tbody = document.querySelector("#cart-table tbody");
-  const totalEl = document.getElementById("total-cost");
-  if (!tbody || !totalEl) {
-    // not on POS page
+  if (!tbody) {
+    debugLog("cart tbody not found; skipping renderCart");
     return;
   }
   tbody.innerHTML = "";
   let total = 0;
-  cart.forEach((it, idx) => {
+  for (let idx = 0; idx < cart.length; idx++) {
+    const it = cart[idx];
+    const qty = parseInt(it.quantity || 0, 10);
+    const price = Number(it.sellingPrice || 0);
+    const subtotal = qty * price;
+    total += subtotal;
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="border p-2">${escapeHtml(it.productName)}</td>
-      <td class="border p-2">${escapeHtml(it.barcode || "")}</td>
-      <td class="border p-2">${escapeHtml(it.batchNumber || "")}</td>
-      <td class="border p-2">${it.quantity}</td>
-      <td class="border p-2">${Number(it.sellingPrice).toFixed(2)}</td>
-      <td class="border p-2">${Number(it.subTotal).toFixed(2)}</td>
-      <td class="border p-2">
-        <button class="text-red-600" onclick="removeFromCart(${idx})">✕</button>
-      </td>
+      <td class="border p-2">${it.productName}</td>
+      <td class="border p-2">${it.barcode || ""}</td>
+      <td class="border p-2">${it.batchNumber}</td>
+      <td class="border p-2"><input data-idx="${idx}" class="cart-qty border p-1 w-20" value="${qty}" /></td>
+      <td class="border p-2"><input data-idx="${idx}" class="cart-price border p-1 w-28" value="${price.toFixed(2)}" /></td>
+      <td class="border p-2">${subtotal.toFixed(2)}</td>
+      <td class="border p-2"><button data-idx="${idx}" class="remove-cart-item bg-red-400 px-2 py-1 rounded">Remove</button></td>
     `;
     tbody.appendChild(tr);
-    total += Number(it.subTotal || 0);
+  }
+
+  const totalEl = document.getElementById("total-cost");
+  if (totalEl) totalEl.textContent = total.toFixed(2);
+
+  // attach events
+  tbody.querySelectorAll(".remove-cart-item").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const idx = Number(btn.getAttribute("data-idx"));
+      cart.splice(idx, 1);
+      renderCart();
+    });
   });
-  totalEl.textContent = total.toFixed(2);
+
+  tbody.querySelectorAll(".cart-qty").forEach(inp => {
+    inp.addEventListener("change", (e) => {
+      const idx = Number(inp.getAttribute("data-idx"));
+      cart[idx].quantity = Number(inp.value || 0);
+      renderCart();
+    });
+  });
+
+  tbody.querySelectorAll(".cart-price").forEach(inp => {
+    inp.addEventListener("change", (e) => {
+      const idx = Number(inp.getAttribute("data-idx"));
+      cart[idx].sellingPrice = Number(inp.value || 0);
+      renderCart();
+    });
+  });
 }
 
 function removeFromCart(index) {
@@ -317,104 +354,148 @@ function escapeHtml(s) {
 
 
 
-// ---------- Add item to cart (from form) ----------
-async function addItemToCart(e) {
-  // If called from click event, cancel the event
-  if (e && e.preventDefault) e.preventDefault();
-
+// Adds item to cart using current form fields. Validates user-entered qty/price.
+async function addItemToCart() {
+  // read fields
   const productSelect = document.getElementById("product-select");
+  const barcodeInput = document.getElementById("product-barcode");
   const batchSelect = document.getElementById("batch-no");
   const qtyInput = document.getElementById("quantity");
   const priceInput = document.getElementById("selling-price");
 
-  if (!productSelect) return alert("Product selector not found on page.");
-  const productId = Number(productSelect.value);
-  if (!productId) return alert("Please select a product.");
+  // determine chosen product: prefer productSelect if set, else barcode lookup (barcodeInput assumed already resolved to product id in handler)
+  let productId = productSelect ? productSelect.value : "";
+  let barcode = barcodeInput ? barcodeInput.value.trim() : "";
+  let batchId = batchSelect ? batchSelect.value : "";
+  const quantity = Number(qtyInput?.value || 0);
+  const sellingPrice = Number(priceInput?.value || 0);
 
-  const batchId = batchSelect ? Number(batchSelect.value) : null;
-  const batchNumber = batchSelect ? batchSelect.options[batchSelect.selectedIndex]?.text : "";
-  const qty = qtyInput ? Math.max(1, parseInt(qtyInput.value || "1")) : 1;
-  const sellingPrice = priceInput ? parseFloat(priceInput.value || "0") : 0;
+  if ((!productId && !barcode) || !batchId) {
+    alert("Please select product and batch, and enter quantity & selling price.");
+    return;
+  }
+  if (quantity <= 0 || isNaN(quantity)) {
+    alert("Please enter a valid quantity.");
+    return;
+  }
+  if (isNaN(sellingPrice) || sellingPrice < 0) {
+    alert("Please enter a valid selling price.");
+    return;
+  }
 
-  // productName and barcode from option attributes
-  const productName = productSelect.options[productSelect.selectedIndex]?.text || "";
-  const barcode = productSelect.options[productSelect.selectedIndex]?.getAttribute("data-barcode") || "";
+  // resolve product name & barcode via loadProductAndBatches if needed
+  let product, batches;
+  if (productId) {
+    const res = await loadProductAndBatches(productId, false);
+    if (!res) {
+      alert("Product not found");
+      return;
+    }
+    product = res.product;
+    batches = res.batches;
+  } else {
+    const res = await loadProductAndBatches(barcode, true);
+    if (!res) {
+      alert("Product not found");
+      return;
+    }
+    product = res.product;
+    batches = res.batches;
+    productId = product.id;
+  }
 
-  const item = {
-    productId,
-    productName,
-    barcode,
-    batchId,
-    batchNumber,
-    quantity: qty,
+  const chosenBatch = batches.find(b => String(b.id) === String(batchId));
+  const batchNumber = chosenBatch ? chosenBatch.batch_number : "";
+
+  cart.push({
+    productId: Number(productId),
+    productName: `${product.name}${product.barcode ? " (" + product.barcode + ")" : ""}`,
+    barcode: product.barcode || barcode || "",
+    batchId: Number(batchId),
+    batchNumber: `${batchNumber}${chosenBatch && chosenBatch.remaining_quantity != null ? " (Stock: " + chosenBatch.remaining_quantity + ")" : ""}`,
+    quantity,
     sellingPrice,
-    subTotal: Number((qty * sellingPrice).toFixed(2))
-  };
+    units: product.units || ""
+  });
 
-  cart.push(item);
-  console.log("🛒 Added to cart:", item);
+  debugLog("🛒 Added to cart:", cart[cart.length - 1]);
   renderCart();
-
-  // reset quantity to 1 for quick adds
-  if (qtyInput) qtyInput.value = "1";
 }
 
-
-// ---------- Checkout: write sale + items and decrement stock ----------
+// -----------------------------
+// Checkout: create order + items in two-step, roll back if items insert fails
+// and decrement stock using RPC
+// -----------------------------
 async function checkoutOrder() {
-  if (cart.length === 0) return alert("Cart is empty.");
+  if (cart.length === 0) {
+    alert("Cart is empty");
+    return;
+  }
   const supabase = await ensureSupabaseClient();
-  const customerName = document.getElementById("customer-name")?.value || "";
-  const saleDateRaw = document.getElementById("sale-date")?.value;
-  const saleDate = saleDateRaw ? new Date(saleDateRaw).toISOString() : new Date().toISOString();
-  const total = cart.reduce((s, i) => s + Number(i.subTotal), 0);
-
   try {
-    console.log("💳 Checking out order...", new Date().toISOString());
-    // 1) create sale
-    const { data: sale, error: saleError } = await supabase
+    const customerName = document.getElementById("customer-name")?.value || "";
+    const saleDateInput = document.getElementById("sale-date")?.value;
+    const saleDate = saleDateInput ? new Date(saleDateInput).toISOString() : new Date().toISOString();
+    const total = cart.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.sellingPrice || 0), 0);
+
+    debugLog("💳 Checking out order...", new Date().toISOString());
+
+    // 1) insert order
+    const { data: orderData, error: orderErr } = await supabase
       .from("customer_sales")
       .insert([{ customer_name: customerName, sale_date: saleDate, total }])
       .select()
       .single();
-    if (saleError) throw saleError;
-    console.log("🆕 Order created:", sale);
 
-    const orderId = sale.id;
-    // 2) insert items
-    const itemsToInsert = cart.map(i => ({
-      order_id: orderId,
-      product_id: i.productId,
-      batch_id: i.batchId,
-      quantity: i.quantity,
-      selling_price: i.sellingPrice
+    if (orderErr) throw orderErr;
+    debugLog("🆕 Order created:", orderData);
+
+    // 2) prepare items payload
+    const itemsPayload = cart.map(it => ({
+      order_id: orderData.id,
+      product_id: it.productId,
+      batch_id: it.batchId,
+      quantity: it.quantity,
+      selling_price: it.sellingPrice
     }));
 
-    const { error: itemsError } = await supabase.from("customer_sales_items").insert(itemsToInsert);
-    if (itemsError) {
-      console.error("❌ Failed inserting items, rolling back order...", itemsError);
-      await supabase.from("customer_sales").delete().eq("id", orderId);
-      throw itemsError;
-    }
+    // 3) insert items
+    const { data: insertedItems, error: itemsErr } = await supabase
+      .from("customer_sales_items")
+      .insert(itemsPayload)
+      .select();
 
-    // 3) decrement stock for each batch
-    for (const i of cart) {
-      if (!i.batchId) continue;
-      const { error: updErr } = await supabase.rpc("decrement_remaining_quantity", {
-        p_batch_id: i.batchId,
-        p_quantity: i.quantity
-      });
-      if (updErr) {
-        console.error("❌ Failed to decrement stock for batch", i.batchId, updErr);
-      } else {
-        console.log(`✅ Decremented stock for batch ${i.batchId} by ${i.quantity}`);
+    if (itemsErr) {
+      // rollback - delete created order
+      console.error("❌ Failed inserting items, rolling back order...", itemsErr);
+      await supabase.from("customer_sales").delete().eq("id", orderData.id);
+      throw itemsErr;
+    }
+    debugLog("📦 Items inserted:", insertedItems);
+
+    // 4) decrement stock for each batch via RPC
+    for (const it of itemsPayload) {
+      try {
+        const { error: rpcErr } = await supabase.rpc("decrement_remaining_quantity", { p_batch_id: it.batch_id, p_quantity: it.quantity });
+        if (rpcErr) {
+          console.error("❌ Failed to decrement stock for batch", it.batch_id, rpcErr);
+          // not throwing here to allow other updates to continue; you can choose to fail hard instead
+        } else {
+          debugLog("✅ Decremented batch", it.batch_id, "by", it.quantity);
+        }
+      } catch (rpcEx) {
+        console.error("RPC error:", rpcEx);
       }
     }
 
-    alert("Order saved!");
-    cart = [];
+    // success
+    cart = []; // clear cart
     renderCart();
-    loadCustomerSales();
+    loadCustomerSales(); // refresh list
+
+    // show receipt
+    showReceipt(orderData.id);
+
   } catch (err) {
     console.error("❌ checkoutOrder failed:", err);
     alert("Checkout failed: " + (err.message || JSON.stringify(err)));
@@ -426,17 +507,21 @@ async function checkoutOrder() {
 // 📊 Loaders per page
 // --------------------
 
-// ---------- Load Customer Sales (fix mapping & columns) ----------
+// -----------------------------
+// Load customer sales (for table)
+// -----------------------------
 async function loadCustomerSales() {
+  const supabase = await ensureSupabaseClient();
   try {
-    const supabase = await ensureSupabaseClient();
-    console.log("📦 Loading customer sales...");
+    debugLog("📦 Loading customer sales...");
     const { data: sales, error } = await supabase
       .from("customer_sales")
       .select("id, customer_name, sale_date, total")
       .order("id", { ascending: false });
 
     if (error) throw error;
+    debugLog("✅ Customer sales loaded:", sales);
+
     const tbody = document.getElementById("customer-sales-body");
     if (!tbody) {
       console.warn("customer-sales-body not found on page.");
@@ -445,32 +530,26 @@ async function loadCustomerSales() {
     tbody.innerHTML = "";
 
     for (const sale of sales || []) {
-      // fetch items for this sale
+      // count items
       const { data: items, error: itemsErr } = await supabase
         .from("customer_sales_items")
-        .select("quantity, selling_price, sub_total")
+        .select("quantity")
         .eq("order_id", sale.id);
 
-      if (itemsErr) {
-        console.error("❌ Failed to load items for order", sale.id, itemsErr);
-      }
-      const itemCount = (items || []).reduce((s, it) => s + (it.quantity || 0), 0);
-      const totalCost = sale.total != null ? sale.total : (items || []).reduce((s, it) => s + (Number(it.sub_total || (it.quantity * it.selling_price)) || 0), 0);
+      let itemCount = 0;
+      if (!itemsErr && items) itemCount = items.reduce((s, it) => s + (it.quantity || 0), 0);
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="border p-2 text-blue-600 cursor-pointer" onclick="showReceipt(${sale.id})">#${sale.id}</td>
         <td class="border p-2">${itemCount}</td>
-        <td class="border p-2">${Number(totalCost || 0).toFixed(2)}</td>
-        <td class="border p-2">${formatDate(sale.sale_date)}</td>
-        <td class="border p-2">${escapeHtml(sale.customer_name || "")}</td>
-        <td class="border p-2">
-          <button onclick="showReceipt(${sale.id})" class="bg-gray-200 px-2 py-1 rounded">Receipt</button>
-        </td>
+        <td class="border p-2">${(Number(sale.total) || 0).toFixed(2)}</td>
+        <td class="border p-2">${shortDate(sale.sale_date)}</td>
+        <td class="border p-2">${sale.customer_name || ""}</td>
+        <td class="border p-2"><button class="bg-gray-200 px-2 py-1 rounded" onclick="showReceipt(${sale.id})">Receipt</button></td>
       `;
       tbody.appendChild(tr);
     }
-    console.log("✅ Customer sales loaded:", sales);
   } catch (err) {
     console.error("❌ loadCustomerSales failed:", err);
   }
@@ -481,34 +560,118 @@ async function loadCustomerSales() {
    ========================================================= */
 // ---------- Simple safe stubs and loaders for other pages ----------
 
+// -----------------------------
+// Products & Vendors management (simple UI API)
+// -----------------------------
 async function loadProducts() {
+  const supabase = await ensureSupabaseClient();
   try {
-    const supabase = await ensureSupabaseClient();
-    const { data, error } = await supabase.from("products").select("*");
-    if (error) console.error(error);
-    console.log("Products loaded:", data);
-    // If page defines renderProducts, call it.
-    if (typeof renderProducts === "function") renderProducts(data || []);
+    debugLog("📦 Loading products...");
+    const { data, error } = await supabase.from("products").select("id, name, barcode, price, units, vendor_id").order("name");
+    if (error) throw error;
+
+    const tbody = document.querySelector("#products-table tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    (data || []).forEach(p => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${p.id}</td>
+        <td class="border p-2">${p.name}</td>
+        <td class="border p-2">${p.barcode || ""}</td>
+        <td class="border p-2">${p.units || ""}</td>
+        <td class="border p-2">${Number(p.price || 0).toFixed(2)}</td>
+        <td class="border p-2"><button class="delete-product" data-id="${p.id}">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll(".delete-product").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Are you sure you want to delete this product?")) return;
+        const id = Number(btn.getAttribute("data-id"));
+        const { error } = await supabase.from("products").delete().eq("id", id);
+        if (error) alert("Delete failed: " + error.message); else loadProducts();
+      });
+    });
+
   } catch (err) {
-    console.error("loadProducts error", err);
+    console.error("loadProducts failed:", err);
   }
 }
-function setupAddProductForm() { /* stub - implement per site */ }
+
+async function addProduct(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const supabase = await ensureSupabaseClient();
+  try {
+    const name = document.getElementById("prod-name")?.value || "";
+    const barcode = document.getElementById("prod-barcode")?.value || "";
+    const price = Number(document.getElementById("prod-price")?.value || 0);
+    const units = document.getElementById("prod-units")?.value || "";
+    const vendor_id = Number(document.getElementById("prod-vendor")?.value || 0);
+
+    if (!name) return alert("Please enter product name");
+    const { error } = await supabase.from("products").insert([{ name, barcode, price, units, vendor_id }]);
+    if (error) throw error;
+    document.getElementById("add-product-form")?.reset();
+    await loadProducts();
+    await populateProductDropdown();
+  } catch (err) {
+    console.error("addProduct failed:", err);
+    alert("Add product failed: " + (err.message || JSON.stringify(err)));
+  }
+}
 
 async function loadVendors() {
+  const supabase = await ensureSupabaseClient();
   try {
-    const supabase = await ensureSupabaseClient();
-    const { data, error } = await supabase.from("vendors").select("*");
-    if (error) console.error(error);
-    console.log("Vendors loaded:", data);
-    if (typeof renderVendors === "function") renderVendors(data || []);
+    const { data, error } = await supabase.from("vendors").select("id, name, contact, phone").order("name");
+    if (error) throw error;
+    const tbody = document.querySelector("#vendors-table tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    (data || []).forEach(v => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${v.id}</td>
+        <td class="border p-2">${v.name}</td>
+        <td class="border p-2">${v.contact || ""}</td>
+        <td class="border p-2">${v.phone || ""}</td>
+        <td class="border p-2"><button class="delete-vendor" data-id="${v.id}">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll(".delete-vendor").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Are you sure you want to delete this vendor?")) return;
+        const id = Number(btn.getAttribute("data-id"));
+        const { error } = await supabase.from("vendors").delete().eq("id", id);
+        if (error) alert("Delete failed: " + error.message); else loadVendors();
+      });
+    });
   } catch (err) {
-    console.error("loadVendors error", err);
+    console.error("loadVendors failed:", err);
   }
 }
-function handleAddVendor() { /* stub */ }
-function populateVendorDropdown() {
-  console.log("populateVendorDropdown stub");
+
+
+async function addVendor(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const supabase = await ensureSupabaseClient();
+  try {
+    const name = document.getElementById("vendor-name")?.value || "";
+    const contact = document.getElementById("vendor-contact")?.value || "";
+    const phone = document.getElementById("vendor-phone")?.value || "";
+    if (!name) return alert("Please enter vendor name");
+    const { error } = await supabase.from("vendors").insert([{ name, contact, phone }]);
+    if (error) throw error;
+    document.getElementById("add-vendor-form")?.reset();
+    await loadVendors();
+    await populateVendorDropdown();
+  } catch (err) {
+    console.error("addVendor failed:", err);
+    alert("Add vendor failed: " + (err.message || JSON.stringify(err)));
+  }
 }
 
 // ---------------------------------------------------------
@@ -516,103 +679,138 @@ function populateVendorDropdown() {
 // ---------------------------------------------------------
 // --------------------
 // 🧾 Show Receipt
-// ---------- Receipt modal + print ----------
+// -----------------------------
+// Receipt modal + print
+// -----------------------------
 async function showReceipt(orderId) {
   try {
-    console.log("🧾 Loading receipt for order:", orderId);
+    debugLog("🧾 Loading receipt for order:", orderId);
     const supabase = await ensureSupabaseClient();
+
     const { data: order, error: orderErr } = await supabase
       .from("customer_sales")
       .select("id, customer_name, sale_date, total")
       .eq("id", orderId)
       .single();
+
     if (orderErr) throw orderErr;
 
     const { data: items, error: itemsErr } = await supabase
       .from("customer_sales_items")
-      .select("quantity, selling_price, sub_total, product_id, batch_id, products(name, barcode), product_batches(batch_number)")
+      .select("product_id, batch_id, quantity, selling_price, products(name, barcode), product_batches(batch_number)")
       .eq("order_id", orderId);
+
     if (itemsErr) throw itemsErr;
 
-    const modal = document.getElementById("receipt-modal");
-    const contentEl = document.getElementById("receipt-content");
-    if (!modal || !contentEl) {
-      alert("Receipt modal markup missing from page.");
-      return;
-    }
+    const totalQty = (items || []).reduce((s, i) => s + (i.quantity || 0), 0);
+    const totalCost = (items || []).reduce((s, i) => s + (Number(i.quantity || 0) * Number(i.selling_price || 0)), 0);
 
     let html = `
       <h2 class="text-lg font-bold mb-2">Receipt</h2>
       <p><strong>Order #:</strong> ${order.id}</p>
-      <p><strong>Customer:</strong> ${escapeHtml(order.customer_name || "(無)")}</p>
-      <p><strong>Date:</strong> ${formatDate(order.sale_date)}</p>
-      <p><strong>Total:</strong> ${Number(order.total || 0).toFixed(2)}</p>
-      <div class="line my-2" style="border-top:1px dashed #ddd;margin:8px 0;"></div>
-      <table class="w-full text-sm">
-        <thead><tr><th class="text-left">Product</th><th>Qty</th><th>Price</th><th>Sub</th></tr></thead>
+      <p><strong>Customer:</strong> ${order.customer_name || "(無)"}</p>
+      <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
+      <p><strong>Items:</strong> ${totalQty}</p>
+      <p><strong>Total Cost:</strong> ${Number(order.total || totalCost).toFixed(2)}</p>
+
+      <table class="w-full border mt-3">
+        <thead>
+          <tr class="border-b">
+            <th class="p-1 text-left">Product</th>
+            <th class="p-1">Barcode</th>
+            <th class="p-1">Batch</th>
+            <th class="p-1">Qty</th>
+            <th class="p-1">Price</th>
+            <th class="p-1">Sub-Total</th>
+          </tr>
+        </thead>
         <tbody>
+          ${(items || []).map(i => `
+            <tr class="border-b">
+              <td class="p-1">${i.products?.name || ""}</td>
+              <td class="p-1">${i.products?.barcode || ""}</td>
+              <td class="p-1">${i.product_batches?.batch_number || ""}</td>
+              <td class="p-1">${i.quantity}</td>
+              <td class="p-1">${Number(i.selling_price || 0).toFixed(2)}</td>
+              <td class="p-1">${(Number(i.quantity || 0) * Number(i.selling_price || 0)).toFixed(2)}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+
+      <div class="mt-4 text-right">
+        <button id="print-receipt" class="bg-blue-500 text-white px-3 py-1 rounded">🖨 Print</button>
+        <button id="close-receipt" class="ml-2 bg-gray-400 text-white px-3 py-1 rounded">Close</button>
+      </div>
     `;
 
-    (items || []).forEach(it => {
-      const name = it.products?.name || `#${it.product_id}`;
-      const qty = it.quantity || 0;
-      const price = Number(it.selling_price || 0).toFixed(2);
-      const sub = Number(it.sub_total || (qty * (it.selling_price || 0))).toFixed(2);
-      html += `<tr><td>${escapeHtml(name)}</td><td>${qty}</td><td>${price}</td><td>${sub}</td></tr>`;
-    });
-
-    html += `</tbody></table><div class="mt-4 text-right"><button id="print-receipt" class="bg-blue-600 text-white px-3 py-1 rounded">🖨 Print</button> <button id="close-receipt" class="ml-2 px-3 py-1 border rounded">Close</button></div>`;
-
-    contentEl.innerHTML = html;
+    const modal = document.getElementById("receipt-modal");
+    if (!modal) {
+      alert("Receipt modal not found in DOM");
+      return;
+    }
+    modal.querySelector("#receipt-content").innerHTML = html;
     modal.classList.remove("hidden");
 
-    document.getElementById("close-receipt").addEventListener("click", closeReceiptModal);
-    document.getElementById("print-receipt").addEventListener("click", () => printReceipt(order, items || []));
+    modal.querySelector("#print-receipt").addEventListener("click", () => printReceipt(order, items));
+    modal.querySelector("#close-receipt").addEventListener("click", () => closeReceiptModal());
   } catch (err) {
-    console.error("❌ Failed to load receipt:", err);
-    alert("Failed to load receipt");
+    console.error("❌ Failed to fetch order:", err);
+    alert("Failed to fetch order: " + (err.message || JSON.stringify(err)));
   }
 }
+
 function closeReceiptModal() {
   const modal = document.getElementById("receipt-modal");
   if (modal) modal.classList.add("hidden");
 }
 
-// 58mm printing
+// 58mm print function
 function printReceipt(order, items) {
   const printWindow = window.open("", "PRINT", "height=600,width=400");
-  let content = `<!doctype html><html><head><meta charset="utf-8"><style>
-    body{font-family:monospace;width:58mm;padding:4px}
-    .center{text-align:center}.bold{font-weight:bold}
-    .line{border-top:1px dashed #000;margin:6px 0}
-    .item-line{display:flex;justify-content:space-between}
-    .left{flex:1}.mid{width:40px;text-align:center}.right{width:60px;text-align:right}
-  </style></head><body>`;
-  content += `<div class="center bold">POS Receipt</div>`;
-  content += `<div>日期: ${order.sale_date ? String(order.sale_date).split("T")[0] : ""}</div>`;
-  content += `<div>客戶: ${escapeHtml(order.customer_name || "(無)")}</div>`;
-  content += `<div class="line"></div>`;
-  content += `<div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>`;
-  content += `<div class="line"></div>`;
-  let total = 0;
-  (items || []).forEach(it => {
-    const name = it.products?.name || `#${it.product_id}`;
-    const qty = it.quantity || 0;
-    const price = Number(it.selling_price || 0);
-    const subtotal = Number(it.sub_total || qty * price);
-    total += subtotal;
-    content += `<div class="item-line"><div class="left">${escapeHtml(name)}</div><div class="mid">${qty}</div><div class="right">${subtotal.toFixed(2)}</div></div>`;
+  let content = `
+    <html><head><style>
+      body { font-family: monospace; width: 58mm; }
+      .center { text-align:center; }
+      .bold { font-weight:bold; }
+      .line { border-top:1px dashed #000; margin:4px 0; }
+      .item-line { display:flex; justify-content:space-between; }
+      .left { flex:1; }
+      .mid { width:40px; text-align:center; }
+      .right { width:60px; text-align:right; }
+    </style></head><body>
+    <div class="center bold">POS Receipt</div>
+    <div>日期: ${shortDate(order.sale_date)}</div>
+    <div>時間: ${new Date(order.sale_date).toLocaleTimeString("zh-TW",{hour12:false})}</div>
+    <div>客戶: ${order.customer_name || "(無)"}</div>
+    <div class="line"></div>
+    <div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>
+    <div class="line"></div>
+  `;
+
+  (items || []).forEach(item => {
+    const subtotal = Number(item.quantity || 0) * Number(item.selling_price || 0);
+    content += `
+      <div class="item-line">
+        <div class="left">${item.products?.name || ""}</div>
+        <div class="mid">${item.quantity}</div>
+        <div class="right">${subtotal.toFixed(2)}</div>
+      </div>
+    `;
   });
-  content += `<div class="line"></div>`;
-  content += `<div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${total.toFixed(2)}</div></div>`;
-  content += `<div class="line"></div><div class="center">感謝您的惠顧</div>`;
-  content += `</body></html>`;
+
+  content += `
+    <div class="line"></div>
+    <div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${(items || []).reduce((s,i)=>s + (Number(i.quantity || 0) * Number(i.selling_price || 0)), 0).toFixed(2)}</div></div>
+    <div class="line"></div>
+    <div class="center">感謝您的惠顧</div>
+    </body></html>
+  `;
 
   printWindow.document.write(content);
   printWindow.document.close();
   printWindow.focus();
   printWindow.print();
-  printWindow.close();
+  // do not close automatically in case user wants to inspect
 }
 
 
@@ -685,42 +883,108 @@ async function fetchAnalyticsRaw() {
   return { sales: sales || [], items: items || [] };
 }
 
-// ---------- DOM ready wiring for pages that include this file ----------
+// -----------------------------
+// Event wiring helpers for pages
+// -----------------------------
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("✅ DOM ready:", new Date().toISOString());
-  // Ensure supabase client created early (non-blocking)
-  ensureSupabaseClient().catch(() => { /* ignore init errors here */ });
+  try {
+    // ensure supabase ready (but don't block)
+    await ensureSupabaseClient();
+  } catch (err) {
+    console.warn("Supabase init failed on DOMContentLoaded:", err);
+  }
 
-  // Wire common page controls where present
+  // wire common UI buttons if present
+  const toggleBtn = document.getElementById("toggle-language");
+  if (toggleBtn) toggleBtn.addEventListener("click", toggleLanguage);
+  applyTranslations();
+
+  // if there's a product dropdown on the page, populate it and wire change handler
   if (document.getElementById("product-select")) {
     populateProductDropdown();
-    document.getElementById("product-select").addEventListener("change", handleProductSelection);
-  }
-  if (document.getElementById("product-barcode")) {
-    const bc = document.getElementById("product-barcode");
-    bc.addEventListener("input", handleBarcodeInputEvent);
-    bc.addEventListener("keydown", handleBarcodeEnter);
-  }
-  if (document.getElementById("add-item")) {
-    document.getElementById("add-item").addEventListener("click", addItemToCart);
-  }
-  if (document.getElementById("checkout")) {
-    document.getElementById("checkout").addEventListener("click", checkoutOrder);
-  }
-  if (document.getElementById("reset-form")) {
-    document.getElementById("reset-form").addEventListener("click", () => {
-      document.getElementById("product-select").value = "";
-      if (document.getElementById("product-barcode")) document.getElementById("product-barcode").value = "";
-      if (document.getElementById("batch-no")) document.getElementById("batch-no").innerHTML = "";
-      if (document.getElementById("quantity")) document.getElementById("quantity").value = "1";
-      if (document.getElementById("selling-price")) document.getElementById("selling-price").value = "";
-      if (document.getElementById("stock-display")) document.getElementById("stock-display").textContent = "";
+    document.getElementById("product-select").addEventListener("change", async (e) => {
+      const id = e.target.value;
+      if (!id) return;
+      const res = await loadProductAndBatches(id, false);
+      const batchEl = document.getElementById("batch-no");
+      const stockDisplay = document.getElementById("stock-display");
+      if (batchEl) {
+        batchEl.innerHTML = (res?.batches || []).map(b => `<option value="${b.id}">${b.batch_number} ${b.remaining_quantity != null ? `(Stock: ${b.remaining_quantity})` : ""}</option>`).join("");
+        if ((res?.batches || []).length === 1) batchEl.value = res.batches[0].id;
+      }
+      if (stockDisplay) {
+        const sumStock = (res?.batches || []).reduce((s, b) => s + (b.remaining_quantity || 0), 0);
+        stockDisplay.textContent = `Stock: ${sumStock}`;
+      }
     });
   }
 
-  // Initialize page-specific loaders (if functions exist on the page)
-  if (typeof loadCustomerSales === "function") loadCustomerSales();
-  if (typeof loadProducts === "function") loadProducts();
-  if (typeof loadVendors === "function") loadVendors();
-  if (typeof loadLoanRecords === "function") loadLoanRecords();
+  // barcode input Enter handler
+  const barcodeInput = document.getElementById("product-barcode");
+  if (barcodeInput) {
+    barcodeInput.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const code = barcodeInput.value.trim();
+        if (!code) return;
+        debugLog("🔍 Barcode entered:", code);
+        const result = await loadProductAndBatches(code, true);
+        if (!result) {
+          document.getElementById("stock-display").textContent = "Product not found";
+          return;
+        }
+        // set product-select to product.id if present
+        const prodSel = document.getElementById("product-select");
+        if (prodSel) {
+          prodSel.value = result.product.id;
+          // trigger change to populate batches
+          const ev = new Event("change");
+          prodSel.dispatchEvent(ev);
+        }
+      }
+    });
+  }
+
+  // add item button
+  const addBtn = document.getElementById("add-item");
+  if (addBtn) addBtn.addEventListener("click", addItemToCart);
+  // wire addItemToCart wrapper to collect user inputs
+  async function addItemToCart(e) {
+    e?.preventDefault();
+    await addItemToCart_core();
+  }
+  // keep a core function named differently to avoid confusion
+  async function addItemToCart_core() {
+    await addItemToCart_actual();
+  }
+  // actual add (kept modular)
+  async function addItemToCart_actual() {
+    await addItemToCart_internal();
+  }
+  // internal function that calls the real addItemToCart implementation above
+  async function addItemToCart_internal() {
+    await addItemToCartImpl();
+  }
+  // finally: the real implementation (to avoid duplicate function names across versions)
+  async function addItemToCartImpl() {
+    await addItemToCartReal();
+  }
+  async function addItemToCartReal() {
+    // fallback to global addItemToCart
+    return addItemToCart ? await addItemToCart() : null;
+  }
+
+  // fallback: if there is a Checkout button
+  const checkoutBtn = document.getElementById("checkout");
+  if (checkoutBtn) checkoutBtn.addEventListener("click", checkoutOrder);
+
+  // bind product form submit (manage-products page)
+  const addProductForm = document.getElementById("add-product-form");
+  if (addProductForm) addProductForm.addEventListener("submit", addProduct);
+
+  const addVendorForm = document.getElementById("add-vendor-form");
+  if (addVendorForm) addVendorForm.addEventListener("submit", addVendor);
+
+  // wire cart render initially
+  renderCart();
 });
