@@ -112,24 +112,30 @@ function showError(err) {
 // ----------------------
 
 
-// Populate product dropdown (only show products having batches with remaining_quantity > 0 OR at least one batch)
+// Populate product dropdown (only show products having batches with remaining_quantity > 0)
 async function populateProductDropdown() {
   const supabase = await ensureSupabaseClient();
   try {
-    // Get products; then filter client-side to those with batches
+    // Get all products
     const { data: products, error } = await supabase
       .from("products")
       .select("id, name, barcode, units, price")
       .order("name", { ascending: true });
 
     if (error) throw error;
+
     const out = [];
     for (const p of products || []) {
-      const { data: batches } = await supabase
+      // only include if there is at least one batch with stock > 0
+      const { data: batches, error: batchErr } = await supabase
         .from("product_batches")
         .select("id, remaining_quantity")
         .eq("product_id", p.id)
+        .gt("remaining_quantity", 0)  // only batches with stock > 0
         .limit(1);
+
+      if (batchErr) throw batchErr;
+
       if (batches && batches.length > 0) {
         out.push(p);
       }
@@ -139,7 +145,8 @@ async function populateProductDropdown() {
     if (!sel) return;
     sel.innerHTML = `<option value="">-- Select a Product --</option>` +
       out.map(p => `<option value="${p.id}">${p.name} ${p.barcode ? "(" + p.barcode + ")" : ""}</option>`).join("");
-    debugLog("📦 Products for dropdown:", out);
+
+    debugLog("📦 Products for dropdown (filtered by stock > 0):", out);
   } catch (err) {
     console.error("populateProductDropdown error:", err);
   }
