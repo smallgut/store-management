@@ -1,91 +1,92 @@
 <!DOCTYPE html>
-<html lang="en" id="lang-body" class="lang-en">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-lang-key="nav-manage-products">Manage Products</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Manage Products</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
-<body class="bg-gray-100 p-4">
-  <!-- Navbar -->
-  <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
-    <ul class="flex space-x-4">
-      <li><a href="index.html">Home</a></li>
-      <li><a href="analytics.html">Analytics</a></li>
-      <li><a href="products.html">Manage Products</a></li>
-      <li><a href="vendors.html">Manage Vendors</a></li>
-      <li><a href="customer-sales.html">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html">Product Catalog</a></li>
-    </ul>
-    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded">Logout</button>
-  </nav>
-
-  <h1 class="text-2xl font-bold my-4">Manage Products</h1>
-
-  <!-- Add Product Form -->
-  <form id="add-product-form" class="bg-white p-4 rounded shadow mb-6">
-    <h2 class="text-xl font-semibold mb-4">Add Product</h2>
-    <div class="grid grid-cols-2 gap-4">
+<body class="bg-gray-100 p-6">
+  <nav class="bg-blue-500 p-4 text-white mb-6">
+    <div class="flex items-center justify-between">
+      <div class="text-lg font-bold">POS — Manage Products</div>
       <div>
-        <label class="block font-semibold">Name</label>
-        <input type="text" id="product-name" class="border p-2 w-full" required>
-      </div>
-      <div>
-        <label class="block font-semibold">Barcode</label>
-        <input type="text" id="product-barcode" class="border p-2 w-full" required>
-      </div>
-      <div>
-        <label class="block font-semibold">Price</label>
-        <input type="number" step="0.01" id="product-price" class="border p-2 w-full" required>
-      </div>
-      <div>
-        <label class="block font-semibold">Units</label>
-        <input type="text" id="product-units" class="border p-2 w-full" placeholder="pcs, box, etc.">
-      </div>
-      <div>
-        <label class="block font-semibold">Vendor</label>
-        <select id="product-vendor" class="border p-2 w-full"></select>
+        <button id="toggle-language" class="bg-white text-blue-500 px-3 py-1 rounded">Toggle Language</button>
       </div>
     </div>
-    <button type="submit" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
-  </form>
+  </nav>
 
-  <!-- Products Table -->
-  <table id="products-table" class="w-full bg-white rounded shadow">
-    <thead>
-      <tr class="bg-gray-200">
-        <th class="border p-2">ID</th>
-        <th class="border p-2">Name</th>
-        <th class="border p-2">Barcode</th>
-        <th class="border p-2">Price</th>
-        <th class="border p-2">Units</th>
-        <th class="border p-2">Vendor</th>
-        <th class="border p-2">Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="max-w-4xl mx-auto space-y-6">
+    <form id="add-product-form" class="bg-white p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-3">Add Product</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm">Name</label>
+          <input id="prod-name" class="border p-2 w-full rounded" />
+        </div>
+        <div>
+          <label class="block text-sm">Barcode</label>
+          <input id="prod-barcode" class="border p-2 w-full rounded" />
+        </div>
+        <div>
+          <label class="block text-sm">Price</label>
+          <input id="prod-price" type="number" step="0.01" class="border p-2 w-full rounded" />
+        </div>
+        <div>
+          <label class="block text-sm">Units</label>
+          <select id="prod-units" class="border p-2 w-full rounded">
+            <option value="">-- select units --</option>
+            <option value="pcs">pcs</option>
+            <option value="box">box</option>
+            <option value="kg">kg</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm">Vendor</label>
+          <select id="prod-vendor" class="border p-2 w-full rounded">
+            <option value="">-- Select Vendor --</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-3">
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
+      </div>
+    </form>
+
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-3">Existing Products</h2>
+      <table id="products-table" class="min-w-full border-collapse border text-sm">
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border p-2">ID</th>
+            <th class="border p-2">Name</th>
+            <th class="border p-2">Barcode</th>
+            <th class="border p-2">Units</th>
+            <th class="border p-2">Price</th>
+            <th class="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 
   <script>
+    // populate vendor dropdown on load
     document.addEventListener("DOMContentLoaded", async () => {
+      await ensureSupabaseClient();
+      // load vendors for vendor select
       const supabase = await ensureSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return (window.location.href = "login.html");
-
-      document.getElementById("logout-btn").addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        window.location.href = "login.html";
-      });
-
-      console.log("📦 Initializing Manage Products page...");
-      applyTranslations();
-      populateVendorDropdown("product-vendor"); // from common.js
-      loadProducts(); // from common.js
-
-      document.getElementById("add-product-form").addEventListener("submit", addProduct);
+      try {
+        const { data: vendors } = await supabase.from("vendors").select("id, name").order("name");
+        const vsel = document.getElementById("prod-vendor");
+        vsel.innerHTML = '<option value="">-- Select Vendor --</option>' + (vendors || []).map(v => `<option value="${v.id}">${v.name}</option>`).join("");
+      } catch (err) {
+        console.error("failed to load vendors for product form", err);
+      }
+      await loadProducts();
     });
   </script>
 </body>
