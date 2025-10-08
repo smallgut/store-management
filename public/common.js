@@ -570,40 +570,65 @@ async function loadCustomerSales() {
 // -----------------------------
 // Products & Vendors management (simple UI API)
 // -----------------------------
+// Global toggle state
+let showAllProducts = true;
+
+// Load products into Manage Products table
 async function loadProducts() {
   const supabase = await ensureSupabaseClient();
   try {
     debugLog("📦 Loading products...");
-    const { data, error } = await supabase.from("products").select("id, name, barcode, price, units, vendor_id").order("name");
+
+    // Fetch products
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("id, name, barcode, price, units, vendor_id")
+      .order("name", { ascending: true });
+
     if (error) throw error;
 
     const tbody = document.querySelector("#products-table tbody");
-    if (!tbody) return;
+    if (!tbody) {
+      console.warn("products-table not found on page.");
+      return;
+    }
+
     tbody.innerHTML = "";
-    (data || []).forEach(p => {
+
+    for (const p of products || []) {
+      // fetch total remaining quantity across all batches
+      const { data: batches, error: batchErr } = await supabase
+        .from("product_batches")
+        .select("remaining_quantity")
+        .eq("product_id", p.id);
+
+      if (batchErr) throw batchErr;
+
+      const totalRemaining = (batches || []).reduce((sum, b) => sum + (b.remaining_quantity || 0), 0);
+
+      // skip products if toggle is OFF and stock = 0
+      if (!showAllProducts && totalRemaining <= 0) {
+        continue;
+      }
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="border p-2">${p.id}</td>
         <td class="border p-2">${p.name}</td>
         <td class="border p-2">${p.barcode || ""}</td>
+        <td class="border p-2">${p.price?.toFixed(2) || 0}</td>
         <td class="border p-2">${p.units || ""}</td>
-        <td class="border p-2">${Number(p.price || 0).toFixed(2)}</td>
-        <td class="border p-2"><button class="delete-product" data-id="${p.id}">Delete</button></td>
+        <td class="border p-2">${totalRemaining}</td>
+        <td class="border p-2">${p.vendor_id || ""}</td>
+        <td class="border p-2">
+          <button class="bg-red-500 text-white px-2 py-1 rounded delete-product-btn" data-id="${p.id}">Delete</button>
+        </td>
       `;
       tbody.appendChild(tr);
-    });
+    }
 
-    tbody.querySelectorAll(".delete-product").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        if (!confirm("Are you sure you want to delete this product?")) return;
-        const id = Number(btn.getAttribute("data-id"));
-        const { error } = await supabase.from("products").delete().eq("id", id);
-        if (error) alert("Delete failed: " + error.message); else loadProducts();
-      });
-    });
-
+    debugLog("✅ Products loaded:", products);
   } catch (err) {
-    console.error("loadProducts failed:", err);
+    console.error("loadProducts error:", err);
   }
 }
 
