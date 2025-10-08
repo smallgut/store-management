@@ -814,27 +814,40 @@ function printReceipt(order, items) {
 }
 
 
-/* =========================================================
-   Analytics Functions
-   ========================================================= */
-/* =========================================================
-   📊 Analytics helpers
-   ========================================================= */
-async function loadAnalytics() {
+// -----------------------------
+// Analytics helpers (simple)
+// -----------------------------
+async function analyticsSalesByDay(dateFrom, dateTo) {
   const supabase = await ensureSupabaseClient();
-  console.log("📊 Loading analytics...");
-
-  // Sales by day
-  const { data: byDay } = await supabase
+  let q = supabase
     .from("customer_sales")
-    .select("sale_date,total");
-  // Sales by product
-  const { data: byProduct } = await supabase
-    .from("customer_sales_items")
-    .select("quantity,selling_price, product_id, products(name)")
-    .eq("products.id", "product_id");
+    .select("sale_date, total");
+  if (dateFrom) q = q.gte("sale_date", dateFrom);
+  if (dateTo) q = q.lte("sale_date", dateTo);
+  const { data, error } = await q;
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach(r => {
+    const d = new Date(r.sale_date);
+    const day = d.toLocaleDateString("zh-TW");
+    map[day] = (map[day] || 0) + Number(r.total || 0);
+  });
+  return Object.keys(map).sort().map(k => ({ day: k, total: map[k] }));
+}
 
-  return { byDay, byProduct };
+async function analyticsSalesByProduct() {
+  const supabase = await ensureSupabaseClient();
+  const { data, error } = await supabase
+    .from("customer_sales_items")
+    .select("product_id, quantity, selling_price, products(name)")
+    .order("product_id");
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach(r => {
+    const name = r.products?.name || ("Product " + r.product_id);
+    map[name] = (map[name] || 0) + (Number(r.quantity || 0) * Number(r.selling_price || 0));
+  });
+  return Object.keys(map).map(k => ({ product: k, total: map[k] }));
 }
 
 
