@@ -1,75 +1,66 @@
 <!DOCTYPE html>
-<html lang="en" id="lang-body" class="lang-en">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-lang-key="nav-manage-vendors">Manage Vendors</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Manage Vendors</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
-<body class="bg-gray-100 p-4">
-  <!-- Navbar -->
-  <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
-    <ul class="flex space-x-4">
-      <li><a href="index.html">Home</a></li>
-      <li><a href="analytics.html">Analytics</a></li>
-      <li><a href="products.html">Manage Products</a></li>
-      <li><a href="vendors.html">Manage Vendors</a></li>
-      <li><a href="customer-sales.html">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html">Product Catalog</a></li>
-    </ul>
-    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded">Logout</button>
-  </nav>
-
-  <h1 class="text-2xl font-bold my-4">Manage Vendors</h1>
-
-  <!-- Add Vendor Form -->
-  <form id="add-vendor-form" class="bg-white p-4 rounded shadow mb-6">
-    <h2 class="text-xl font-semibold mb-4">Add Vendor</h2>
-    <div class="grid grid-cols-2 gap-4">
+<body class="bg-gray-100 p-6">
+  <nav class="bg-blue-500 p-4 text-white mb-6">
+    <div class="flex items-center justify-between">
+      <div class="text-lg font-bold">POS — Manage Vendors</div>
       <div>
-        <label class="block font-semibold">Vendor Name</label>
-        <input type="text" id="vendor-name" class="border p-2 w-full" required>
-      </div>
-      <div>
-        <label class="block font-semibold">Contact Info</label>
-        <input type="text" id="vendor-contact" class="border p-2 w-full">
+        <button id="toggle-language" class="bg-white text-blue-500 px-3 py-1 rounded">Toggle Language</button>
       </div>
     </div>
-    <button type="submit" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">Add Vendor</button>
-  </form>
+  </nav>
 
-  <!-- Vendors Table -->
-  <table id="vendors-table" class="w-full bg-white rounded shadow">
-    <thead>
-      <tr class="bg-gray-200">
-        <th class="border p-2">ID</th>
-        <th class="border p-2">Name</th>
-        <th class="border p-2">Contact</th>
-        <th class="border p-2">Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="max-w-3xl mx-auto space-y-6">
+    <form id="add-vendor-form" class="bg-white p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-3">Add Vendor</h2>
+      <div class="grid grid-cols-1 gap-3">
+        <div>
+          <label class="block text-sm">Name</label>
+          <input id="vendor-name" class="border p-2 w-full rounded" />
+        </div>
+        <div>
+          <label class="block text-sm">Contact</label>
+          <input id="vendor-contact" class="border p-2 w-full rounded" />
+        </div>
+        <div>
+          <label class="block text-sm">Phone</label>
+          <input id="vendor-phone" class="border p-2 w-full rounded" />
+        </div>
+      </div>
+      <div class="mt-3">
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Add Vendor</button>
+      </div>
+    </form>
+
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-3">Existing Vendors</h2>
+      <table id="vendors-table" class="min-w-full border-collapse border text-sm">
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border p-2">ID</th>
+            <th class="border p-2">Name</th>
+            <th class="border p-2">Contact</th>
+            <th class="border p-2">Phone</th>
+            <th class="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      const supabase = await ensureSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return (window.location.href = "login.html");
-
-      document.getElementById("logout-btn").addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        window.location.href = "login.html";
-      });
-
-      console.log("📦 Initializing Manage Vendors page...");
-      applyTranslations();
-      loadVendors(); // from common.js
-
-      document.getElementById("add-vendor-form").addEventListener("submit", addVendor);
+      await ensureSupabaseClient();
+      await loadVendors();
     });
   </script>
 </body>
