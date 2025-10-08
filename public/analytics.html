@@ -1,133 +1,155 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" id="lang-body" class="lang-en">
 <head>
-  <meta charset="utf-8" />
-  <title>Analytics</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-lang-key="nav-analytics">Analytics</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="common.js"></script>
 </head>
 <body class="bg-gray-100 p-4">
+  <!-- 🔹 Navigation -->
   <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
-  <ul class="flex space-x-4">
-    <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
-    <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
-    <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-    <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
-    <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-    <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-    <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-    <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
-    <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
-  </ul>
-  <!-- 🔒 Logout button -->
-  <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
-</nav>
+    <ul class="flex space-x-4">
+      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
+      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
+      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
+      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
+      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
+      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
+    </ul>
+    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
+  </nav>
 
-  <main class="container mx-auto mt-6">
-    <h1 class="text-2xl font-bold mb-4">Sales Analytics</h1>
+  <h1 data-lang-key="analytics" class="text-2xl font-bold mt-4 mb-6">Analytics</h1>
 
-    <!-- Charts -->
-    <div class="grid md:grid-cols-2 gap-6 mb-6">
-      <div class="bg-white p-4 rounded shadow">
-        <h2 class="font-semibold mb-2">Total Sales by Day</h2>
-        <canvas id="chart-sales-by-day"></canvas>
-      </div>
-      <div class="bg-white p-4 rounded shadow">
-        <h2 class="font-semibold mb-2">Total Sales by Product</h2>
-        <canvas id="chart-sales-by-product"></canvas>
-      </div>
-    </div>
-
-    <!-- Keep original table area (you said you wanted headings preserved) -->
+  <!-- 🔹 Charts -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
     <div class="bg-white p-4 rounded shadow">
-      <h2 class="font-semibold mb-2">Raw Sales Table</h2>
-      <table id="analytics-table" class="min-w-full border-collapse border text-sm">
-        <thead>
-          <tr class="bg-gray-100">
-            <th class="border p-2">Sale Date</th>
-            <th class="border p-2">Order ID</th>
-            <th class="border p-2">Customer</th>
-            <th class="border p-2">Total</th>
-          </tr>
-        </thead>
-        <tbody id="analytics-table-body"></tbody>
-      </table>
+      <h2 class="text-lg font-semibold mb-2">Total Sales by Day</h2>
+      <canvas id="salesByDayChart" height="150"></canvas>
     </div>
-  </main>
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-lg font-semibold mb-2">Total Sales by Product</h2>
+      <canvas id="salesByProductChart" height="150"></canvas>
+    </div>
+  </div>
+
+  <!-- 🔹 Existing Table -->
+  <div class="bg-white p-4 rounded shadow">
+    <h2 class="text-lg font-semibold mb-2">Sales Data</h2>
+    <table id="analytics-table" class="w-full border-collapse border border-gray-300">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">Order #</th>
+          <th class="border p-2">Customer</th>
+          <th class="border p-2">Sale Date</th>
+          <th class="border p-2">Total</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
+      console.log("📊 Initializing Analytics page...");
       const supabase = await ensureSupabaseClient();
+
+      // 🔒 Auth Guard
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { window.location.href = "login.html"; return; }
+      if (!session) {
+        window.location.href = "login.html";
+        return;
+      }
 
-      // fetch analytics raw
-      const { sales, items } = await fetchAnalyticsRaw();
+      // 🔑 Logout
+      const logoutBtn = document.getElementById("logout-btn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+          await supabase.auth.signOut();
+          window.location.href = "login.html";
+        });
+      }
 
-      // populate raw table
-      const tbody = document.getElementById("analytics-table-body");
+      applyTranslations();
+
+      // 🔹 Load analytics
+      try {
+        const byDay = await analyticsSalesByDay();
+        const byProduct = await analyticsSalesByProduct();
+
+        // Render charts
+        renderSalesByDayChart(byDay);
+        renderSalesByProductChart(byProduct);
+
+        // Also load latest sales into table
+        loadSalesTable();
+      } catch (err) {
+        console.error("❌ Failed loading analytics", err);
+      }
+    });
+
+    function renderSalesByDayChart(data) {
+      const ctx = document.getElementById("salesByDayChart").getContext("2d");
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: data.map(d => d.day),
+          datasets: [{
+            label: "Total Sales",
+            data: data.map(d => d.total),
+            borderColor: "blue",
+            backgroundColor: "rgba(59, 130, 246, 0.2)"
+          }]
+        }
+      });
+    }
+
+    function renderSalesByProductChart(data) {
+      const ctx = document.getElementById("salesByProductChart").getContext("2d");
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: data.map(d => d.product),
+          datasets: [{
+            label: "Total Sales",
+            data: data.map(d => d.total),
+            backgroundColor: "rgba(16, 185, 129, 0.6)"
+          }]
+        }
+      });
+    }
+
+    async function loadSalesTable() {
+      const supabase = await ensureSupabaseClient();
+      const { data, error } = await supabase
+        .from("customer_sales")
+        .select("id, customer_name, sale_date, total")
+        .order("sale_date", { ascending: false })
+        .limit(20);
+      if (error) {
+        console.error("❌ loadSalesTable failed", error);
+        return;
+      }
+      const tbody = document.querySelector("#analytics-table tbody");
       tbody.innerHTML = "";
-      (sales || []).forEach(s => {
+      (data || []).forEach(row => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td class="border p-2">${s.sale_date ? new Date(s.sale_date).toLocaleString() : ""}</td>
-          <td class="border p-2">${s.id || ""}</td>
-          <td class="border p-2">${s.customer_name || ""}</td>
-          <td class="border p-2">${(s.total != null) ? Number(s.total).toFixed(2) : ""}</td>
+          <td class="border p-2">#${row.id}</td>
+          <td class="border p-2">${row.customer_name || "-"}</td>
+          <td class="border p-2">${new Date(row.sale_date).toLocaleDateString("zh-TW")}</td>
+          <td class="border p-2">${Number(row.total).toFixed(2)}</td>
         `;
         tbody.appendChild(tr);
       });
-
-      // chart: sales by day
-      const dayMap = {};
-      (sales || []).forEach(r => {
-        if (!r.sale_date) return;
-        const key = new Date(r.sale_date).toLocaleDateString();
-        dayMap[key] = (dayMap[key] || 0) + Number(r.total || 0);
-      });
-      const dayLabels = Object.keys(dayMap).sort((a,b) => new Date(a) - new Date(b));
-      const dayData = dayLabels.map(k => dayMap[k]);
-
-      new Chart(document.getElementById("chart-sales-by-day"), {
-        type: "line",
-        data: {
-          labels: dayLabels,
-          datasets: [{
-            label: "Total Sales",
-            data: dayData,
-            fill: false,
-            tension: 0.2
-          }]
-        }
-      });
-
-      // chart: sales by product
-      const prodMap = {};
-      (items || []).forEach(it => {
-        const name = it.products?.name || `#${it.product_id || "?"}`;
-        const val = (it.quantity || 0) * (Number(it.selling_price) || 0);
-        prodMap[name] = (prodMap[name] || 0) + val;
-      });
-      const prodLabels = Object.keys(prodMap);
-      const prodData = prodLabels.map(k => prodMap[k]);
-
-      new Chart(document.getElementById("chart-sales-by-product"), {
-        type: "bar",
-        data: {
-          labels: prodLabels,
-          datasets: [{
-            label: "Sales",
-            data: prodData
-          }]
-        },
-        options: {
-          indexAxis: prodLabels.length > 8 ? 'y' : 'x' // horizontal if many products
-        }
-      });
-    });
+    }
   </script>
 </body>
 </html>
