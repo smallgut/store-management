@@ -1,27 +1,31 @@
-/* =========================================================
-   common.js — Cleaned & patched (all-in-one)
-   - Works with normalized schema:
-     customer_sales (id, customer_name, sale_date, total)
-     customer_sales_items (id, order_id, product_id, batch_id, quantity, selling_price, sub_total)
-   - Auto-select single batch
-   - Barcode Enter handling
-   - Checkout writes sale + items
-   - Receipt modal + print (58mm)
-   - Defensive stubs for other pages
-   ========================================================= */
+// common.js (patched, debug-friendly)
+// - Works with normalized schema:
+//   customer_sales(id BIGINT, customer_name, sale_date timestamptz, total numeric, ...)
+//   customer_sales_items(id BIGSERIAL, order_id BIGINT, product_id INT, batch_id INT, quantity INT, selling_price numeric, sub_total numeric GENERATED)
+// - Provides product/vendor management helpers, POS cart, checkout, receipt modal + 58mm print
+// - Includes analytics helper functions
+// NOTE: set SUPABASE_URL and SUPABASE_ANON_KEY to your project values
 
 console.log("⚡ common.js loaded");
 
-// ---------- Supabase client ----------
-let _supabase;
+// -----------------------------
+// Configuration: set these to your Supabase project
+// -----------------------------
+const SUPABASE_URL = "https://aouduygmcspiqauhrabx.supabase.co"; // keep your URL
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"; // replace with your anon key
+
+// -----------------------------
+// Supabase client (singleton)
+// -----------------------------
+let _supabase = null;
 async function ensureSupabaseClient() {
   if (_supabase) return _supabase;
+  if (!window.supabase || !window.supabase.createClient) {
+    console.error("Supabase SDK not loaded. Add <script src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'></script>");
+    throw new Error("Supabase SDK missing");
+  }
   console.log("🔑 Initializing Supabase Client...");
-  // <-- REPLACE the anon key below with your Supabase anon/public key
-  _supabase = window.supabase.createClient(
-    "https://aouduygmcspiqauhrabx.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"
-  );
+  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   return _supabase;
 }
 
