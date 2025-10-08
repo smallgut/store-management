@@ -102,6 +102,18 @@
       }
       await loadProducts();
     });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const toggleBtn = document.getElementById("toggle-stock-btn");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      showAllProducts = !showAllProducts;
+      toggleBtn.textContent = showAllProducts ? "Show Only In-Stock" : "Show All Products";
+      loadProducts();
+    });
+  }
+});
+    
   </script>
 </body>
 </html>
