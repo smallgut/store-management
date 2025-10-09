@@ -1,119 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
   <title>Manage Products</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
-<body class="bg-gray-100 p-4">
-  <!-- 🔹 Navigation -->
-  <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
-    <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
-      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
-      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
-      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
-    </ul>
-    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
-  </nav>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-6xl mx-auto bg-white p-6 rounded shadow">
+    <h1 class="text-2xl font-bold mb-4">Manage Products</h1>
 
-  <div class="max-w-4xl mx-auto space-y-6">
-    <form id="add-product-form" class="bg-white p-4 rounded shadow">
-      <h2 class="text-xl font-semibold mb-3">Add Product</h2>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm">Name</label>
-          <input id="prod-name" class="border p-2 w-full rounded" />
-        </div>
-        <div>
-          <label class="block text-sm">Barcode</label>
-          <input id="prod-barcode" class="border p-2 w-full rounded" />
-        </div>
-        <div>
-          <label class="block text-sm">Price</label>
-          <input id="prod-price" type="number" step="0.01" class="border p-2 w-full rounded" />
-        </div>
-        <div>
-          <label class="block text-sm">Units</label>
-          <select id="prod-units" class="border p-2 w-full rounded">
-            <option value="">-- select units --</option>
-            <option value="pcs">pcs</option>
-            <option value="box">box</option>
-            <option value="kg">kg</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm">Vendor</label>
-          <select id="prod-vendor" class="border p-2 w-full rounded">
-            <option value="">-- Select Vendor --</option>
-          </select>
-        </div>
+    <!-- Add Product Form -->
+    <h2 class="text-xl font-semibold mb-2">Add Product</h2>
+    <form id="add-product-form" class="grid grid-cols-2 gap-4 mb-6" onsubmit="addProduct(event)">
+      <div>
+        <label for="name" class="block">Product Name</label>
+        <input type="text" id="name" class="border p-2 w-full" required />
       </div>
-      <div class="mt-3">
-        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
+      <div>
+        <label for="barcode" class="block">Barcode</label>
+        <input type="text" id="barcode" class="border p-2 w-full" required />
+      </div>
+      <div>
+        <label for="price" class="block">Price</label>
+        <input type="number" id="price" class="border p-2 w-full" step="0.01" required />
+      </div>
+      <div>
+        <label for="units" class="block">Units</label>
+        <select id="units" class="border p-2 w-full" required>
+          <option value="box">Box</option>
+          <option value="kg">Kg</option>
+          <option value="pcs">Pcs</option>
+        </select>
+      </div>
+      <div>
+        <label for="vendor" class="block">Vendor</label>
+        <select id="vendor" class="border p-2 w-full"></select>
+      </div>
+      <div>
+        <label for="quantity" class="block">Quantity (Initial Stock)</label>
+        <input type="number" id="quantity" class="border p-2 w-full" required min="0" />
+      </div>
+      <div class="col-span-2 flex justify-end">
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">
+          Add Product
+        </button>
       </div>
     </form>
 
-    <div class="bg-white p-4 rounded shadow">
-      <h2 class="text-xl font-semibold mb-2 flex items-center justify-between">
-  <span>Existing Products</span>
-  <button id="toggle-stock-btn" class="bg-gray-500 text-white px-3 py-1 rounded">
-    Show Only In-Stock
-  </button>
-</h2>
+    <!-- Existing Products Table -->
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-xl font-semibold">Existing Products</h2>
+      <button id="toggle-stock-filter" class="bg-blue-500 text-white px-3 py-1 rounded">
+        Show Only In-Stock
+      </button>
+    </div>
+    <table class="w-full border-collapse border bg-white" id="products-table">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">ID</th>
+          <th class="border p-2">Name</th>
+          <th class="border p-2">Barcode</th>
+          <th class="border p-2">Price</th>
+          <th class="border p-2">Units</th>
+          <th class="border p-2">Vendor</th>
+          <th class="border p-2">Remaining Quantity</th>
+          <th class="border p-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="products-body"></tbody>
+    </table>
+  </div>
 
-<table id="products-table" class="w-full bg-white rounded shadow">
-  <thead>
-    <tr class="bg-gray-200">
-      <th class="border p-2">Name</th>
-      <th class="border p-2">Barcode</th>
-      <th class="border p-2">Price</th>
-      <th class="border p-2">Units</th>
-      <th class="border p-2">Remaining Quantity</th> <!-- ✅ NEW COLUMN -->
-      <th class="border p-2">Vendor</th>
-      <th class="border p-2">Actions</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
+  <!-- Adjust Product Modal -->
+  <div id="adjust-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow w-96">
+      <h3 class="text-lg font-bold mb-4">Adjust Product</h3>
+      <input type="hidden" id="adjust-id" />
+      <div class="mb-3">
+        <label>Price</label>
+        <input type="number" step="0.01" id="adjust-price" class="border p-2 w-full" />
+      </div>
+      <div class="mb-3">
+        <label>Units</label>
+        <select id="adjust-units" class="border p-2 w-full">
+          <option value="box">Box</option>
+          <option value="kg">Kg</option>
+          <option value="pcs">Pcs</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label>Remaining Quantity</label>
+        <input type="number" id="adjust-qty" class="border p-2 w-full" />
+      </div>
+      <div class="flex justify-end space-x-2">
+        <button onclick="hideAdjustProduct()" class="px-3 py-1 bg-gray-400 text-white rounded">Cancel</button>
+        <button onclick="applyAdjustProduct()" class="px-3 py-1 bg-green-600 text-white rounded">Save</button>
+      </div>
     </div>
   </div>
 
   <script>
-    // populate vendor dropdown on load
-    document.addEventListener("DOMContentLoaded", async () => {
-      await ensureSupabaseClient();
-      // load vendors for vendor select
-      const supabase = await ensureSupabaseClient();
-      try {
-        const { data: vendors } = await supabase.from("vendors").select("id, name").order("name");
-        const vsel = document.getElementById("prod-vendor");
-        vsel.innerHTML = '<option value="">-- Select Vendor --</option>' + (vendors || []).map(v => `<option value="${v.id}">${v.name}</option>`).join("");
-      } catch (err) {
-        console.error("failed to load vendors for product form", err);
-      }
-      await loadProducts();
+    // Hook up toggle button
+    let filterStockOnly = false;
+    document.getElementById("toggle-stock-filter").addEventListener("click", () => {
+      filterStockOnly = !filterStockOnly;
+      document.getElementById("toggle-stock-filter").textContent = filterStockOnly
+        ? "Show All Products"
+        : "Show Only In-Stock";
+      loadProducts(filterStockOnly);
     });
 
-document.addEventListener("DOMContentLoaded", () => {
-  const toggleBtn = document.getElementById("toggle-stock-btn");
-  if (toggleBtn) {
-    toggleBtn.addEventListener("click", () => {
-      showAllProducts = !showAllProducts;
-      toggleBtn.textContent = showAllProducts ? "Show Only In-Stock" : "Show All Products";
+    // Init
+    document.addEventListener("DOMContentLoaded", () => {
+      loadVendors();
       loadProducts();
     });
-  }
-});
-    
   </script>
 </body>
 </html>
