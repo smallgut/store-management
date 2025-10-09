@@ -574,86 +574,113 @@ async function loadCustomerSales() {
 let showAllProducts = true;
 
 // Load products into Manage Products table
-async function loadProducts() {
+// Load products for table
+async function loadProducts(stockOnly = false) {
   const supabase = await ensureSupabaseClient();
-  try {
-    debugLog("📦 Loading products...");
+  console.log("📦 Loading products...");
 
-    // Fetch products
-    const { data: products, error } = await supabase
-      .from("products")
-      .select("id, name, barcode, price, units, vendor_id")
-      .order("name", { ascending: true });
+  let q = supabase
+    .from("products")
+    .select("id, name, barcode, price, units, vendor_id, vendors(name), product_batches(remaining_quantity)")
+    .order("id", { ascending: true });
 
-    if (error) throw error;
-
-    const tbody = document.querySelector("#products-table tbody");
-    if (!tbody) {
-      console.warn("products-table not found on page.");
-      return;
-    }
-
-    tbody.innerHTML = "";
-
-    for (const p of products || []) {
-      // fetch total remaining quantity across all batches
-      const { data: batches, error: batchErr } = await supabase
-        .from("product_batches")
-        .select("remaining_quantity")
-        .eq("product_id", p.id);
-
-      if (batchErr) throw batchErr;
-
-      const totalRemaining = (batches || []).reduce((sum, b) => sum + (b.remaining_quantity || 0), 0);
-
-      // skip products if toggle is OFF and stock = 0
-      if (!showAllProducts && totalRemaining <= 0) {
-        continue;
-      }
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${p.name}</td>
-        <td class="border p-2">${p.barcode || ""}</td>
-        <td class="border p-2">${p.price?.toFixed(2) || 0}</td>
-        <td class="border p-2">${p.units || ""}</td>
-        <td class="border p-2">${totalRemaining}</td>
-        <td class="border p-2">${p.vendor_id || ""}</td>
-        <td class="border p-2">
-          <button class="bg-red-500 text-white px-2 py-1 rounded delete-product-btn" data-id="${p.id}">Delete</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    }
-
-    debugLog("✅ Products loaded:", products);
-  } catch (err) {
-    console.error("loadProducts error:", err);
+  const { data, error } = await q;
+  if (error) {
+    console.error("loadProducts failed:", error);
+    return;
   }
+
+  // Calculate remaining qty (sum batches)
+  const products = (data || []).map(p => {
+    const remaining = (p.product_batches || []).reduce((sum, b) => sum + (b.remaining_quantity || 0), 0);
+    return { ...p, remaining_quantity: remaining };
+  });
+
+  // Filter if needed
+  const filtered = stockOnly ? products.filter(p => p.remaining_quantity > 0) : products;
+
+  const tbody = document.getElementById("products-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  filtered.forEach(p => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="border p-2">${p.id}</td>
+      <td class="border p-2">${p.name}</td>
+      <td class="border p-2">${p.barcode}</td>
+      <td class="border p-2">${p.price.toFixed(2)}</td>
+      <td class="border p-2">${p.units}</td>
+      <td class="border p-2">${p.vendors?.name || ""}</td>
+      <td class="border p-2">${p.remaining_quantity}</td>
+      <td class="border p-2 space-x-2">
+        <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteProduct(${p.id})">Remove</button>
+        <button class="bg-yellow-500 text-white px-2 py-1 rounded" onclick="showAdjustProduct(${p.id}, ${p.price}, '${p.units}', ${p.remaining_quantity})">Adjust</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  console.log("✅ Products loaded:", filtered);
 }
 
-async function addProduct(e) {
-  if (e && e.preventDefault) e.preventDefault();
-  const supabase = await ensureSupabaseClient();
-  try {
-    const name = document.getElementById("prod-name")?.value || "";
-    const barcode = document.getElementById("prod-barcode")?.value || "";
-    const price = Number(document.getElementById("prod-price")?.value || 0);
-    const units = document.getElementById("prod-units")?.value || "";
-    const vendor_id = Number(document.getElementById("prod-vendor")?.value || 0);
 
-    if (!name) return alert("Please enter product name");
-    const { error } = await supabase.from("products").insert([{ name, barcode, price, units, vendor_id }]);
-    if (error) throw error;
-    document.getElementById("add-product-form")?.reset();
-    await loadProducts();
-    await populateProductDropdown();
+
+
+
+// =========================================================
+// Products Management
+// =========================================================
+
+// Add new product with initial quantity
+async function addProduct(event) {
+  event.preventDefault();
+  const supabase = await ensureSupabaseClient();
+
+  const name = document.getElementById("name").value.trim();
+  const barcode = document.getElementById("barcode").value.trim();
+  const price = parseFloat(document.getElementById("price").value);
+  const units = document.getElementById("units").value;
+  const vendor_id = parseInt(document.getElementById("vendor").value) || null;
+  const quantity = parseInt(document.getElementById("quantity").value);
+
+  if (!name || !barcode || !price || !units) {
+    alert("Please fill in all required fields");
+    return;
+  }
+
+  try {
+    // Insert product
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .insert([{ name, barcode, price, units, vendor_id }])
+      .select()
+      .single();
+
+    if (productError) throw productError;
+
+    // Insert initial stock into product_batches
+    if (quantity > 0) {
+      const { error: batchError } = await supabase
+        .from("product_batches")
+        .insert([{
+          product_id: product.id,
+          vendor_id,
+          buy_in_price: price,
+          remaining_quantity: quantity,
+          batch_number: "Init-" + Date.now()
+        }]);
+      if (batchError) throw batchError;
+    }
+
+    alert("✅ Product added successfully");
+    document.getElementById("add-product-form").reset();
+    loadProducts();
   } catch (err) {
     console.error("addProduct failed:", err);
-    alert("Add product failed: " + (err.message || JSON.stringify(err)));
+    alert("❌ Failed to add product: " + err.message);
   }
 }
-
 async function loadVendors() {
   const supabase = await ensureSupabaseClient();
   try {
@@ -685,6 +712,78 @@ async function loadVendors() {
     console.error("loadVendors failed:", err);
   }
 }
+
+
+// Delete product
+async function deleteProduct(id) {
+  if (!confirm("Are you sure you want to delete this product?")) return;
+  const supabase = await ensureSupabaseClient();
+  const { error } = await supabase.from("products").delete().eq("id", id);
+  if (error) {
+    alert("❌ Failed to remove product: " + error.message);
+    return;
+  }
+  loadProducts();
+}
+
+// Adjust modal controls
+function showAdjustProduct(id, price, units, qty) {
+  document.getElementById("adjust-id").value = id;
+  document.getElementById("adjust-price").value = price;
+  document.getElementById("adjust-units").value = units;
+  document.getElementById("adjust-qty").value = qty;
+  document.getElementById("adjust-modal").classList.remove("hidden");
+}
+function hideAdjustProduct() {
+  document.getElementById("adjust-modal").classList.add("hidden");
+}
+
+// Apply Adjust
+async function applyAdjustProduct() {
+  const supabase = await ensureSupabaseClient();
+  const id = parseInt(document.getElementById("adjust-id").value);
+  const price = parseFloat(document.getElementById("adjust-price").value);
+  const units = document.getElementById("adjust-units").value;
+  const qty = parseInt(document.getElementById("adjust-qty").value);
+
+  try {
+    // Update product
+    const { error: prodErr } = await supabase
+      .from("products")
+      .update({ price, units })
+      .eq("id", id);
+    if (prodErr) throw prodErr;
+
+    // Adjust stock: find latest batch, update qty
+    const { data: batches } = await supabase
+      .from("product_batches")
+      .select("*")
+      .eq("product_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (batches && batches.length > 0) {
+      const batchId = batches[0].id;
+      await supabase
+        .from("product_batches")
+        .update({ remaining_quantity: qty })
+        .eq("id", batchId);
+    } else {
+      // if no batch exists, create one
+      await supabase
+        .from("product_batches")
+        .insert([{ product_id: id, remaining_quantity: qty, batch_number: "Adjust-" + Date.now(), buy_in_price: price }]);
+    }
+
+    alert("✅ Product adjusted");
+    hideAdjustProduct();
+    loadProducts();
+  } catch (err) {
+    console.error("applyAdjustProduct failed:", err);
+    alert("❌ Failed to adjust product: " + err.message);
+  }
+}
+
 
 
 async function addVendor(e) {
