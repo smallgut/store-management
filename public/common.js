@@ -739,6 +739,7 @@ function hideAdjustProduct() {
 }
 
 // Apply Adjust
+// Apply Adjust (patched for schema consistency)
 async function applyAdjustProduct() {
   const supabase = await ensureSupabaseClient();
   const id = parseInt(document.getElementById("adjust-id").value);
@@ -747,40 +748,59 @@ async function applyAdjustProduct() {
   const qty = parseInt(document.getElementById("adjust-qty").value);
 
   try {
-    // Update product
-    const { error: prodErr } = await supabase
+    // 1️⃣ Update product (price + units)
+    const { data: prodData, error: prodErr } = await supabase
       .from("products")
       .update({ price, units })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id, vendor_id")
+      .single();
+
     if (prodErr) throw prodErr;
 
-    // Adjust stock: find latest batch, update qty
-    const { data: batches } = await supabase
+    const vendor_id = prodData?.vendor_id || null;
+
+    // 2️⃣ Try to find latest batch
+    const { data: batches, error: batchErr } = await supabase
       .from("product_batches")
-      .select("*")
+      .select("id, batch_number")
       .eq("product_id", id)
       .order("created_at", { ascending: false })
       .limit(1);
 
+    if (batchErr) throw batchErr;
+
     if (batches && batches.length > 0) {
+      // 3️⃣ Update existing batch quantity
       const batchId = batches[0].id;
-      await supabase
+      const { error: updErr } = await supabase
         .from("product_batches")
-        .update({ remaining_quantity: qty })
+        .update({ remaining_quantity: qty, buy_in_price: price })
         .eq("id", batchId);
+      if (updErr) throw updErr;
     } else {
-      // if no batch exists, create one
-      await supabase
+      // 4️⃣ Create new batch if none exists
+      const batchNumber = "Adjust-" + Date.now();
+      const { error: insErr } = await supabase
         .from("product_batches")
-        .insert([{ product_id: id, remaining_quantity: qty, batch_number: "Adjust-" + Date.now(), buy_in_price: price }]);
+        .insert([
+          {
+            product_id: id,
+            vendor_id,
+            buy_in_price: price,
+            remaining_quantity: qty,
+            batch_number: batchNumber,
+          },
+        ]);
+      if (insErr) throw insErr;
     }
 
-    alert("✅ Product adjusted");
+    alert("✅ Product adjusted successfully");
     hideAdjustProduct();
-    loadProducts();
+    await loadProducts();
   } catch (err) {
-    console.error("applyAdjustProduct failed:", err);
-    alert("❌ Failed to adjust product: " + err.message);
+    console.error("❌ applyAdjustProduct failed:", err);
+    alert("Failed to adjust product: " + err.message);
   }
 }
 
