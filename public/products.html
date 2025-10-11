@@ -134,6 +134,28 @@
       loadVendors();
       loadProducts();
     });
+
+    // Disable Add button until form valid
+  const addForm = document.getElementById("add-product-form");
+  const addButton = document.getElementById("add-product-btn");
+  const requiredFields = ["name", "barcode", "price", "units", "vendor", "quantity"];
+
+  function validateFormFields() {
+    const valid = requiredFields.every(id => {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      if (el.type === "number") return el.value.trim() !== "" && !isNaN(parseFloat(el.value));
+      return el.value.trim() !== "";
+    });
+    addButton.disabled = !valid;
+  }
+
+  addForm.querySelectorAll("input, select").forEach(el =>
+    el.addEventListener("input", validateFormFields)
+  );
+
+  // Initial state
+  validateFormFields();
   </script>
 </body>
 </html>
