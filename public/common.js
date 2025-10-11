@@ -690,7 +690,7 @@ async function addProduct(event) {
 }
 
 
-// Load vendors and populate dropdown
+// Load vendors and populate dropdowns + table if available
 async function loadVendors() {
   const supabase = await ensureSupabaseClient();
   console.log("📦 Loading vendors...");
@@ -703,10 +703,9 @@ async function loadVendors() {
     console.error("❌ loadVendors failed:", error);
     return;
   }
-
   console.log("✅ Vendors loaded:", data);
 
-  // Populate vendor dropdown for Manage Products
+  // ✅ Populate dropdown for Manage Products (id="vendor")
   const vendorSelect = document.getElementById("vendor");
   if (vendorSelect) {
     vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
@@ -718,17 +717,48 @@ async function loadVendors() {
     });
   }
 
-  // Also populate dropdown for Vendor Loan Record
-  const vendorLoanSelect = document.getElementById("vendor-name");
-  if (vendorLoanSelect) {
-    vendorLoanSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+  // ✅ Populate dropdown for Vendor Loan Record (if exists)
+  const loanSelect = document.getElementById("vendor-name");
+  if (loanSelect) {
+    loanSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
     data.forEach(v => {
       const opt = document.createElement("option");
       opt.value = v.id;
       opt.textContent = v.name;
-      vendorLoanSelect.appendChild(opt);
+      loanSelect.appendChild(opt);
     });
   }
+
+  // ✅ Populate vendor table in Manage Vendors page
+  const tableBody = document.querySelector("#vendors-table tbody");
+  if (tableBody) {
+    tableBody.innerHTML = "";
+    data.forEach(v => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${v.id}</td>
+        <td class="border p-2">${v.name}</td>
+        <td class="border p-2">${v.contact || ""}</td>
+        <td class="border p-2">${v.phone_number || ""}</td>
+        <td class="border p-2 text-center">
+          <button onclick="removeVendor(${v.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Remove</button>
+        </td>`;
+      tableBody.appendChild(tr);
+    });
+  }
+}
+
+
+async function removeVendor(id) {
+  if (!confirm("Are you sure you want to delete this vendor?")) return;
+  const supabase = await ensureSupabaseClient();
+  const { error } = await supabase.from("vendors").delete().eq("id", id);
+  if (error) {
+    alert("❌ Failed to remove vendor: " + error.message);
+    return;
+  }
+  alert("✅ Vendor removed successfully!");
+  loadVendors();
 }
 
 
