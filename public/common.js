@@ -5,28 +5,25 @@
 // - Provides product/vendor management helpers, POS cart, checkout, receipt modal + 58mm print
 // - Includes analytics helper functions
 // NOTE: set SUPABASE_URL and SUPABASE_ANON_KEY to your project values
-
+/*******************************************************
+ *  common.js — unified utilities for Supabase POS
+ *******************************************************/
 console.log("⚡ common.js loaded");
 
-// -----------------------------
-// Configuration: set these to your Supabase project
-// -----------------------------
-const SUPABASE_URL = "https://aouduygmcspiqauhrabx.supabase.co"; // keep your URL
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"; // replace with your anon key
-
-// -----------------------------
-// Supabase client (singleton)
-// -----------------------------
-let _supabase = null;
-async function ensureSupabaseClient() {
-  if (_supabase) return _supabase;
-  if (!window.supabase || !window.supabase.createClient) {
-    console.error("Supabase SDK not loaded. Add <script src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'></script>");
-    throw new Error("Supabase SDK missing");
+// --- Supabase init ---
+let supabaseClient = null;
+function ensureSupabaseClient() {
+  if (!supabaseClient) {
+    console.log("🔑 Initializing Supabase Client...");
+    if (typeof supabase === "undefined") {
+      throw new Error("Supabase SDK missing");
+    }
+    supabaseClient = supabase.createClient(
+      "https://aouduygmcspiqauhrabx.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvdWR1eWdtY3NwaXFhdWhyYWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyNTM5MzAsImV4cCI6MjA2MDgyOTkzMH0.s8WMvYdE9csSb1xb6jv84aiFBBU_LpDi1aserTQDg-k"
+    );
   }
-  console.log("🔑 Initializing Supabase Client...");
-  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  return _supabase;
+  return supabaseClient;
 }
 
 
@@ -575,56 +572,65 @@ let showAllProducts = true;
 
 // Load products into Manage Products table
 // Load products for table
-async function loadProducts(stockOnly = false) {
-  const supabase = await ensureSupabaseClient();
+// --- load products ---
+async function loadProducts(onlyInStock = false) {
+  const supabase = ensureSupabaseClient();
   console.log("📦 Loading products...");
+  let query = supabase.from("products").select("*, vendor_id:id");
+  if (onlyInStock)
+    query = query.filter("id", "in", `(${await inStockProductIds()})`);
+  const { data, error } = await query.order("id");
 
-  let q = supabase
-    .from("products")
-    .select("id, name, barcode, price, units, vendor_id, vendors(name), product_batches(remaining_quantity)")
-    .order("id", { ascending: true });
-
-  const { data, error } = await q;
   if (error) {
-    console.error("loadProducts failed:", error);
+    console.error("❌ loadProducts failed:", error);
     return;
   }
-
-  // Calculate remaining qty (sum batches)
-  const products = (data || []).map(p => {
-    const remaining = (p.product_batches || []).reduce((sum, b) => sum + (b.remaining_quantity || 0), 0);
-    return { ...p, remaining_quantity: remaining };
-  });
-
-  // Filter if needed
-  const filtered = stockOnly ? products.filter(p => p.remaining_quantity > 0) : products;
-
+  console.log("✅ Products loaded:", data);
   const tbody = document.getElementById("products-body");
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  filtered.forEach(p => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="border p-2">${p.id}</td>
-      <td class="border p-2">${p.name}</td>
-      <td class="border p-2">${p.barcode}</td>
-      <td class="border p-2">${p.price.toFixed(2)}</td>
-      <td class="border p-2">${p.units}</td>
-      <td class="border p-2">${p.vendors?.name || ""}</td>
-      <td class="border p-2">${p.remaining_quantity}</td>
-      <td class="border p-2 space-x-2">
-        <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteProduct(${p.id})">Remove</button>
-        <button class="bg-yellow-500 text-white px-2 py-1 rounded" onclick="showAdjustProduct(${p.id}, ${p.price}, '${p.units}', ${p.remaining_quantity})">Adjust</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+  // join vendor names
+  const { data: vendors } = await supabase.from("vendors").select("id,name");
+  const vendorMap = Object.fromEntries(
+    vendors.map((v) => [v.id, v.name ?? ""])
+  );
 
-  console.log("✅ Products loaded:", filtered);
+  for (const p of data) {
+    const { data: batch } = await supabase
+      .from("product_batches")
+      .select("remaining_quantity")
+      .eq("product_id", p.id)
+      .maybeSingle();
+    const qty = batch?.remaining_quantity ?? 0;
+    tbody.innerHTML += `
+      <tr>
+        <td class="border p-2">${p.id}</td>
+        <td class="border p-2">${p.name}</td>
+        <td class="border p-2">${p.barcode}</td>
+        <td class="border p-2">${p.price}</td>
+        <td class="border p-2">${p.units}</td>
+        <td class="border p-2">${vendorMap[p.vendor_id] ?? ""}</td>
+        <td class="border p-2">${qty}</td>
+        <td class="border p-2 space-x-2">
+          <button onclick="showAdjustProduct(${p.id},${p.price},'${p.units}',${qty})"
+            class="bg-yellow-500 text-white px-2 py-1 rounded">Adjust</button>
+          <button onclick="removeProduct(${p.id})"
+            class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
+        </td>
+      </tr>`;
+  }
 }
 
 
+async function inStockProductIds() {
+  const supabase = ensureSupabaseClient();
+  const { data } = await supabase
+    .from("product_batches")
+    .select("product_id")
+    .gt("remaining_quantity", 0);
+  return data.map((r) => r.product_id);
+}
 
 
 
@@ -637,144 +643,109 @@ async function loadProducts(stockOnly = false) {
 // Add Product (auto validates and creates initial stock batch)
 async function addProduct(event) {
   event.preventDefault();
-  const supabase = await ensureSupabaseClient();
-
+  const supabase = ensureSupabaseClient();
   const name = document.getElementById("name").value.trim();
   const barcode = document.getElementById("barcode").value.trim();
   const price = parseFloat(document.getElementById("price").value);
   const units = document.getElementById("units").value;
   const vendor_id = parseInt(document.getElementById("vendor").value);
-  const qty = parseInt(document.getElementById("quantity").value);
+  const quantity = parseInt(document.getElementById("quantity").value);
 
-  if (!name || !barcode || isNaN(price) || !units || !vendor_id || isNaN(qty)) {
-    alert("⚠️ Please fill in all fields before adding a product.");
+  const { data: pData, error: pErr } = await supabase
+    .from("products")
+    .insert([{ name, barcode, price, vendor_id, units }])
+    .select()
+    .maybeSingle();
+  if (pErr || !pData) {
+    console.error("❌ addProduct failed (products):", pErr);
+    alert("Product insert failed");
     return;
   }
-
-  try {
-    // 1️⃣ Insert into products
-    const { data: prodData, error: prodErr } = await supabase
-      .from("products")
-      .insert([{ name, barcode, price, units, vendor_id }])
-      .select("id, vendor_id")
-      .single();
-
-    if (prodErr) throw prodErr;
-
-    const productId = prodData.id;
-    const safeBatch = "Init-" + Date.now().toString().slice(-7); // <= 12 chars
-
-    // 2️⃣ Create product batch with initial stock
-    const { error: batchErr } = await supabase
-      .from("product_batches")
-      .insert([
-        {
-          product_id: productId,
-          vendor_id: prodData.vendor_id || vendor_id,
-          buy_in_price: price,
-          remaining_quantity: qty,
-          batch_number: safeBatch,
-        },
-      ]);
-
-    if (batchErr) throw batchErr;
-
-    alert("✅ Product added successfully!");
-    event.target.reset();
-    document.getElementById("add-product-btn").disabled = true; // Disable until new valid entry
-    await loadProducts();
-  } catch (err) {
-    console.error("❌ addProduct failed:", err);
-    alert("Failed to add product: " + (err.message || JSON.stringify(err)));
+  const batchNo = "BN" + Date.now().toString().slice(-10);
+  const { error: bErr } = await supabase.from("product_batches").insert([
+    {
+      product_id: pData.id,
+      vendor_id,
+      buy_in_price: price,
+      remaining_quantity: quantity,
+      batch_number: batchNo.slice(0, 12),
+    },
+  ]);
+  if (bErr) {
+    console.error("❌ addProduct failed (batch):", bErr);
+    alert("Batch creation failed");
+    return;
   }
+  alert("✅ Product added");
+  loadProducts();
+  event.target.reset();
 }
 
 
-// Load vendors and populate dropdowns + table if available
+// --- load vendors ---
 async function loadVendors() {
-  const supabase = await ensureSupabaseClient();
+  const supabase = ensureSupabaseClient();
   console.log("📦 Loading vendors...");
-
   const { data, error } = await supabase
     .from("vendors")
-    .select("id, name, contact, phone_number");
-
+    .select("id, name, contact, contact_email, phone_number, address")
+    .order("id");
   if (error) {
     console.error("❌ loadVendors failed:", error);
     return;
   }
   console.log("✅ Vendors loaded:", data);
-
-  // ✅ Populate dropdown for Manage Products (id="vendor")
   const vendorSelect = document.getElementById("vendor");
   if (vendorSelect) {
-    vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-    data.forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.id;
-      opt.textContent = v.name;
-      vendorSelect.appendChild(opt);
-    });
+    vendorSelect.innerHTML =
+      '<option value="">-- Select Vendor --</option>' +
+      data
+        .map(
+          (v) =>
+            `<option value="${v.id}">${v.name} (${v.contact ?? v.contact_email ?? ""
+            })</option>`
+        )
+        .join("");
   }
-
-  // ✅ Populate dropdown for Vendor Loan Record (if exists)
-  const loanSelect = document.getElementById("vendor-name");
-  if (loanSelect) {
-    loanSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-    data.forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.id;
-      opt.textContent = v.name;
-      loanSelect.appendChild(opt);
-    });
-  }
-
-  // ✅ Populate vendor table in Manage Vendors page
-  const tableBody = document.querySelector("#vendors-table tbody");
-  if (tableBody) {
-    tableBody.innerHTML = "";
-    data.forEach(v => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${v.id}</td>
-        <td class="border p-2">${v.name}</td>
-        <td class="border p-2">${v.contact || ""}</td>
-        <td class="border p-2">${v.phone_number || ""}</td>
-        <td class="border p-2 text-center">
-          <button onclick="removeVendor(${v.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Remove</button>
-        </td>`;
-      tableBody.appendChild(tr);
-    });
+  const vendorsTable = document.querySelector("#vendors-table tbody");
+  if (vendorsTable) {
+    vendorsTable.innerHTML = data
+      .map(
+        (v) => `
+        <tr>
+          <td class="border p-2">${v.id}</td>
+          <td class="border p-2">${v.name}</td>
+          <td class="border p-2">${v.contact ?? ""}</td>
+          <td class="border p-2">${v.phone_number ?? ""}</td>
+          <td class="border p-2">
+            <button onclick="deleteVendor(${v.id})"
+                    class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
+          </td>
+        </tr>`
+      )
+      .join("");
   }
 }
 
 
-async function removeVendor(id) {
-  if (!confirm("Are you sure you want to delete this vendor?")) return;
-  const supabase = await ensureSupabaseClient();
-  const { error } = await supabase.from("vendors").delete().eq("id", id);
-  if (error) {
-    alert("❌ Failed to remove vendor: " + error.message);
-    return;
-  }
-  alert("✅ Vendor removed successfully!");
+// --- delete vendor ---
+async function deleteVendor(id) {
+  if (!confirm("Delete this vendor?")) return;
+  const supabase = ensureSupabaseClient();
+  await supabase.from("vendors").delete().eq("id", id);
   loadVendors();
 }
 
 
-// Delete product
-async function deleteProduct(id) {
-  if (!confirm("Are you sure you want to delete this product?")) return;
-  const supabase = await ensureSupabaseClient();
-  const { error } = await supabase.from("products").delete().eq("id", id);
-  if (error) {
-    alert("❌ Failed to remove product: " + error.message);
-    return;
-  }
+// --- remove product ---
+async function removeProduct(id) {
+  if (!confirm("Delete product?")) return;
+  const supabase = ensureSupabaseClient();
+  await supabase.from("products").delete().eq("id", id);
   loadProducts();
 }
 
-// Adjust modal controls
+// --- adjust product modal ---
 function showAdjustProduct(id, price, units, qty) {
   document.getElementById("adjust-id").value = id;
   document.getElementById("adjust-price").value = price;
@@ -788,82 +759,50 @@ function hideAdjustProduct() {
 
 // Apply Adjust (safe for varchar(12) batch_number)
 async function applyAdjustProduct() {
-  const supabase = await ensureSupabaseClient();
+  const supabase = ensureSupabaseClient();
   const id = parseInt(document.getElementById("adjust-id").value);
   const price = parseFloat(document.getElementById("adjust-price").value);
   const units = document.getElementById("adjust-units").value;
   const qty = parseInt(document.getElementById("adjust-qty").value);
 
-  try {
-    const { data: prod, error: prodErr } = await supabase
-      .from("products")
-      .update({ price, units })
-      .eq("id", id)
-      .select("id, vendor_id")
-      .single();
-
-    if (prodErr) throw prodErr;
-    const vendor_id = prod.vendor_id;
-
-    // Find existing batch
-    const { data: batches, error: bErr } = await supabase
-      .from("product_batches")
-      .select("id")
-      .eq("product_id", id)
-      .limit(1);
-
-    if (bErr) throw bErr;
-
-    if (batches && batches.length > 0) {
-      const batchId = batches[0].id;
-      const { error: updErr } = await supabase
-        .from("product_batches")
-        .update({ remaining_quantity: qty, buy_in_price: price })
-        .eq("id", batchId);
-      if (updErr) throw updErr;
-    } else {
-      const safeBatch = "Adj-" + Date.now().toString().slice(-9); // 12 chars max
-      const { error: insErr } = await supabase
-        .from("product_batches")
-        .insert([
-          {
-            product_id: id,
-            vendor_id,
-            buy_in_price: price,
-            remaining_quantity: qty,
-            batch_number: safeBatch,
-          },
-        ]);
-      if (insErr) throw insErr;
-    }
-
-    alert("✅ Product adjusted successfully!");
-    hideAdjustProduct();
-    await loadProducts();
-  } catch (err) {
-    console.error("❌ applyAdjustProduct failed:", err);
-    alert("Failed to adjust product: " + err.message);
+  const { error } = await supabase
+    .from("products")
+    .update({ price, units })
+    .eq("id", id);
+  if (error) {
+    console.error("❌ applyAdjustProduct failed:", error);
+    alert("Failed updating product");
+    return;
   }
+  await supabase.rpc("decrement_remaining_quantity", {
+    p_batch_id: id,
+    p_quantity: -qty,
+  });
+  hideAdjustProduct();
+  alert("✅ Updated");
+  loadProducts();
 }
 
 
 
-async function addVendor(e) {
-  if (e && e.preventDefault) e.preventDefault();
-  const supabase = await ensureSupabaseClient();
-  try {
-    const name = document.getElementById("vendor-name")?.value || "";
-    const contact = document.getElementById("vendor-contact")?.value || "";
-    const phone = document.getElementById("vendor-phone")?.value || "";
-    if (!name) return alert("Please enter vendor name");
-    const { error } = await supabase.from("vendors").insert([{ name, contact, phone }]);
-    if (error) throw error;
-    document.getElementById("add-vendor-form")?.reset();
-    await loadVendors();
-    await populateVendorDropdown();
-  } catch (err) {
-    console.error("addVendor failed:", err);
-    alert("Add vendor failed: " + (err.message || JSON.stringify(err)));
+// --- add vendor ---
+async function addVendor(event) {
+  event.preventDefault();
+  const supabase = ensureSupabaseClient();
+  const name = document.getElementById("vendor-name").value.trim();
+  const contact = document.getElementById("vendor-contact").value.trim();
+  const phone_number = document.getElementById("vendor-phone").value.trim();
+
+  const { error } = await supabase.from("vendors").insert([
+    { name, contact, phone_number, address: "", contact_email: "" },
+  ]);
+  if (error) {
+    console.error("❌ addVendor failed:", error);
+    alert("Failed to add vendor");
+  } else {
+    alert("✅ Vendor added successfully");
+    loadVendors();
+    event.target.reset();
   }
 }
 
