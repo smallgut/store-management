@@ -1,161 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>Manage Products</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- ✅ Add Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
-  <body class="bg-gray-100 p-4">
-  <!-- 🔹 Navigation -->
+<body class="bg-gray-100 p-6">
   <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
     <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
-      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
-      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
-      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="vendors.html">Manage Vendors</a></li>
     </ul>
-    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
   </nav>
-<body class="bg-gray-100 p-6">
-  <div class="max-w-6xl mx-auto bg-white p-6 rounded shadow">
+
+  <div class="max-w-6xl mx-auto bg-white p-6 rounded shadow mt-4">
     <h1 class="text-2xl font-bold mb-4">Manage Products</h1>
 
-    <!-- Add Product Form -->
-    <h2 class="text-xl font-semibold mb-2">Add Product</h2>
     <form id="add-product-form" class="grid grid-cols-2 gap-4 mb-6" onsubmit="addProduct(event)">
-      <div>
-        <label for="name" class="block">Product Name</label>
-        <input type="text" id="name" class="border p-2 w-full" required />
-      </div>
-      <div>
-        <label for="barcode" class="block">Barcode</label>
-        <input type="text" id="barcode" class="border p-2 w-full" required />
-      </div>
-      <div>
-        <label for="price" class="block">Price</label>
-        <input type="number" id="price" class="border p-2 w-full" step="0.01" required />
-      </div>
-      <div>
-        <label for="units" class="block">Units</label>
+      <div><label>Product Name</label><input id="name" class="border p-2 w-full" required /></div>
+      <div><label>Barcode</label><input id="barcode" class="border p-2 w-full" required /></div>
+      <div><label>Price</label><input id="price" type="number" step="0.01" class="border p-2 w-full" required /></div>
+      <div><label>Units</label>
         <select id="units" class="border p-2 w-full" required>
-          <option value="box">Box</option>
-          <option value="kg">Kg</option>
-          <option value="pcs">Pcs</option>
+          <option value="box">Box</option><option value="kg">Kg</option><option value="pcs">Pcs</option>
         </select>
       </div>
-      <div>
-        <label for="vendor" class="block">Vendor</label>
-        <select id="vendor" class="border p-2 w-full"></select>
-      </div>
-      <div>
-        <label for="quantity" class="block">Quantity (Initial Stock)</label>
-        <input type="number" id="quantity" class="border p-2 w-full" required min="0" />
-      </div>
+      <div><label>Vendor</label><select id="vendor" class="border p-2 w-full"></select></div>
+      <div><label>Quantity</label><input id="quantity" type="number" min="0" class="border p-2 w-full" required /></div>
       <div class="col-span-2 flex justify-end">
-        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">
-          Add Product
-        </button>
+        <button id="add-product-btn" type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
       </div>
     </form>
 
-    <!-- Existing Products Table -->
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex justify-between items-center mb-2">
       <h2 class="text-xl font-semibold">Existing Products</h2>
-      <button id="toggle-stock-filter" class="bg-blue-500 text-white px-3 py-1 rounded">
-        Show Only In-Stock
-      </button>
+      <button id="toggle-stock-filter" class="bg-blue-500 text-white px-3 py-1 rounded">Show Only In-Stock</button>
     </div>
-    <table class="w-full border-collapse border bg-white" id="products-table">
-      <thead>
-        <tr class="bg-gray-200">
-          <th class="border p-2">ID</th>
-          <th class="border p-2">Name</th>
-          <th class="border p-2">Barcode</th>
-          <th class="border p-2">Price</th>
-          <th class="border p-2">Units</th>
-          <th class="border p-2">Vendor</th>
-          <th class="border p-2">Remaining Quantity</th>
-          <th class="border p-2">Actions</th>
-        </tr>
-      </thead>
+
+    <table id="products-table" class="w-full border-collapse border bg-white">
+      <thead><tr class="bg-gray-200">
+        <th class="border p-2">ID</th><th class="border p-2">Name</th><th class="border p-2">Barcode</th>
+        <th class="border p-2">Price</th><th class="border p-2">Units</th><th class="border p-2">Vendor</th>
+        <th class="border p-2">Remaining</th><th class="border p-2">Actions</th>
+      </tr></thead>
       <tbody id="products-body"></tbody>
     </table>
   </div>
 
-  <!-- Adjust Product Modal -->
   <div id="adjust-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white p-6 rounded shadow w-96">
       <h3 class="text-lg font-bold mb-4">Adjust Product</h3>
       <input type="hidden" id="adjust-id" />
-      <div class="mb-3">
-        <label>Price</label>
-        <input type="number" step="0.01" id="adjust-price" class="border p-2 w-full" />
-      </div>
-      <div class="mb-3">
-        <label>Units</label>
+      <div class="mb-3"><label>Price</label><input type="number" step="0.01" id="adjust-price" class="border p-2 w-full" /></div>
+      <div class="mb-3"><label>Units</label>
         <select id="adjust-units" class="border p-2 w-full">
-          <option value="box">Box</option>
-          <option value="kg">Kg</option>
-          <option value="pcs">Pcs</option>
+          <option value="box">Box</option><option value="kg">Kg</option><option value="pcs">Pcs</option>
         </select>
       </div>
-      <div class="mb-3">
-        <label>Remaining Quantity</label>
-        <input type="number" id="adjust-qty" class="border p-2 w-full" />
-      </div>
+      <div class="mb-3"><label>Remaining Quantity</label><input id="adjust-qty" type="number" class="border p-2 w-full" /></div>
       <div class="flex justify-end space-x-2">
-        <button onclick="hideAdjustProduct()" class="px-3 py-1 bg-gray-400 text-white rounded">Cancel</button>
-        <button onclick="applyAdjustProduct()" class="px-3 py-1 bg-green-600 text-white rounded">Save</button>
+        <button onclick="hideAdjustProduct()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
+        <button onclick="applyAdjustProduct()" class="bg-green-600 text-white px-3 py-1 rounded">Save</button>
       </div>
     </div>
   </div>
 
   <script>
-    // Hook up toggle button
-    let filterStockOnly = false;
-    document.getElementById("toggle-stock-filter").addEventListener("click", () => {
-      filterStockOnly = !filterStockOnly;
-      document.getElementById("toggle-stock-filter").textContent = filterStockOnly
-        ? "Show All Products"
-        : "Show Only In-Stock";
-      loadProducts(filterStockOnly);
-    });
+    let stockOnly = false;
+    document.getElementById("toggle-stock-filter").onclick = () => {
+      stockOnly = !stockOnly;
+      document.getElementById("toggle-stock-filter").textContent =
+        stockOnly ? "Show All Products" : "Show Only In-Stock";
+      loadProducts(stockOnly);
+    };
 
-    // Init
     document.addEventListener("DOMContentLoaded", () => {
       loadVendors();
       loadProducts();
     });
 
-    // Disable Add button until form valid
-  const addForm = document.getElementById("add-product-form");
-  const addButton = document.getElementById("add-product-btn");
-  const requiredFields = ["name", "barcode", "price", "units", "vendor", "quantity"];
-
-  function validateFormFields() {
-    const valid = requiredFields.every(id => {
-      const el = document.getElementById(id);
-      if (!el) return false;
-      if (el.type === "number") return el.value.trim() !== "" && !isNaN(parseFloat(el.value));
-      return el.value.trim() !== "";
-    });
-    addButton.disabled = !valid;
-  }
-
-  addForm.querySelectorAll("input, select").forEach(el =>
-    el.addEventListener("input", validateFormFields)
-  );
-
-  // Initial state
-  validateFormFields();
+    const form = document.getElementById("add-product-form");
+    const btn = document.getElementById("add-product-btn");
+    const ids = ["name","barcode","price","units","vendor","quantity"];
+    const check = () => {
+      btn.disabled = !ids.every(id => document.getElementById(id).value.trim() !== "");
+    };
+    form.querySelectorAll("input,select").forEach(el=>el.addEventListener("input",check));
+    check();
   </script>
 </body>
 </html>
