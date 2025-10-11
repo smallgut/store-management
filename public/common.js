@@ -634,6 +634,7 @@ async function loadProducts(stockOnly = false) {
 
 // Add new product with initial quantity
 // Add Product (includes creating initial batch)
+// Add Product (auto validates and creates initial stock batch)
 async function addProduct(event) {
   event.preventDefault();
   const supabase = await ensureSupabaseClient();
@@ -642,11 +643,16 @@ async function addProduct(event) {
   const barcode = document.getElementById("barcode").value.trim();
   const price = parseFloat(document.getElementById("price").value);
   const units = document.getElementById("units").value;
-  const vendor_id = parseInt(document.getElementById("vendor").value) || null;
-  const qty = parseInt(document.getElementById("quantity").value) || 0;
+  const vendor_id = parseInt(document.getElementById("vendor").value);
+  const qty = parseInt(document.getElementById("quantity").value);
+
+  if (!name || !barcode || isNaN(price) || !units || !vendor_id || isNaN(qty)) {
+    alert("⚠️ Please fill in all fields before adding a product.");
+    return;
+  }
 
   try {
-    // 1️⃣ Add product
+    // 1️⃣ Insert into products
     const { data: prodData, error: prodErr } = await supabase
       .from("products")
       .insert([{ name, barcode, price, units, vendor_id }])
@@ -656,9 +662,9 @@ async function addProduct(event) {
     if (prodErr) throw prodErr;
 
     const productId = prodData.id;
-    const safeBatch = "Init-" + Date.now().toString().slice(-8); // <= 12 chars
+    const safeBatch = "Init-" + Date.now().toString().slice(-7); // <= 12 chars
 
-    // 2️⃣ Add initial batch for stock
+    // 2️⃣ Create product batch with initial stock
     const { error: batchErr } = await supabase
       .from("product_batches")
       .insert([
@@ -675,15 +681,16 @@ async function addProduct(event) {
 
     alert("✅ Product added successfully!");
     event.target.reset();
+    document.getElementById("add-product-btn").disabled = true; // Disable until new valid entry
     await loadProducts();
   } catch (err) {
     console.error("❌ addProduct failed:", err);
-    alert("Failed to add product: " + err.message);
+    alert("Failed to add product: " + (err.message || JSON.stringify(err)));
   }
 }
 
 
-// Load vendors into dropdowns and table
+// Load vendors and populate dropdown
 async function loadVendors() {
   const supabase = await ensureSupabaseClient();
   console.log("📦 Loading vendors...");
@@ -699,23 +706,7 @@ async function loadVendors() {
 
   console.log("✅ Vendors loaded:", data);
 
-  // Populate table (if exists)
-  const vendorTableBody = document.getElementById("vendors-body");
-  if (vendorTableBody) {
-    vendorTableBody.innerHTML = "";
-    data.forEach(v => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${v.id}</td>
-        <td class="border p-2">${v.name}</td>
-        <td class="border p-2">${v.contact || "-"}</td>
-        <td class="border p-2">${v.phone_number || "-"}</td>
-      `;
-      vendorTableBody.appendChild(tr);
-    });
-  }
-
-  // Populate dropdown for Manage Products or Loan Record pages
+  // Populate vendor dropdown for Manage Products
   const vendorSelect = document.getElementById("vendor");
   if (vendorSelect) {
     vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
@@ -727,15 +718,15 @@ async function loadVendors() {
     });
   }
 
-  // Also populate dropdown in Vendor Loan Record (if exists)
-  const loanVendorSelect = document.getElementById("vendor-name");
-  if (loanVendorSelect) {
-    loanVendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+  // Also populate dropdown for Vendor Loan Record
+  const vendorLoanSelect = document.getElementById("vendor-name");
+  if (vendorLoanSelect) {
+    vendorLoanSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
     data.forEach(v => {
       const opt = document.createElement("option");
       opt.value = v.id;
       opt.textContent = v.name;
-      loanVendorSelect.appendChild(opt);
+      vendorLoanSelect.appendChild(opt);
     });
   }
 }
