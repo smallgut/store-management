@@ -3,23 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <title>Manage Products</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
+
 <body class="bg-gray-100 p-4">
   <!-- 🔹 Navigation -->
   <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
     <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
-      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
-      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
-      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="login.html">Login</a></li>
+      <li><a href="analytics.html">Analytics</a></li>
+      <li><a href="products.html">Manage Products</a></li>
+      <li><a href="vendors.html">Manage Vendors</a></li>
+      <li><a href="customer-sales.html">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html">Vendor Loan Record</a></li>
+      <li><a href="product-catalog.html">Product Catalog</a></li>
+      <li><button id="toggle-language">Toggle Language</button></li>
     </ul>
     <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
   </nav>
@@ -27,48 +29,92 @@
   <div class="max-w-6xl mx-auto bg-white p-6 rounded shadow mt-4">
     <h1 class="text-2xl font-bold mb-4">Manage Products</h1>
 
+    <!-- 🟩 Add Product Form -->
+    <h2 class="text-xl font-semibold mb-2">Add Product</h2>
     <form id="add-product-form" class="grid grid-cols-2 gap-4 mb-6" onsubmit="addProduct(event)">
-      <div><label>Product Name</label><input id="name" class="border p-2 w-full" required /></div>
-      <div><label>Barcode</label><input id="barcode" class="border p-2 w-full" required /></div>
-      <div><label>Price</label><input id="price" type="number" step="0.01" class="border p-2 w-full" required /></div>
-      <div><label>Units</label>
-        <select id="units" class="border p-2 w-full" required>
-          <option value="box">Box</option><option value="kg">Kg</option><option value="pcs">Pcs</option>
+      <div>
+        <label class="block font-medium">Product Name</label>
+        <input id="name" type="text" class="border p-2 w-full rounded" required />
+      </div>
+      <div>
+        <label class="block font-medium">Barcode</label>
+        <input id="barcode" type="text" class="border p-2 w-full rounded" required />
+      </div>
+      <div>
+        <label class="block font-medium">Price</label>
+        <input id="price" type="number" step="0.01" class="border p-2 w-full rounded" required />
+      </div>
+      <div>
+        <label class="block font-medium">Units</label>
+        <select id="units" class="border p-2 w-full rounded" required>
+          <option value="box">Box</option>
+          <option value="kg">Kg</option>
+          <option value="pcs">Pcs</option>
         </select>
       </div>
-      <div><label>Vendor</label><select id="vendor" class="border p-2 w-full"></select></div>
-      <div><label>Quantity</label><input id="quantity" type="number" min="0" class="border p-2 w-full" required /></div>
+      <div>
+        <label class="block font-medium">Vendor</label>
+        <select id="vendor" class="border p-2 w-full rounded" required>
+          <option value="">-- Select Vendor --</option>
+        </select>
+      </div>
+      <div>
+        <label class="block font-medium">Quantity (Initial Stock)</label>
+        <input id="quantity" type="number" min="0" class="border p-2 w-full rounded" required />
+      </div>
       <div class="col-span-2 flex justify-end">
-        <button id="add-product-btn" type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
+        <button id="add-product-btn" type="submit" class="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed">
+          Add Product
+        </button>
       </div>
     </form>
 
+    <!-- 📦 Existing Products Table -->
     <div class="flex justify-between items-center mb-2">
       <h2 class="text-xl font-semibold">Existing Products</h2>
-      <button id="toggle-stock-filter" class="bg-blue-500 text-white px-3 py-1 rounded">Show Only In-Stock</button>
+      <button id="toggle-stock-filter" class="bg-blue-500 text-white px-3 py-1 rounded">
+        Show Only In-Stock
+      </button>
     </div>
 
     <table id="products-table" class="w-full border-collapse border bg-white">
-      <thead><tr class="bg-gray-200">
-        <th class="border p-2">ID</th><th class="border p-2">Name</th><th class="border p-2">Barcode</th>
-        <th class="border p-2">Price</th><th class="border p-2">Units</th><th class="border p-2">Vendor</th>
-        <th class="border p-2">Remaining</th><th class="border p-2">Actions</th>
-      </tr></thead>
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">ID</th>
+          <th class="border p-2">Name</th>
+          <th class="border p-2">Barcode</th>
+          <th class="border p-2">Price</th>
+          <th class="border p-2">Units</th>
+          <th class="border p-2">Vendor</th>
+          <th class="border p-2">Remaining Quantity</th>
+          <th class="border p-2">Actions</th>
+        </tr>
+      </thead>
       <tbody id="products-body"></tbody>
     </table>
   </div>
 
+  <!-- 🛠 Adjust Product Modal -->
   <div id="adjust-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white p-6 rounded shadow w-96">
       <h3 class="text-lg font-bold mb-4">Adjust Product</h3>
       <input type="hidden" id="adjust-id" />
-      <div class="mb-3"><label>Price</label><input type="number" step="0.01" id="adjust-price" class="border p-2 w-full" /></div>
-      <div class="mb-3"><label>Units</label>
-        <select id="adjust-units" class="border p-2 w-full">
-          <option value="box">Box</option><option value="kg">Kg</option><option value="pcs">Pcs</option>
+      <div class="mb-3">
+        <label class="block font-medium">Price</label>
+        <input type="number" step="0.01" id="adjust-price" class="border p-2 w-full rounded" />
+      </div>
+      <div class="mb-3">
+        <label class="block font-medium">Units</label>
+        <select id="adjust-units" class="border p-2 w-full rounded">
+          <option value="box">Box</option>
+          <option value="kg">Kg</option>
+          <option value="pcs">Pcs</option>
         </select>
       </div>
-      <div class="mb-3"><label>Remaining Quantity</label><input id="adjust-qty" type="number" class="border p-2 w-full" /></div>
+      <div class="mb-3">
+        <label class="block font-medium">Remaining Quantity</label>
+        <input id="adjust-qty" type="number" class="border p-2 w-full rounded" />
+      </div>
       <div class="flex justify-end space-x-2">
         <button onclick="hideAdjustProduct()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
         <button onclick="applyAdjustProduct()" class="bg-green-600 text-white px-3 py-1 rounded">Save</button>
@@ -76,28 +122,44 @@
     </div>
   </div>
 
+  <!-- 🧠 JS Logic -->
   <script>
     let stockOnly = false;
-    document.getElementById("toggle-stock-filter").onclick = () => {
+
+    document.getElementById("toggle-stock-filter").addEventListener("click", () => {
       stockOnly = !stockOnly;
       document.getElementById("toggle-stock-filter").textContent =
         stockOnly ? "Show All Products" : "Show Only In-Stock";
       loadProducts(stockOnly);
-    };
-
-    document.addEventListener("DOMContentLoaded", () => {
-      loadVendors();
-      loadProducts();
     });
 
-    const form = document.getElementById("add-product-form");
-    const btn = document.getElementById("add-product-btn");
-    const ids = ["name","barcode","price","units","vendor","quantity"];
-    const check = () => {
-      btn.disabled = !ids.every(id => document.getElementById(id).value.trim() !== "");
-    };
-    form.querySelectorAll("input,select").forEach(el=>el.addEventListener("input",check));
-    check();
+    document.addEventListener("DOMContentLoaded", async () => {
+      await ensureSupabaseClient();
+
+      await loadVendors();
+      await loadProducts();
+
+      // 🌀 Auto-refresh vendor dropdown every 10 seconds
+      setInterval(loadVendors, 10000);
+
+      // ✅ Form validation
+      const form = document.getElementById("add-product-form");
+      const addBtn = document.getElementById("add-product-btn");
+      const ids = ["name", "barcode", "price", "units", "vendor", "quantity"];
+
+      function validate() {
+        const allFilled = ids.every(id => {
+          const el = document.getElementById(id);
+          return el && el.value.trim() !== "";
+        });
+        addBtn.disabled = !allFilled;
+      }
+
+      form.querySelectorAll("input, select").forEach(el =>
+        el.addEventListener("input", validate)
+      );
+      validate();
+    });
   </script>
 </body>
 </html>
