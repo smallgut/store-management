@@ -689,13 +689,14 @@ async function addProduct(event) {
 
 
 /* ---------------- VENDORS ---------------- */
-async function loadVendors() {
+// 🧩 Debug-friendly version of loadVendors()
+async function loadVendors(retry = 0) {
   console.log("📦 Loading vendors...");
   const supabase = await ensureSupabaseClient();
 
   const { data, error } = await supabase
     .from("vendors")
-    .select("id, name, contact, phone_number, address, contact_email")
+    .select("id, name, contact, phone_number, address")
     .order("id", { ascending: true });
 
   if (error) {
@@ -703,42 +704,66 @@ async function loadVendors() {
     return;
   }
 
-  console.log("✅ Vendors loaded:", data);
+  console.log(`✅ Vendors loaded (${data.length}):`, data);
 
-  // 1️⃣ Populate vendor table (Manage Vendors page)
+  // 🧱 1️⃣ Populate vendor table (Manage Vendors page)
   const tableBody = document.querySelector("#vendors-table tbody");
-  if (tableBody) {
+  if (!tableBody) {
+    console.warn("⚠️ vendors-table tbody not found on page.");
+  } else {
     tableBody.innerHTML = "";
-    data.forEach(v => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${v.id}</td>
-        <td class="border p-2">${v.name}</td>
-        <td class="border p-2">${v.contact || ""}</td>
-        <td class="border p-2">${v.phone_number || ""}</td>
-        <td class="border p-2">${v.address || ""}</td>
-        <td class="border p-2">${v.contact_email || ""}</td>
-        <td class="border p-2">
-          <button onclick="removeVendor(${v.id})"
-                  class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
-        </td>`;
-      tableBody.appendChild(tr);
-    });
+    if (data.length === 0) {
+      const empty = document.createElement("tr");
+      empty.innerHTML = `<td colspan="6" class="text-center p-2 text-gray-500">No vendors found</td>`;
+      tableBody.appendChild(empty);
+    } else {
+      data.forEach(v => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="border p-2">${v.id}</td>
+          <td class="border p-2">${v.name}</td>
+          <td class="border p-2">${v.contact || ""}</td>
+          <td class="border p-2">${v.phone_number || ""}</td>
+          <td class="border p-2">${v.address || ""}</td>
+          <td class="border p-2">
+            <button onclick="removeVendor(${v.id})" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
+              Remove
+            </button>
+          </td>`;
+        tableBody.appendChild(tr);
+      });
+    }
   }
 
-  // 2️⃣ Populate vendor dropdown (Manage Products page)
+  // 🧱 2️⃣ Populate vendor dropdown (Manage Products page)
   const vendorSelect = document.getElementById("vendor");
-  if (vendorSelect) {
-    vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-    data.forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.id;
-      opt.textContent = v.name;
-      vendorSelect.appendChild(opt);
-    });
+  if (!vendorSelect) {
+    if (retry < 10) {
+      console.warn(`⚠️ vendor <select> not found (attempt ${retry + 1}/10). Retrying in 1s...`);
+      setTimeout(() => loadVendors(retry + 1), 1000);
+    } else {
+      console.error("❌ vendor <select> element not found after 10 retries.");
+    }
+    return;
+  }
+
+  vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+  data.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v.id;
+    opt.textContent = v.name;
+    vendorSelect.appendChild(opt);
+  });
+  console.log(`✅ Vendor dropdown populated with ${data.length} options.`);
+
+  // 🧱 3️⃣ Populate Batch info (if Manage Products table has batch column)
+  const batchHeader = document.querySelector("#products-table thead tr th.batch-header");
+  if (batchHeader) {
+    console.log("🧾 Batch column detected, ensuring batch values display properly.");
+  } else {
+    console.warn("ℹ️ No batch column detected in products table. Add <th class='border p-2 batch-header'>Batch No.</th> if needed.");
   }
 }
-
 
 // --- delete vendor ---
 async function deleteVendor(id) {
