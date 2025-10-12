@@ -690,49 +690,50 @@ async function addProduct(event) {
 
 /* ---------------- VENDORS ---------------- */
 async function loadVendors() {
-  const supabase = ensureSupabaseClient();
   console.log("📦 Loading vendors...");
+  const supabase = await ensureSupabaseClient();
+
   const { data, error } = await supabase
     .from("vendors")
-    .select("id, name, contact, phone_number, contact_email, address")
-    .order("id");
+    .select("id, name, contact, phone_number, address, contact_email")
+    .order("id", { ascending: true });
 
   if (error) {
     console.error("❌ loadVendors failed:", error);
-    alert("Failed loading vendors");
     return;
   }
 
   console.log("✅ Vendors loaded:", data);
 
-  // Fill vendor dropdown in products.html
-  const vendorSelect = document.getElementById("vendor");
-  if (vendorSelect) {
-    vendorSelect.innerHTML =
-      '<option value="">-- Select Vendor --</option>' +
-      data.map(
-        (v) =>
-          `<option value="${v.id}">${v.name}${v.contact ? " (" + v.contact + ")" : ""
-          }</option>`
-      ).join("");
+  // 🟢 Render vendor table (if exists)
+  const table = document.getElementById("vendors-table")?.querySelector("tbody");
+  if (table) {
+    table.innerHTML = "";
+    data.forEach(v => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${v.id}</td>
+        <td class="border p-2">${v.name}</td>
+        <td class="border p-2">${v.contact || ""}</td>
+        <td class="border p-2">${v.phone_number || ""}</td>
+        <td class="border p-2">
+          <button onclick="removeVendor(${v.id})"
+                  class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
+        </td>`;
+      table.appendChild(tr);
+    });
   }
 
-  // Populate table in vendors.html
-  const table = document.querySelector("#vendors-table tbody");
-  if (table) {
-    table.innerHTML = data.map(
-      (v) => `
-        <tr>
-          <td class="border p-2">${v.id}</td>
-          <td class="border p-2">${v.name}</td>
-          <td class="border p-2">${v.contact ?? ""}</td>
-          <td class="border p-2">${v.phone_number ?? ""}</td>
-          <td class="border p-2">
-            <button onclick="deleteVendor(${v.id})"
-              class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
-          </td>
-        </tr>`
-    ).join("");
+  // 🟢 Populate dropdown in Manage Products (vendor select)
+  const vendorSelect = document.getElementById("vendor");
+  if (vendorSelect) {
+    vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+    data.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.name;
+      vendorSelect.appendChild(opt);
+    });
   }
 }
 
