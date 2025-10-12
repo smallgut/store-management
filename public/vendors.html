@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Manage Vendors</title>
 
-  <!-- TailwindCSS + Supabase -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
@@ -15,20 +14,18 @@
   <!-- 🔹 Navigation -->
   <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
     <ul class="flex space-x-4">
-      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
-      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
-      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
-      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
-      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
-      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
-      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="login.html">Login</a></li>
+      <li><a href="analytics.html">Analytics</a></li>
+      <li><a href="products.html">Manage Products</a></li>
+      <li><a href="vendors.html">Manage Vendors</a></li>
+      <li><a href="customer-sales.html">Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html">Vendor Loan Record</a></li>
+      <li><a href="product-catalog.html">Product Catalog</a></li>
     </ul>
     <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
   </nav>
 
-  <!-- 🔹 Main Container -->
   <div class="max-w-5xl mx-auto mt-6 space-y-6">
 
     <!-- ✅ Add Vendor Form -->
@@ -40,16 +37,12 @@
           <input id="vendor-name" class="border p-2 w-full rounded" required />
         </div>
         <div>
-          <label class="block text-sm font-medium">Contact</label>
+          <label class="block text-sm font-medium">Contact Person</label>
           <input id="vendor-contact" class="border p-2 w-full rounded" />
         </div>
         <div>
           <label class="block text-sm font-medium">Phone Number</label>
           <input id="vendor-phone" class="border p-2 w-full rounded" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium">Contact Email</label>
-          <input id="vendor-email" type="email" class="border p-2 w-full rounded" />
         </div>
         <div class="col-span-2">
           <label class="block text-sm font-medium">Address</label>
@@ -74,7 +67,6 @@
             <th class="border p-2">Contact</th>
             <th class="border p-2">Phone</th>
             <th class="border p-2">Address</th>
-            <th class="border p-2">Email</th>
             <th class="border p-2">Actions</th>
           </tr>
         </thead>
@@ -83,67 +75,49 @@
     </div>
   </div>
 
-  <!-- 🔹 Script -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       const supabase = await ensureSupabaseClient();
 
-      // ✅ Auth Guard
+      // 🔒 Auth Guard
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.warn("❌ Not logged in. Redirecting...");
         window.location.href = "login.html";
         return;
       }
 
-      // ✅ Load existing vendors
+      // 🟢 Load vendors
       await loadVendors();
 
-      // ✅ Add Vendor
+      // 🧩 Add Vendor
       const form = document.getElementById("add-vendor-form");
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-
         const name = document.getElementById("vendor-name").value.trim();
         const contact = document.getElementById("vendor-contact").value.trim();
         const phone = document.getElementById("vendor-phone").value.trim();
-        const email = document.getElementById("vendor-email").value.trim();
         const address = document.getElementById("vendor-address").value.trim();
 
-        if (!name) {
-          alert("Vendor name is required.");
-          return;
-        }
+        if (!name) return alert("Vendor name is required.");
 
-        // 🧩 Check duplicate name
         const { data: existing } = await supabase.from("vendors").select("id").eq("name", name);
         if (existing && existing.length > 0) {
-          alert("A vendor with this name already exists!");
+          alert("Vendor name already exists!");
           return;
         }
 
-        // 🧩 Insert new vendor
-        const { error } = await supabase.from("vendors").insert([{
-          name,
-          contact,
-          phone_number: phone,
-          contact_email: email,
-          address
-        }]);
-
+        const { error } = await supabase.from("vendors").insert([{ name, contact, phone_number: phone, address }]);
         if (error) {
           console.error("❌ Failed to add vendor:", error);
-          alert("Failed to add vendor. Please check console.");
+          alert("Error adding vendor. See console.");
           return;
         }
 
-        // 🟢 Success
-        alert("Vendor added successfully!");
+        alert("✅ Vendor added successfully!");
         form.reset();
         await loadVendors();
       });
 
-      // ✅ Logout button
       document.getElementById("logout-btn").addEventListener("click", async () => {
         await supabase.auth.signOut();
         window.location.href = "login.html";
