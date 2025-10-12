@@ -705,10 +705,10 @@ async function loadVendors() {
 
   console.log("✅ Vendors loaded:", data);
 
-  // 🟢 Render vendor table (if exists)
-  const table = document.getElementById("vendors-table")?.querySelector("tbody");
-  if (table) {
-    table.innerHTML = "";
+  // 1️⃣ Populate vendor table (Manage Vendors page)
+  const tableBody = document.querySelector("#vendors-table tbody");
+  if (tableBody) {
+    tableBody.innerHTML = "";
     data.forEach(v => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -716,15 +716,17 @@ async function loadVendors() {
         <td class="border p-2">${v.name}</td>
         <td class="border p-2">${v.contact || ""}</td>
         <td class="border p-2">${v.phone_number || ""}</td>
+        <td class="border p-2">${v.address || ""}</td>
+        <td class="border p-2">${v.contact_email || ""}</td>
         <td class="border p-2">
           <button onclick="removeVendor(${v.id})"
                   class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
         </td>`;
-      table.appendChild(tr);
+      tableBody.appendChild(tr);
     });
   }
 
-  // 🟢 Populate dropdown in Manage Products (vendor select)
+  // 2️⃣ Populate vendor dropdown (Manage Products page)
   const vendorSelect = document.getElementById("vendor");
   if (vendorSelect) {
     vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
