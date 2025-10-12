@@ -7,14 +7,22 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gray-100 p-4">
+  <!-- 🔹 Navigation -->
   <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
     <ul class="flex space-x-4">
-      <li><a href="index.html">Home</a></li>
-      <li><a href="products.html">Manage Products</a></li>
+      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
+      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
+      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
+      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
+      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
+      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
     </ul>
+    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
   </nav>
-
   <div class="max-w-4xl mx-auto mt-4 bg-white p-6 rounded shadow">
     <h1 class="text-2xl font-bold mb-4">Manage Vendors</h1>
 
