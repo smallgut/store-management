@@ -1072,17 +1072,7 @@ async function analyticsSalesByProduct() {
 }
 
 
-// Vendors
-async function loadVendors() {
-  const supabase = await ensureSupabaseClient();
-  console.log("📦 Loading vendors...");
-  const { data, error } = await supabase.from("vendors").select("*");
-  if (error) {
-    console.error("❌ loadVendors failed:", error);
-    return;
-  }
-  console.log("✅ Vendors loaded:", data);
-}
+
 
 
 async function loadLoanRecords() {
