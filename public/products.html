@@ -65,19 +65,19 @@
         <button id="toggle-stock-filter" class="bg-blue-500 text-white px-3 py-1 rounded">Show Only In-Stock</button>
       </div>
       <table id="products-table" class="w-full border-collapse border text-sm bg-white">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="border p-2">ID</th>
-            <th class="border p-2">Name</th>
-            <th class="border p-2">Barcode</th>
-            
-            <th class="border p-2">Price</th>
-            <th class="border p-2">Units</th>
-            <th class="border p-2">Vendor</th>
-            <th class="border p-2">Remaining</th>
-            <th class="border p-2">Actions</th>
-          </tr>
-        </thead>
+       <thead>
+  <tr class="bg-gray-200">
+    <th class="border p-2">ID</th>
+    <th class="border p-2">Name</th>
+    <th class="border p-2">Barcode</th>
+    <th class="border p-2">Price</th>
+    <th class="border p-2">Units</th>
+    <th class="border p-2">Vendor</th>
+    <th class="border p-2 batch-header">Batch No.</th>
+    <th class="border p-2">Remaining Quantity</th>
+    <th class="border p-2">Actions</th>
+  </tr>
+</thead>
         <tbody id="products-body"></tbody>
       </table>
     </div>
