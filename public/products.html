@@ -1,168 +1,180 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Manage Products</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
 </head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="max-w-6xl mx-auto py-10 px-4">
+    <h1 class="text-3xl font-bold mb-6 text-gray-800">Manage Products</h1>
 
-<body class="bg-gray-100 p-4">
-  <!-- 🔹 Navigation -->
-  <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
-    <ul class="flex space-x-4 text-sm sm:text-base">
-      <li><a href="index.html">Home</a></li>
-      <li><a href="analytics.html">Analytics</a></li>
-      <li><a href="products.html">Manage Products</a></li>
-      <li><a href="vendors.html">Manage Vendors</a></li>
-      <li><a href="customer-sales.html">Record Customer Sales</a></li>
-      <li><a href="vendor-loan-record.html">Vendor Loan Record</a></li>
-      <li><a href="product-catalog.html">Product Catalog</a></li>
-    </ul>
-    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
-  </nav>
+    <!-- 🔹 Add New Product Form -->
+    <form id="add-product-form" class="bg-white rounded-2xl shadow p-6 mb-10" onsubmit="addProduct(event)">
+      <h2 class="text-xl font-semibold mb-4">Add New Product</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-  <!-- 🔹 Main Content -->
-  <div class="max-w-6xl mx-auto bg-white p-6 rounded shadow mt-6">
-    <h1 class="text-2xl font-bold mb-4">Manage Products</h1>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+          <input id="name" name="name" required maxlength="100"
+                 class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+                 placeholder="Enter product name" />
+        </div>
 
-    <!-- Add Product Form -->
-    <form id="add-product-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6" onsubmit="addProduct(event)">
-      <div>
-        <label for="name" class="block font-medium mb-1">Product Name</label>
-        <input id="name" type="text" class="border p-2 w-full rounded" required />
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Barcode</label>
+          <input id="barcode" name="barcode" maxlength="50"
+                 class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+                 placeholder="(Optional) Barcode" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Price</label>
+          <input id="price" name="price" type="number" min="0" step="0.01" required
+                 class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+                 placeholder="Enter price" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Units</label>
+          <input id="units" name="units" required maxlength="20"
+                 class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+                 placeholder="e.g., pcs, box, kg" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+          <select id="vendor" name="vendor" required
+                  class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200">
+            <option value="">-- Select Vendor --</option>
+          </select>
+        </div>
+
       </div>
-
-      <div>
-        <label for="barcode" class="block font-medium mb-1">Barcode</label>
-        <input id="barcode" type="text" class="border p-2 w-full rounded" required />
-      </div>
-
-      <div>
-        <label for="price" class="block font-medium mb-1">Price</label>
-        <input id="price" type="number" step="0.01" min="0" class="border p-2 w-full rounded" required />
-      </div>
-
-      <div>
-        <label for="units" class="block font-medium mb-1">Units</label>
-        <select id="units" class="border p-2 w-full rounded" required>
-          <option value="">-- Select Unit --</option>
-          <option value="pcs">Pcs</option>
-          <option value="box">Box</option>
-          <option value="kg">Kg</option>
-          <option value="pack">Pack</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="vendor" class="block font-medium mb-1">Vendor</label>
-        <select id="vendor" class="border p-2 w-full rounded" required>
-          <option value="">-- Select Vendor --</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="batch_no" class="block font-medium mb-1">Batch No.</label>
-        <input id="batch_no" type="text" class="border p-2 w-full rounded" placeholder="Optional" />
-      </div>
-
-      <div>
-        <label for="quantity" class="block font-medium mb-1">Quantity</label>
-        <input id="quantity" type="number" min="0" class="border p-2 w-full rounded" required />
-      </div>
-
-      <div class="col-span-1 sm:col-span-2 flex justify-end">
-        <button id="add-product-btn" type="submit"
-          class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded disabled:opacity-50">
-          Add Product
+      <div class="mt-6">
+        <button type="submit"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium">
+          ➕ Add Product
         </button>
       </div>
     </form>
 
-    <!-- Stock Filter -->
-    <div class="flex justify-between items-center mb-3">
-      <h2 class="text-xl font-semibold">Existing Products</h2>
-      <button id="toggle-stock-filter" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
-        Show Only In-Stock
-      </button>
-    </div>
-
-    <!-- Products Table -->
-    <div class="overflow-x-auto">
-      <table id="products-table" class="w-full border-collapse border border-gray-300 text-sm">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="border p-2">ID</th>
-            <th class="border p-2">Name</th>
-            <th class="border p-2">Barcode</th>
-            <th class="border p-2">Price</th>
-            <th class="border p-2">Units</th>
-            <th class="border p-2">Vendor</th>
-            <th class="border p-2">Batch No.</th>
-            <th class="border p-2">Remaining</th>
-            <th class="border p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="products-body"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Adjust Modal -->
-  <div id="adjust-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded shadow w-96">
-      <h3 class="text-lg font-bold mb-4">Adjust Product</h3>
-      <input type="hidden" id="adjust-id" />
-      <div class="mb-3">
-        <label for="adjust-price" class="block font-medium mb-1">Price</label>
-        <input type="number" step="0.01" id="adjust-price" class="border p-2 w-full rounded" />
-      </div>
-      <div class="mb-3">
-        <label for="adjust-units" class="block font-medium mb-1">Units</label>
-        <select id="adjust-units" class="border p-2 w-full rounded">
-          <option value="pcs">Pcs</option>
-          <option value="box">Box</option>
-          <option value="kg">Kg</option>
-          <option value="pack">Pack</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label for="adjust-qty" class="block font-medium mb-1">Remaining Quantity</label>
-        <input id="adjust-qty" type="number" class="border p-2 w-full rounded" />
-      </div>
-      <div class="flex justify-end space-x-2">
-        <button onclick="hideAdjustProduct()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
-        <button onclick="applyAdjustProduct()" class="bg-green-600 text-white px-3 py-1 rounded">Save</button>
+    <!-- 🔹 Existing Products Table -->
+    <div class="bg-white rounded-2xl shadow p-6">
+      <h2 class="text-xl font-semibold mb-4">Existing Products</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full border border-gray-200" id="products-table">
+          <thead class="bg-gray-50">
+            <tr class="text-left">
+              <th class="border p-2">ID</th>
+              <th class="border p-2">Name</th>
+              <th class="border p-2">Barcode</th>
+              <th class="border p-2">Price</th>
+              <th class="border p-2">Units</th>
+              <th class="border p-2">Vendor</th>
+              <th class="border p-2">Batch No.</th>
+              <th class="border p-2">Remaining Qty</th>
+              <th class="border p-2 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="products-body">
+            <tr>
+              <td colspan="9" class="text-center p-4 text-gray-500">
+                Loading products...
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 
-  <!-- 🔹 Page Script -->
+  <!-- 🔹 Adjust Product Modal -->
+  <div id="adjust-modal"
+       class="hidden fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-lg">
+      <h2 class="text-xl font-bold mb-4 text-gray-800">Adjust Product</h2>
+      <form id="adjust-form" onsubmit="applyAdjustProduct(event)">
+        <input type="hidden" id="adjust-id" />
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Price</label>
+            <input type="number" id="adjust-price" min="0" step="0.01"
+                   class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+                   required />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Units</label>
+            <input id="adjust-units" maxlength="20"
+                   class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+                   required />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Adjust Quantity</label>
+            <input type="number" id="adjust-qty" min="0" step="1"
+                   class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+                   required />
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 mt-6">
+          <button type="button" onclick="hideAdjustProduct()"
+                  class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg">
+            Cancel
+          </button>
+          <button type="submit"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
-    let stockOnly = false;
+    // Auto-generate batch number when adding a product
+    async function addProduct(e) {
+      e.preventDefault();
+      console.log("🟢 addProduct() triggered");
+      const supabase = await ensureSupabaseClient();
 
-    document.addEventListener("DOMContentLoaded", async () => {
-      await loadVendors();
+      const name = document.getElementById("name").value.trim();
+      const barcode = document.getElementById("barcode").value.trim();
+      const price = parseFloat(document.getElementById("price").value);
+      const units = document.getElementById("units").value.trim();
+      const vendor_id = document.getElementById("vendor").value;
+
+      if (!name || isNaN(price) || !units || !vendor_id) {
+        alert("⚠️ Please fill in all required fields.");
+        return;
+      }
+
+      // ✅ Auto-generate short batch number (6 chars max)
+      const batch_no = Math.random().toString(36).substring(2, 8).toUpperCase();
+      console.log("🧾 Generated Batch No:", batch_no);
+
+      const { error } = await supabase
+        .from("products")
+        .insert([{ name, barcode, price, units, vendor_id, batch_no }]);
+
+      if (error) {
+        console.error("❌ Failed to add product:", error);
+        alert(`Failed to add product: ${error.message}`);
+        return;
+      }
+
+      alert("✅ Product added successfully!");
       await loadProducts();
+      e.target.reset();
+    }
 
-      // toggle stock filter
-      document.getElementById("toggle-stock-filter").onclick = async () => {
-        stockOnly = !stockOnly;
-        document.getElementById("toggle-stock-filter").textContent =
-          stockOnly ? "Show All Products" : "Show Only In-Stock";
-        await loadProducts(stockOnly);
-      };
-
-      // Validate form before enabling Add button
-      const form = document.getElementById("add-product-form");
-      const btn = document.getElementById("add-product-btn");
-      const ids = ["name", "barcode", "price", "units", "vendor", "quantity"];
-      const check = () => {
-        btn.disabled = !ids.every(id => document.getElementById(id).value.trim() !== "");
-      };
-      form.querySelectorAll("input, select").forEach(el => el.addEventListener("input", check));
-      check();
+    document.addEventListener("DOMContentLoaded", () => {
+      loadVendors();
+      loadProducts();
     });
   </script>
 </body>
