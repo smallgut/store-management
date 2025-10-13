@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Manage Vendors</title>
-
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
@@ -13,53 +12,56 @@
 <body class="bg-gray-100 p-4">
   <!-- 🔹 Navigation -->
   <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
-    <ul class="flex space-x-4">
+    <ul class="flex space-x-4 text-sm sm:text-base">
       <li><a href="index.html">Home</a></li>
-      <li><a href="login.html">Login</a></li>
       <li><a href="analytics.html">Analytics</a></li>
       <li><a href="products.html">Manage Products</a></li>
       <li><a href="vendors.html">Manage Vendors</a></li>
-      <li><a href="customer-sales.html">Customer Sales</a></li>
+      <li><a href="customer-sales.html">Record Customer Sales</a></li>
       <li><a href="vendor-loan-record.html">Vendor Loan Record</a></li>
       <li><a href="product-catalog.html">Product Catalog</a></li>
     </ul>
     <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
   </nav>
 
-  <div class="max-w-5xl mx-auto mt-6 space-y-6">
+  <!-- 🔹 Main Content -->
+  <div class="max-w-5xl mx-auto bg-white p-6 rounded shadow mt-6">
+    <h1 class="text-2xl font-bold mb-4">Manage Vendors</h1>
 
-    <!-- ✅ Add Vendor Form -->
-    <form id="add-vendor-form" class="bg-white p-6 rounded shadow">
-      <h2 class="text-xl font-semibold mb-4">Add Vendor</h2>
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium">Name</label>
-          <input id="vendor-name" class="border p-2 w-full rounded" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium">Contact Person</label>
-          <input id="vendor-contact" class="border p-2 w-full rounded" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium">Phone Number</label>
-          <input id="vendor-phone" class="border p-2 w-full rounded" />
-        </div>
-        <div class="col-span-2">
-          <label class="block text-sm font-medium">Address</label>
-          <input id="vendor-address" class="border p-2 w-full rounded" />
-        </div>
+    <!-- Add Vendor Form -->
+    <form id="add-vendor-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div>
+        <label for="vendor-name" class="block font-medium mb-1">Name</label>
+        <input id="vendor-name" type="text" class="border p-2 w-full rounded" required />
       </div>
-      <div class="mt-4 flex justify-end">
-        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+
+      <div>
+        <label for="vendor-contact" class="block font-medium mb-1">Contact Person</label>
+        <input id="vendor-contact" type="text" class="border p-2 w-full rounded" />
+      </div>
+
+      <div>
+        <label for="vendor-phone" class="block font-medium mb-1">Phone Number</label>
+        <input id="vendor-phone" type="tel" pattern="[0-9+\- ]+" class="border p-2 w-full rounded" />
+      </div>
+
+      <div>
+        <label for="vendor-address" class="block font-medium mb-1">Address</label>
+        <textarea id="vendor-address" class="border p-2 w-full rounded" rows="2"></textarea>
+      </div>
+
+      <div class="col-span-1 sm:col-span-2 flex justify-end">
+        <button id="add-vendor-btn" type="submit"
+          class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded disabled:opacity-50">
           Add Vendor
         </button>
       </div>
     </form>
 
-    <!-- ✅ Vendor List -->
-    <div class="bg-white p-6 rounded shadow">
-      <h2 class="text-xl font-semibold mb-4">Existing Vendors</h2>
-      <table id="vendors-table" class="min-w-full border-collapse border text-sm">
+    <!-- Vendors Table -->
+    <h2 class="text-xl font-semibold mb-2">Existing Vendors</h2>
+    <div class="overflow-x-auto">
+      <table id="vendors-table" class="w-full border-collapse border border-gray-300 text-sm">
         <thead class="bg-gray-200">
           <tr>
             <th class="border p-2">ID</th>
@@ -67,60 +69,65 @@
             <th class="border p-2">Contact</th>
             <th class="border p-2">Phone</th>
             <th class="border p-2">Address</th>
-            <th class="border p-2">Actions</th>
+            <th class="border p-2 text-center">Actions</th>
           </tr>
         </thead>
-        <tbody></tbody>
+        <tbody>
+          <!-- Filled dynamically by loadVendors() -->
+        </tbody>
       </table>
     </div>
   </div>
 
+  <!-- 🔹 Page Script -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      const supabase = await ensureSupabaseClient();
+      const form = document.getElementById("add-vendor-form");
+      const btn = document.getElementById("add-vendor-btn");
 
-      // 🔒 Auth Guard
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = "login.html";
-        return;
-      }
-
-      // 🟢 Load vendors
       await loadVendors();
 
-      // 🧩 Add Vendor
-      const form = document.getElementById("add-vendor-form");
+      // 🧩 Enable/disable button based on input
+      const inputs = ["vendor-name", "vendor-contact", "vendor-phone", "vendor-address"];
+      const validate = () => {
+        const filled = document.getElementById("vendor-name").value.trim() !== "";
+        btn.disabled = !filled;
+      };
+      inputs.forEach(id => document.getElementById(id).addEventListener("input", validate));
+      validate();
+
+      // 🧩 Handle submit
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
+
         const name = document.getElementById("vendor-name").value.trim();
         const contact = document.getElementById("vendor-contact").value.trim();
         const phone = document.getElementById("vendor-phone").value.trim();
         const address = document.getElementById("vendor-address").value.trim();
 
-        if (!name) return alert("Vendor name is required.");
-
-        const { data: existing } = await supabase.from("vendors").select("id").eq("name", name);
-        if (existing && existing.length > 0) {
-          alert("Vendor name already exists!");
+        if (!name) {
+          alert("Vendor name is required.");
           return;
         }
 
-        const { error } = await supabase.from("vendors").insert([{ name, contact, phone_number: phone, address }]);
+        const supabase = await ensureSupabaseClient();
+        const { error } = await supabase
+          .from("vendors")
+          .insert([{ name, contact, phone_number: phone, address }]);
+
         if (error) {
-          console.error("❌ Failed to add vendor:", error);
-          alert("Error adding vendor. See console.");
+          if (error.code === "23505") {
+            alert("Vendor name already exists. Please use a different name.");
+          } else {
+            console.error("❌ Failed to add vendor:", error);
+            alert("Failed to add vendor. Check console for details.");
+          }
           return;
         }
 
-        alert("✅ Vendor added successfully!");
+        console.log("✅ Vendor added successfully!");
         form.reset();
         await loadVendors();
-      });
-
-      document.getElementById("logout-btn").addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        window.location.href = "login.html";
       });
     });
   </script>
