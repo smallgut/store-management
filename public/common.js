@@ -801,13 +801,22 @@ async function loadVendors() {
   console.log("🎯 loadVendors() completed");
 }
 
-// --- delete vendor ---
-async function deleteVendor(id) {
-  if (!confirm("Delete this vendor?")) return;
-  const supabase = ensureSupabaseClient();
+// 🗑️ Remove Vendor
+async function removeVendor(id) {
+  const confirmDelete = confirm("Are you sure you want to remove this vendor?");
+  if (!confirmDelete) return;
+
+  const supabase = await ensureSupabaseClient();
+
   const { error } = await supabase.from("vendors").delete().eq("id", id);
-  if (error) console.error(error);
-  loadVendors();
+
+  if (error) {
+    console.error("❌ Failed to remove vendor:", error);
+    alert("Failed to remove vendor.");
+  } else {
+    console.log(`✅ Vendor ${id} removed.`);
+    await loadVendors(); // Refresh the list
+  }
 }
 
 
@@ -861,31 +870,35 @@ async function applyAdjustProduct() {
 }
 
 
+// 🧩 Add Vendor
 async function addVendor(event) {
   event.preventDefault();
-  const supabase = ensureSupabaseClient();
+  const supabase = await ensureSupabaseClient();
+
   const name = document.getElementById("vendor-name").value.trim();
   const contact = document.getElementById("vendor-contact").value.trim();
-  const phone_number = document.getElementById("vendor-phone").value.trim();
+  const phone = document.getElementById("vendor-phone").value.trim();
+  const address = document.getElementById("vendor-address").value.trim();
 
-  if (!name) return alert("Vendor name required.");
-
-  const { error } = await supabase.from("vendors").insert([
-    { name, contact, phone_number, contact_email: "", address: "" },
-  ]);
-
-  if (error) {
-    console.error("❌ addVendor failed:", error);
-    if (error.message.includes("duplicate key"))
-      alert("⚠️ Vendor name already exists.");
-    else alert("Failed adding vendor");
+  if (!name) {
+    alert("Vendor name is required!");
     return;
   }
 
-  alert("✅ Vendor added successfully");
-  event.target.reset();
-  loadVendors();
+  const { error } = await supabase
+    .from("vendors")
+    .insert([{ name, contact, phone_number: phone, address }]);
+
+  if (error) {
+    console.error("❌ Failed to add vendor:", error);
+    alert(`Failed to add vendor: ${error.message}`);
+  } else {
+    console.log("✅ Vendor added successfully!");
+    await loadVendors(); // Refresh vendor list
+    event.target.reset();
+  }
 }
+
 
 // ---------------------------------------------------------
 // 🧾 Receipt
