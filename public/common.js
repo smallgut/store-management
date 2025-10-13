@@ -734,11 +734,12 @@ async function addProduct(event) {
 
 /* ---------------- VENDORS ---------------- */
 // 🧩 Debug-friendly version of loadVendors()
-async function loadVendors(retry = 0) {
+async function loadVendors() {
   console.log("📦 Loading vendors...");
   const supabase = await ensureSupabaseClient();
 
-  const { data, error } = await supabase
+  // 🔹 Fetch vendors with all key fields
+  const { data: vendors, error } = await supabase
     .from("vendors")
     .select("id, name, contact, phone_number, address")
     .order("id", { ascending: true });
@@ -748,20 +749,19 @@ async function loadVendors(retry = 0) {
     return;
   }
 
-  console.log(`✅ Vendors loaded (${data.length}):`, data);
+  console.log(`✅ Vendors loaded: (${vendors.length})`, vendors);
 
-  // 🧱 1️⃣ Populate vendor table (Manage Vendors page)
+  // =============== 🧱 Manage Vendors Page ===============
   const tableBody = document.querySelector("#vendors-table tbody");
-  if (!tableBody) {
-    console.warn("⚠️ vendors-table tbody not found on page.");
-  } else {
+  if (tableBody) {
+    console.log("🔹 Populating vendor table...");
     tableBody.innerHTML = "";
-    if (data.length === 0) {
-      const empty = document.createElement("tr");
-      empty.innerHTML = `<td colspan="6" class="text-center p-2 text-gray-500">No vendors found</td>`;
-      tableBody.appendChild(empty);
+
+    if (vendors.length === 0) {
+      tableBody.innerHTML =
+        `<tr><td colspan="6" class="text-center text-gray-500 p-2">No vendors found</td></tr>`;
     } else {
-      data.forEach(v => {
+      vendors.forEach(v => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td class="border p-2">${v.id}</td>
@@ -769,44 +769,36 @@ async function loadVendors(retry = 0) {
           <td class="border p-2">${v.contact || ""}</td>
           <td class="border p-2">${v.phone_number || ""}</td>
           <td class="border p-2">${v.address || ""}</td>
-          <td class="border p-2">
-            <button onclick="removeVendor(${v.id})" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
-              Remove
-            </button>
+          <td class="border p-2 text-center">
+            <button onclick="removeVendor(${v.id})"
+                    class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
           </td>`;
         tableBody.appendChild(tr);
       });
     }
-  }
-
-  // 🧱 2️⃣ Populate vendor dropdown (Manage Products page)
-  const vendorSelect = document.getElementById("vendor");
-  if (!vendorSelect) {
-    if (retry < 10) {
-      console.warn(`⚠️ vendor <select> not found (attempt ${retry + 1}/10). Retrying in 1s...`);
-      setTimeout(() => loadVendors(retry + 1), 1000);
-    } else {
-      console.error("❌ vendor <select> element not found after 10 retries.");
-    }
-    return;
-  }
-
-  vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-  data.forEach(v => {
-    const opt = document.createElement("option");
-    opt.value = v.id;
-    opt.textContent = v.name;
-    vendorSelect.appendChild(opt);
-  });
-  console.log(`✅ Vendor dropdown populated with ${data.length} options.`);
-
-  // 🧱 3️⃣ Populate Batch info (if Manage Products table has batch column)
-  const batchHeader = document.querySelector("#products-table thead tr th.batch-header");
-  if (batchHeader) {
-    console.log("🧾 Batch column detected, ensuring batch values display properly.");
   } else {
-    console.warn("ℹ️ No batch column detected in products table. Add <th class='border p-2 batch-header'>Batch No.</th> if needed.");
+    console.log("ℹ️ Not on Manage Vendors page (table not found)");
   }
+
+  // =============== 🧱 Manage Products Page ===============
+  const vendorSelect = document.getElementById("vendor");
+  if (vendorSelect) {
+    console.log("🔹 Populating vendor dropdown...");
+    vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+
+    vendors.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.name;
+      vendorSelect.appendChild(opt);
+    });
+
+    console.log(`✅ Vendor dropdown populated with ${vendors.length} options`);
+  } else {
+    console.log("ℹ️ Not on Manage Products page (vendor select not found)");
+  }
+
+  console.log("🎯 loadVendors() completed");
 }
 
 // --- delete vendor ---
