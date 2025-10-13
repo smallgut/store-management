@@ -578,49 +578,44 @@ let showAllProducts = true;
 /* ---------------- PRODUCTS ---------------- */
 // 🧩 Enhanced + debug-friendly loadProducts()
 // ✅ Improved loadProducts() with vendor name join + batch_no display + stock logic
-async function loadProducts(onlyInStock = false) {
+// 🧩 Load Products (with vendor join + latest batch_no)
+async function loadProducts(stockOnly = false) {
   console.log("📦 Loading products...");
   const supabase = await ensureSupabaseClient();
 
-  // 1️⃣ Fetch all products + join vendor name
+  // 1️⃣ Get product info and vendor name
   const { data: products, error: prodErr } = await supabase
     .from("products")
-    .select(`
-      id,
-      name,
-      barcode,
-      price,
-      vendor_id,
-      batch_no,
-      units,
-      vendors ( name )
-    `)
+    .select("id, name, barcode, price, units, vendor_id, vendors(name)")
     .order("id", { ascending: true });
 
   if (prodErr) {
     console.error("❌ loadProducts failed:", prodErr);
     return;
   }
-  console.log(`✅ Products loaded: (${products.length})`, products);
 
-  // 2️⃣ Fetch batch quantities
+  // 2️⃣ Fetch latest batch info (each product may have multiple)
   const { data: batches, error: batchErr } = await supabase
     .from("product_batches")
-    .select("product_id, remaining_quantity");
+    .select("product_id, batch_number, remaining_quantity, created_at")
+    .order("created_at", { ascending: false });
+
   if (batchErr) {
     console.warn("⚠️ Failed to load product_batches:", batchErr.message);
   }
 
-  // Build map from product_id → total remaining qty
-  const remainingMap = {};
+  // 🧠 Map product_id → latest batch number + total remaining
+  const batchMap = {};
   if (batches && batches.length > 0) {
-    batches.forEach(b => {
-      if (!remainingMap[b.product_id]) remainingMap[b.product_id] = 0;
-      remainingMap[b.product_id] += b.remaining_quantity || 0;
-    });
+    for (const b of batches) {
+      if (!batchMap[b.product_id]) {
+        batchMap[b.product_id] = { batch_no: b.batch_number, total: 0 };
+      }
+      batchMap[b.product_id].total += b.remaining_quantity || 0;
+    }
   }
 
-  // 3️⃣ Render products
+  // 3️⃣ Render table
   const tbody = document.getElementById("products-body");
   if (!tbody) {
     console.warn("⚠️ #products-body not found in DOM");
@@ -628,10 +623,9 @@ async function loadProducts(onlyInStock = false) {
   }
   tbody.innerHTML = "";
 
-  // Apply filter if “Show Only In-Stock” enabled
   let filtered = products;
-  if (onlyInStock) {
-    filtered = products.filter(p => (remainingMap[p.id] || 0) > 0);
+  if (stockOnly) {
+    filtered = products.filter(p => (batchMap[p.id]?.total || 0) > 0);
   }
 
   if (filtered.length === 0) {
@@ -641,8 +635,9 @@ async function loadProducts(onlyInStock = false) {
   }
 
   filtered.forEach(p => {
-    const vendorName = p.vendors?.name || "(No Vendor)";
-    const remaining = remainingMap[p.id] ?? 0;
+    const vendorName = p.vendors?.name || "—";
+    const batch_no = batchMap[p.id]?.batch_no || "—";
+    const remaining = batchMap[p.id]?.total ?? 0;
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -652,9 +647,9 @@ async function loadProducts(onlyInStock = false) {
       <td class="border p-2">${parseFloat(p.price).toFixed(2)}</td>
       <td class="border p-2">${p.units}</td>
       <td class="border p-2">${vendorName}</td>
-      <td class="border p-2">${p.batch_no || "-"}</td>
+      <td class="border p-2">${batch_no}</td>
       <td class="border p-2">${remaining}</td>
-      <td class="border p-2 space-x-2 text-center">
+      <td class="border p-2 text-center space-x-2">
         <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
                 onclick="showAdjustProduct(${p.id})">Adjust</button>
         <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
@@ -665,7 +660,6 @@ async function loadProducts(onlyInStock = false) {
 
   console.log(`✅ Rendered ${filtered.length} products.`);
 }
-
 
 async function inStockProductIds() {
   const supabase = ensureSupabaseClient();
@@ -685,49 +679,74 @@ async function inStockProductIds() {
 // Add new product with initial quantity
 // Add Product (includes creating initial batch)
 // Add Product (auto validates and creates initial stock batch)
+// 🧩 Add Product with Auto Batch No. generation
 async function addProduct(event) {
   event.preventDefault();
-  const supabase = ensureSupabaseClient();
+  console.log("🟢 addProduct() triggered");
 
+  const supabase = await ensureSupabaseClient();
+
+  // Collect form data
   const name = document.getElementById("name").value.trim();
   const barcode = document.getElementById("barcode").value.trim();
-  const price = parseFloat(document.getElementById("price").value);
-  const units = document.getElementById("units").value;
-  const vendor_id = parseInt(document.getElementById("vendor").value);
-  const quantity = parseInt(document.getElementById("quantity").value);
+  const price = parseFloat(document.getElementById("price").value || 0);
+  const units = document.getElementById("units").value.trim();
+  const vendor_id = parseInt(document.getElementById("vendor").value || 0);
+  const quantity = parseInt(document.getElementById("quantity").value || 0);
 
-  if (!vendor_id) return alert("Please select a vendor.");
+  if (!name || !barcode || !price || !units || !vendor_id || isNaN(quantity)) {
+    alert("⚠️ Please fill in all required fields.");
+    return;
+  }
 
-  const { data: product, error: pErr } = await supabase
+  // 1️⃣ Generate batch number (format: BATCH-YYYYMMDD-HHMMSS)
+  const batch_no = `BATCH-${new Date()
+    .toISOString()
+    .replace(/[-:TZ.]/g, "")
+    .slice(0, 14)}`;
+
+  console.log(`🧾 Generated Batch No: ${batch_no}`);
+
+  // 2️⃣ Insert new product record
+  const { data: newProduct, error: prodErr } = await supabase
     .from("products")
-    .insert([{ name, barcode, price, units, vendor_id }])
-    .select()
-    .maybeSingle();
-  if (pErr || !product) {
-    console.error("❌ addProduct failed (products):", pErr);
-    alert("Failed to insert product");
+    .insert([
+      { name, barcode, price, units, vendor_id, batch_no },
+    ])
+    .select();
+
+  if (prodErr) {
+    console.error("❌ Failed to add product:", prodErr);
+    alert("Failed to add product. Check console for details.");
     return;
   }
 
-  const batchNo = "BN" + Date.now().toString().slice(-10);
-  const { error: bErr } = await supabase.from("product_batches").insert([
-    {
-      product_id: product.id,
-      vendor_id,
-      buy_in_price: price,
-      remaining_quantity: quantity,
-      batch_number: batchNo.slice(0, 12),
-    },
-  ]);
-  if (bErr) {
-    console.error("❌ addProduct failed (batch):", bErr);
-    alert("Failed to create product batch");
-    return;
+  const productId = newProduct[0]?.id;
+  console.log(`✅ Product added with ID: ${productId}`);
+
+  // 3️⃣ Insert initial product batch record
+  const { error: batchErr } = await supabase
+    .from("product_batches")
+    .insert([
+      {
+        product_id: productId,
+        vendor_id,
+        batch_number: batch_no,
+        buy_in_price: price,
+        remaining_quantity: quantity,
+      },
+    ]);
+
+  if (batchErr) {
+    console.error("⚠️ Failed to insert product_batches:", batchErr);
+  } else {
+    console.log("✅ Batch created successfully.");
   }
 
-  alert("✅ Product added successfully");
-  event.target.reset();
-  loadProducts();
+  // 4️⃣ Refresh product list
+  await loadProducts();
+  alert(`✅ Product "${name}" added successfully!`);
+  document.getElementById("add-product-form").reset();
 }
 
 
