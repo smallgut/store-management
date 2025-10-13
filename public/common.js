@@ -577,14 +577,24 @@ let showAllProducts = true;
 // --- load products ---
 /* ---------------- PRODUCTS ---------------- */
 // 🧩 Enhanced + debug-friendly loadProducts()
+// ✅ Improved loadProducts() with vendor name join + batch_no display + stock logic
 async function loadProducts(onlyInStock = false) {
   console.log("📦 Loading products...");
   const supabase = await ensureSupabaseClient();
 
-  // 1️⃣ Fetch all products
+  // 1️⃣ Fetch all products + join vendor name
   const { data: products, error: prodErr } = await supabase
     .from("products")
-    .select("id, name, barcode, price, vendor_id, batch_no, units")
+    .select(`
+      id,
+      name,
+      barcode,
+      price,
+      vendor_id,
+      batch_no,
+      units,
+      vendors ( name )
+    `)
     .order("id", { ascending: true });
 
   if (prodErr) {
@@ -593,28 +603,15 @@ async function loadProducts(onlyInStock = false) {
   }
   console.log(`✅ Products loaded: (${products.length})`, products);
 
-  // 2️⃣ Fetch vendors (so we can map vendor_id → name)
-  const { data: vendors, error: vendorErr } = await supabase
-    .from("vendors")
-    .select("id, name");
-  if (vendorErr) {
-    console.error("❌ Failed to load vendors for join:", vendorErr);
-    return;
-  }
-
-  // 3️⃣ Map vendor ID → name for easy lookup
-  const vendorMap = {};
-  vendors.forEach(v => (vendorMap[v.id] = v.name));
-
-  // 4️⃣ Optionally fetch batch info (remaining quantities)
+  // 2️⃣ Fetch batch quantities
   const { data: batches, error: batchErr } = await supabase
     .from("product_batches")
-    .select("product_id, batch_number, remaining_quantity");
+    .select("product_id, remaining_quantity");
   if (batchErr) {
     console.warn("⚠️ Failed to load product_batches:", batchErr.message);
   }
 
-  // Build a map from product_id → total remaining quantity
+  // Build map from product_id → total remaining qty
   const remainingMap = {};
   if (batches && batches.length > 0) {
     batches.forEach(b => {
@@ -623,16 +620,15 @@ async function loadProducts(onlyInStock = false) {
     });
   }
 
-  // 5️⃣ Render table
+  // 3️⃣ Render products
   const tbody = document.getElementById("products-body");
   if (!tbody) {
     console.warn("⚠️ #products-body not found in DOM");
     return;
   }
-
   tbody.innerHTML = "";
 
-  // Apply filter if user selected “Show Only In-Stock”
+  // Apply filter if “Show Only In-Stock” enabled
   let filtered = products;
   if (onlyInStock) {
     filtered = products.filter(p => (remainingMap[p.id] || 0) > 0);
@@ -640,13 +636,14 @@ async function loadProducts(onlyInStock = false) {
 
   if (filtered.length === 0) {
     tbody.innerHTML =
-      `<tr><td colspan="8" class="text-center p-2 text-gray-500">No products found</td></tr>`;
+      `<tr><td colspan="9" class="text-center p-2 text-gray-500">No products found</td></tr>`;
     return;
   }
 
   filtered.forEach(p => {
-    const vendorName = vendorMap[p.vendor_id] || "(No Vendor)";
+    const vendorName = p.vendors?.name || "(No Vendor)";
     const remaining = remainingMap[p.id] ?? 0;
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="border p-2">${p.id}</td>
@@ -655,11 +652,13 @@ async function loadProducts(onlyInStock = false) {
       <td class="border p-2">${parseFloat(p.price).toFixed(2)}</td>
       <td class="border p-2">${p.units}</td>
       <td class="border p-2">${vendorName}</td>
-      <td class="border p-2">${p.batch_no || ""}</td>
+      <td class="border p-2">${p.batch_no || "-"}</td>
       <td class="border p-2">${remaining}</td>
-      <td class="border p-2 space-x-2">
-        <button class="bg-blue-500 text-white px-2 py-1 rounded" onclick="showAdjustProduct(${p.id})">Adjust</button>
-        <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="removeProduct(${p.id})">Remove</button>
+      <td class="border p-2 space-x-2 text-center">
+        <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+                onclick="showAdjustProduct(${p.id})">Adjust</button>
+        <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                onclick="removeProduct(${p.id})">Remove</button>
       </td>`;
     tbody.appendChild(tr);
   });
