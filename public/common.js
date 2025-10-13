@@ -576,51 +576,95 @@ let showAllProducts = true;
 // Load products for table
 // --- load products ---
 /* ---------------- PRODUCTS ---------------- */
+// 🧩 Enhanced + debug-friendly loadProducts()
 async function loadProducts(onlyInStock = false) {
-  const supabase = ensureSupabaseClient();
   console.log("📦 Loading products...");
+  const supabase = await ensureSupabaseClient();
 
-  let { data: products, error } = await supabase.from("products").select("*").order("id");
-  if (error) {
-    console.error("❌ loadProducts failed:", error);
+  // 1️⃣ Fetch all products
+  const { data: products, error: prodErr } = await supabase
+    .from("products")
+    .select("id, name, barcode, price, vendor_id, batch_no, units")
+    .order("id", { ascending: true });
+
+  if (prodErr) {
+    console.error("❌ loadProducts failed:", prodErr);
+    return;
+  }
+  console.log(`✅ Products loaded: (${products.length})`, products);
+
+  // 2️⃣ Fetch vendors (so we can map vendor_id → name)
+  const { data: vendors, error: vendorErr } = await supabase
+    .from("vendors")
+    .select("id, name");
+  if (vendorErr) {
+    console.error("❌ Failed to load vendors for join:", vendorErr);
     return;
   }
 
-  // Join vendor names
-  const { data: vendors } = await supabase.from("vendors").select("id,name");
-  const vendorMap = Object.fromEntries(vendors.map((v) => [v.id, v.name]));
+  // 3️⃣ Map vendor ID → name for easy lookup
+  const vendorMap = {};
+  vendors.forEach(v => (vendorMap[v.id] = v.name));
 
-  // Attach remaining quantities
-  const { data: batches } = await supabase
+  // 4️⃣ Optionally fetch batch info (remaining quantities)
+  const { data: batches, error: batchErr } = await supabase
     .from("product_batches")
-    .select("product_id, remaining_quantity");
-  const qtyMap = {};
-  batches?.forEach((b) => (qtyMap[b.product_id] = b.remaining_quantity));
+    .select("product_id, batch_number, remaining_quantity");
+  if (batchErr) {
+    console.warn("⚠️ Failed to load product_batches:", batchErr.message);
+  }
 
-  if (onlyInStock) products = products.filter((p) => (qtyMap[p.id] ?? 0) > 0);
+  // Build a map from product_id → total remaining quantity
+  const remainingMap = {};
+  if (batches && batches.length > 0) {
+    batches.forEach(b => {
+      if (!remainingMap[b.product_id]) remainingMap[b.product_id] = 0;
+      remainingMap[b.product_id] += b.remaining_quantity || 0;
+    });
+  }
 
-  console.log("✅ Products loaded:", products);
-
+  // 5️⃣ Render table
   const tbody = document.getElementById("products-body");
-  if (!tbody) return;
-  tbody.innerHTML = products.map(
-    (p) => `
-    <tr>
+  if (!tbody) {
+    console.warn("⚠️ #products-body not found in DOM");
+    return;
+  }
+
+  tbody.innerHTML = "";
+
+  // Apply filter if user selected “Show Only In-Stock”
+  let filtered = products;
+  if (onlyInStock) {
+    filtered = products.filter(p => (remainingMap[p.id] || 0) > 0);
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML =
+      `<tr><td colspan="8" class="text-center p-2 text-gray-500">No products found</td></tr>`;
+    return;
+  }
+
+  filtered.forEach(p => {
+    const vendorName = vendorMap[p.vendor_id] || "(No Vendor)";
+    const remaining = remainingMap[p.id] ?? 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
       <td class="border p-2">${p.id}</td>
       <td class="border p-2">${p.name}</td>
       <td class="border p-2">${p.barcode}</td>
-      <td class="border p-2">${p.price}</td>
+      <td class="border p-2">${parseFloat(p.price).toFixed(2)}</td>
       <td class="border p-2">${p.units}</td>
-      <td class="border p-2">${vendorMap[p.vendor_id] ?? ""}</td>
-      <td class="border p-2">${qtyMap[p.id] ?? 0}</td>
+      <td class="border p-2">${vendorName}</td>
+      <td class="border p-2">${p.batch_no || ""}</td>
+      <td class="border p-2">${remaining}</td>
       <td class="border p-2 space-x-2">
-        <button onclick="showAdjustProduct(${p.id},${p.price},'${p.units}',${qtyMap[p.id] ?? 0})"
-          class="bg-yellow-500 text-white px-2 py-1 rounded">Adjust</button>
-        <button onclick="removeProduct(${p.id})"
-          class="bg-red-500 text-white px-2 py-1 rounded">Remove</button>
-      </td>
-    </tr>`
-  ).join("");
+        <button class="bg-blue-500 text-white px-2 py-1 rounded" onclick="showAdjustProduct(${p.id})">Adjust</button>
+        <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="removeProduct(${p.id})">Remove</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  console.log(`✅ Rendered ${filtered.length} products.`);
 }
 
 
