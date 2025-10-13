@@ -839,11 +839,40 @@ async function removeVendor(id) {
 
 
 // --- remove product ---
-async function removeProduct(id) {
-  if (!confirm("Delete this product?")) return;
-  const supabase = ensureSupabaseClient();
-  await supabase.from("products").delete().eq("id", id);
-  loadProducts();
+// 🧩 Remove product + its batches
+async function removeProduct(productId) {
+  const confirmDelete = confirm("Are you sure you want to remove this product?");
+  if (!confirmDelete) return;
+
+  const supabase = await ensureSupabaseClient();
+
+  // 1️⃣ Delete related product_batches first
+  const { error: batchErr } = await supabase
+    .from("product_batches")
+    .delete()
+    .eq("product_id", productId);
+
+  if (batchErr) {
+    console.error("⚠️ Failed to delete related batches:", batchErr);
+    alert("Failed to delete product batches. Check console for details.");
+    return;
+  }
+
+  // 2️⃣ Then delete the product itself
+  const { error: prodErr } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", productId);
+
+  if (prodErr) {
+    console.error("❌ Failed to delete product:", prodErr);
+    alert("Failed to delete product. Check console for details.");
+    return;
+  }
+
+  console.log(`✅ Product ${productId} removed successfully.`);
+  await loadProducts();
+  alert("✅ Product removed successfully!");
 }
 
 // --- adjust product modal ---
@@ -858,35 +887,70 @@ function hideAdjustProduct() {
   document.getElementById("adjust-modal").classList.add("hidden");
 }
 
-// Apply Adjust (safe for varchar(12) batch_number)
-async function applyAdjustProduct() {
-  const supabase = ensureSupabaseClient();
-  const id = parseInt(document.getElementById("adjust-id").value);
-  const price = parseFloat(document.getElementById("adjust-price").value);
-  const units = document.getElementById("adjust-units").value;
-  const qty = parseInt(document.getElementById("adjust-qty").value);
+// 🧩 Apply stock adjustment safely
+async function applyAdjustProduct(productId) {
+  const supabase = await ensureSupabaseClient();
+  console.log(`⚙️ Adjusting product ${productId}...`);
 
-  const { error: pErr } = await supabase.from("products").update({ price, units }).eq("id", id);
-  if (pErr) {
-    console.error("❌ applyAdjustProduct failed (product):", pErr);
-    alert("Failed to update product");
+  // 1️⃣ Get input values
+  const adjQty = parseInt(document.getElementById("adjust-qty").value || 0);
+  if (isNaN(adjQty)) {
+    alert("⚠️ Invalid adjustment quantity.");
     return;
   }
 
-  const { data: batch } = await supabase.from("product_batches").select("id").eq("product_id", id).maybeSingle();
-  if (batch) {
-    const { error: bErr } = await supabase
-      .from("product_batches")
-      .update({ remaining_quantity: qty })
-      .eq("id", batch.id);
-    if (bErr) console.error("❌ batch update failed:", bErr);
+  // 2️⃣ Fetch product first (so we can reuse existing data)
+  const { data: productData, error: fetchErr } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", productId)
+    .single();
+
+  if (fetchErr || !productData) {
+    console.error("❌ Failed to load product before adjust:", fetchErr);
+    alert("Failed to load product before adjusting.");
+    return;
   }
 
-  hideAdjustProduct();
-  alert("✅ Product updated successfully");
-  loadProducts();
-}
+  // 3️⃣ Update stock in `product_batches`
+  const { data: batchRows, error: batchErr } = await supabase
+    .from("product_batches")
+    .select("*")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: false })
+    .limit(1);
 
+  if (batchErr) {
+    console.error("⚠️ Failed to load batches:", batchErr);
+    alert("Failed to find product batch for adjustment.");
+    return;
+  }
+
+  if (!batchRows || batchRows.length === 0) {
+    alert("⚠️ No existing batch found for this product.");
+    return;
+  }
+
+  const batch = batchRows[0];
+  const newRemaining = (batch.remaining_quantity || 0) + adjQty;
+
+  const { error: updateBatchErr } = await supabase
+    .from("product_batches")
+    .update({ remaining_quantity: newRemaining })
+    .eq("id", batch.id);
+
+  if (updateBatchErr) {
+    console.error("❌ Failed to update batch:", updateBatchErr);
+    alert("Failed to update batch quantity.");
+    return;
+  }
+
+  console.log(`✅ Batch adjusted to ${newRemaining} units.`);
+
+  // 4️⃣ Refresh list
+  await loadProducts();
+  alert("✅ Product stock adjusted successfully!");
+}
 
 // 🧩 Add Vendor
 async function addVendor(event) {
