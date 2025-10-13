@@ -14,6 +14,22 @@
   <!-- Common shared logic -->
   <script src="common.js"></script>
 </head>
+  <body class="bg-gray-100 p-4">
+  <!-- 🔹 Navigation -->
+  <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
+    <ul class="flex space-x-4">
+      <li><a href="index.html" data-lang-key="nav-home">Home</a></li>
+      <li><a href="login.html" data-lang-key="nav-login">Login</a></li>
+      <li><a href="analytics.html" data-lang-key="nav-analytics">Analytics</a></li>
+      <li><a href="products.html" data-lang-key="nav-manage-products">Manage Products</a></li>
+      <li><a href="vendors.html" data-lang-key="nav-manage-vendors">Manage Vendors</a></li>
+      <li><a href="customer-sales.html" data-lang-key="nav-record-customer-sales">Record Customer Sales</a></li>
+      <li><a href="vendor-loan-record.html" data-lang-key="nav-vendor-loan-record">Vendor Loan Record</a></li>
+      <li><a href="product-catalog.html" data-lang-key="nav-product-catalog">Product Catalog</a></li>
+      <li><button id="toggle-language" data-lang-key="toggle-language">Toggle Language</button></li>
+    </ul>
+    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
+  </nav>
 <body class="bg-gray-100 min-h-screen">
   <div class="max-w-6xl mx-auto py-10 px-4">
     <h1 class="text-3xl font-bold mb-6 text-gray-800">Manage Products</h1>
