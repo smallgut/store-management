@@ -680,6 +680,7 @@ async function inStockProductIds() {
 // Add Product (includes creating initial batch)
 // Add Product (auto validates and creates initial stock batch)
 // 🧩 Add Product with Auto Batch No. generation
+// --- 🧩 Add Product with Auto Batch & Initial Quantity ---
 async function addProduct(event) {
   event.preventDefault();
   console.log("🟢 addProduct() triggered");
@@ -694,42 +695,36 @@ async function addProduct(event) {
   const vendor_id = parseInt(document.getElementById("vendor").value || 0);
   const quantity = parseInt(document.getElementById("quantity").value || 0);
 
-  if (!name || !barcode || !price || !units || !vendor_id || isNaN(quantity)) {
-    alert("⚠️ Please fill in all required fields.");
+  if (!name || !price || !units || !vendor_id || isNaN(quantity)) {
+    alert("⚠️ Please fill in all required fields (barcode optional).");
     return;
   }
 
-  // 1️⃣ Generate batch number (format: BATCH-YYYYMMDD-HHMMSS)
-  const batch_no = `BATCH-${new Date()
-    .toISOString()
-    .replace(/[-:TZ.]/g, "")
-    .slice(0, 14)}`;
-
+  // ✅ Generate short & safe batch number (≤15 chars)
+  const batch_no = `BATCH-${Date.now().toString(36).toUpperCase()}`;
   console.log(`🧾 Generated Batch No: ${batch_no}`);
 
-  // 2️⃣ Insert new product record
+  // 1️⃣ Insert product
   const { data: newProduct, error: prodErr } = await supabase
     .from("products")
-    .insert([
-      { name, barcode, price, units, vendor_id, batch_no },
-    ])
-    .select();
+    .insert([{ name, barcode, price, units, vendor_id, batch_no }])
+    .select()
+    .maybeSingle();
 
-  if (prodErr) {
+  if (prodErr || !newProduct) {
     console.error("❌ Failed to add product:", prodErr);
-    alert("Failed to add product. Check console for details.");
+    alert(`Failed to add product: ${prodErr?.message || "Unknown error"}`);
     return;
   }
 
-  const productId = newProduct[0]?.id;
-  console.log(`✅ Product added with ID: ${productId}`);
+  console.log(`✅ Product added with ID: ${newProduct.id}`);
 
-  // 3️⃣ Insert initial product batch record
+  // 2️⃣ Insert matching product_batches record
   const { error: batchErr } = await supabase
     .from("product_batches")
     .insert([
       {
-        product_id: productId,
+        product_id: newProduct.id,
         vendor_id,
         batch_number: batch_no,
         buy_in_price: price,
@@ -739,11 +734,12 @@ async function addProduct(event) {
 
   if (batchErr) {
     console.error("⚠️ Failed to insert product_batches:", batchErr);
+    alert("⚠️ Product added but failed to create batch record. See console.");
   } else {
     console.log("✅ Batch created successfully.");
   }
 
-  // 4️⃣ Refresh product list
+  // 3️⃣ Refresh product list
   await loadProducts();
   alert(`✅ Product "${name}" added successfully!`);
   document.getElementById("add-product-form").reset();
