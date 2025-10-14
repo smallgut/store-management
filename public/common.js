@@ -876,18 +876,42 @@ async function removeProduct(productId) {
 }
 
 // --- adjust product modal ---
-function showAdjustProduct(id, price, units, qty) {
-  document.getElementById("adjust-id").value = id;
-  document.getElementById("adjust-price").value = price;
-  document.getElementById("adjust-units").value = units;
-  document.getElementById("adjust-qty").value = qty;
+// --- 🧩 Show Adjust Product Modal ---
+async function showAdjustProduct(productId) {
+  console.log("🪄 showAdjustProduct()", productId);
+  const supabase = await ensureSupabaseClient();
+
+  // 1️⃣ Load product with batch info
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name, price, units, vendor_id, batch_no, product_batches(remaining_quantity)")
+    .eq("id", productId)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error("❌ Failed to load product for adjust:", error);
+    alert("Failed to load product for adjustment.");
+    return;
+  }
+
+  const currentQty = data.product_batches?.[0]?.remaining_quantity ?? 0;
+
+  // 2️⃣ Populate modal fields
+  document.getElementById("adjust-id").value = data.id;
+  document.getElementById("adjust-price").value = data.price ?? 0;
+  document.getElementById("adjust-units").value = data.units ?? "";
+  document.getElementById("adjust-qty").value = currentQty;
+
+  // 3️⃣ Show modal
   document.getElementById("adjust-modal").classList.remove("hidden");
 }
+
 function hideAdjustProduct() {
   document.getElementById("adjust-modal").classList.add("hidden");
 }
 
 // --- 🧩 Safe Adjust Product ---
+// --- 🧩 Safe Apply Adjust Product ---
 async function applyAdjustProduct(e) {
   e.preventDefault();
   console.log("⚙️ Adjusting product...");
@@ -896,17 +920,17 @@ async function applyAdjustProduct(e) {
   const productId = parseInt(document.getElementById("adjust-id").value);
   const newPrice = parseFloat(document.getElementById("adjust-price").value);
   const newUnits = document.getElementById("adjust-units").value.trim();
-  const adjustQty = parseInt(document.getElementById("adjust-qty").value);
+  const newQty = parseInt(document.getElementById("adjust-qty").value);
 
-  if (!productId || isNaN(newPrice) || !newUnits || isNaN(adjustQty)) {
+  if (!productId || isNaN(newPrice) || !newUnits || isNaN(newQty)) {
     alert("⚠️ Please fill all fields correctly.");
     return;
   }
 
-  // 1️⃣ Load product to verify existence
+  // 1️⃣ Load product to get batch/vendor
   const { data: product, error: loadErr } = await supabase
     .from("products")
-    .select("id, name, batch_no")
+    .select("id, vendor_id, batch_no")
     .eq("id", productId)
     .single();
 
@@ -916,7 +940,7 @@ async function applyAdjustProduct(e) {
     return;
   }
 
-  // 2️⃣ Update price and units in products table
+  // 2️⃣ Update price & units
   const { error: prodErr } = await supabase
     .from("products")
     .update({ price: newPrice, units: newUnits })
@@ -928,25 +952,20 @@ async function applyAdjustProduct(e) {
     return;
   }
 
-  // 3️⃣ Check existing batch record for this product
+  // 3️⃣ Check batch
   const { data: existingBatch, error: fetchBatchErr } = await supabase
     .from("product_batches")
-    .select("id, remaining_quantity")
+    .select("id")
     .eq("product_id", productId)
     .maybeSingle();
 
-  if (fetchBatchErr) {
-    console.error("⚠️ Failed to load product_batches:", fetchBatchErr);
-  }
+  if (fetchBatchErr) console.warn("⚠️ Failed to fetch batch:", fetchBatchErr);
 
   if (existingBatch) {
-    // 4️⃣ Update remaining quantity
-    const newRemaining =
-      (existingBatch.remaining_quantity || 0) + adjustQty;
-
+    // Replace quantity
     const { error: updateBatchErr } = await supabase
       .from("product_batches")
-      .update({ remaining_quantity: newRemaining })
+      .update({ remaining_quantity: newQty })
       .eq("id", existingBatch.id);
 
     if (updateBatchErr) {
@@ -955,16 +974,17 @@ async function applyAdjustProduct(e) {
       return;
     }
 
-    console.log(`✅ Quantity adjusted to ${newRemaining}.`);
+    console.log(`✅ Quantity updated to ${newQty}.`);
   } else {
-    // 5️⃣ Create new batch entry if missing
+    // Create batch with vendor_id
     const { error: insertBatchErr } = await supabase
       .from("product_batches")
       .insert([
         {
           product_id: productId,
+          vendor_id: product.vendor_id,
           batch_number: product.batch_no,
-          remaining_quantity: adjustQty,
+          remaining_quantity: newQty,
         },
       ]);
 
@@ -981,7 +1001,6 @@ async function applyAdjustProduct(e) {
   await loadProducts();
   alert("✅ Product adjusted successfully!");
 }
-
 // 🧩 Add Vendor
 async function addVendor(event) {
   event.preventDefault();
