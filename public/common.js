@@ -687,7 +687,6 @@ async function addProduct(event) {
 
   const supabase = await ensureSupabaseClient();
 
-  // Collect form data
   const name = document.getElementById("name").value.trim();
   const barcode = document.getElementById("barcode").value.trim();
   const price = parseFloat(document.getElementById("price").value || 0);
@@ -700,11 +699,12 @@ async function addProduct(event) {
     return;
   }
 
-  // ✅ Generate short & safe batch number (≤15 chars)
-  const batch_no = `BATCH-${Date.now().toString(36).toUpperCase()}`;
+  // ✅ Short unique batch number (12 chars max)
+  const uniqueSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const batch_no = `B-${uniqueSuffix}`; // example: B-AB12CD
   console.log(`🧾 Generated Batch No: ${batch_no}`);
 
-  // 1️⃣ Insert product
+  // 1️⃣ Insert into products
   const { data: newProduct, error: prodErr } = await supabase
     .from("products")
     .insert([{ name, barcode, price, units, vendor_id, batch_no }])
@@ -713,7 +713,13 @@ async function addProduct(event) {
 
   if (prodErr || !newProduct) {
     console.error("❌ Failed to add product:", prodErr);
-    alert(`Failed to add product: ${prodErr?.message || "Unknown error"}`);
+    if (prodErr?.code === "23505") {
+      alert("⚠️ Duplicate barcode & batch number combination. Try again.");
+    } else if (prodErr?.code === "22001") {
+      alert("⚠️ Batch number too long for database column. Please shorten it.");
+    } else {
+      alert(`Failed to add product: ${prodErr?.message || "Unknown error"}`);
+    }
     return;
   }
 
@@ -739,7 +745,7 @@ async function addProduct(event) {
     console.log("✅ Batch created successfully.");
   }
 
-  // 3️⃣ Refresh product list
+  // 3️⃣ Refresh list
   await loadProducts();
   alert(`✅ Product "${name}" added successfully!`);
   document.getElementById("add-product-form").reset();
