@@ -842,7 +842,7 @@ async function removeProduct(productId) {
 
   const supabase = await ensureSupabaseClient();
 
-  // 1️⃣ Delete related product_batches first
+  // Try delete product_batches first
   const { error: batchErr } = await supabase
     .from("product_batches")
     .delete()
@@ -850,11 +850,13 @@ async function removeProduct(productId) {
 
   if (batchErr) {
     console.error("⚠️ Failed to delete related batches:", batchErr);
-    alert("Failed to delete product batches. Check console for details.");
+    alert(
+      "⚠️ This product has related sales data and cannot be deleted directly. Please clean up related sales first."
+    );
     return;
   }
 
-  // 2️⃣ Then delete the product itself
+  // Then delete product
   const { error: prodErr } = await supabase
     .from("products")
     .delete()
@@ -862,7 +864,7 @@ async function removeProduct(productId) {
 
   if (prodErr) {
     console.error("❌ Failed to delete product:", prodErr);
-    alert("Failed to delete product. Check console for details.");
+    alert(`Failed to delete product: ${prodErr.message}`);
     return;
   }
 
