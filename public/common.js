@@ -754,71 +754,80 @@ async function addProduct(event) {
 
 /* ---------------- VENDORS ---------------- */
 // 🧩 Debug-friendly version of loadVendors()
+// ===============================
+// 🧩 Safe Debounced Vendor Loader
+// ===============================
+
+let _loadVendorsInProgress = false;  // prevent overlapping fetches
+let _loadVendorsPending = false;     // queue one extra request if triggered again quickly
+
 async function loadVendors() {
-  console.log("📦 Loading vendors...");
-  const supabase = await ensureSupabaseClient();
-
-  // 🔹 Fetch vendors with all key fields
-  const { data: vendors, error } = await supabase
-    .from("vendors")
-    .select("id, name, contact, phone_number, address")
-    .order("id", { ascending: true });
-
-  if (error) {
-    console.error("❌ loadVendors failed:", error);
+  // Prevent double-running while a previous call is in flight
+  if (_loadVendorsInProgress) {
+    _loadVendorsPending = true;  // mark that we need to run again after this
     return;
   }
 
-  console.log(`✅ Vendors loaded: (${vendors.length})`, vendors);
+  _loadVendorsInProgress = true;
+  console.log("📦 Loading vendors...");
 
-  // =============== 🧱 Manage Vendors Page ===============
-  const tableBody = document.querySelector("#vendors-table tbody");
-  if (tableBody) {
-    console.log("🔹 Populating vendor table...");
-    tableBody.innerHTML = "";
+  try {
+    const supabase = await ensureSupabaseClient();
+    const { data: vendors, error } = await supabase
+      .from("vendors")
+      .select("*")
+      .order("id", { ascending: true });
 
-    if (vendors.length === 0) {
-      tableBody.innerHTML =
-        `<tr><td colspan="6" class="text-center text-gray-500 p-2">No vendors found</td></tr>`;
+    if (error) throw error;
+    console.log(`✅ Vendors loaded: (${vendors.length})`, vendors);
+
+    // Find vendor table (Manage Vendors page)
+    const vendorsTable = document.querySelector("#vendors-table tbody");
+    if (vendorsTable) {
+      console.log("🔹 Populating vendor table...");
+      vendorsTable.innerHTML = vendors
+        .map(v => `
+          <tr>
+            <td class="border p-2 text-center">${v.id}</td>
+            <td class="border p-2">${v.name || ""}</td>
+            <td class="border p-2">${v.contact || ""}</td>
+            <td class="border p-2">${v.phone_number || ""}</td>
+            <td class="border p-2">${v.address || ""}</td>
+            <td class="border p-2 text-center">
+              <button onclick="removeVendor(${v.id})"
+                      class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+                Remove
+              </button>
+            </td>
+          </tr>
+        `)
+        .join("");
     } else {
-      vendors.forEach(v => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td class="border p-2">${v.id}</td>
-          <td class="border p-2">${v.name}</td>
-          <td class="border p-2">${v.contact || ""}</td>
-          <td class="border p-2">${v.phone_number || ""}</td>
-          <td class="border p-2">${v.address || ""}</td>
-          <td class="border p-2 text-center">
-            <button onclick="removeVendor(${v.id})"
-                    class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
-          </td>`;
-        tableBody.appendChild(tr);
-      });
+      console.log("ℹ️ Not on Manage Vendors page (table not found)");
     }
-  } else {
-    console.log("ℹ️ Not on Manage Vendors page (table not found)");
+
+    // Also populate vendor dropdown (Manage Products page)
+    const vendorSelect = document.getElementById("vendor");
+    if (vendorSelect) {
+      console.log("🔹 Populating vendor dropdown...");
+      vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>` +
+        vendors.map(v => `<option value="${v.id}">${v.name}</option>`).join("");
+      console.log(`✅ Vendor dropdown populated with ${vendors.length} options`);
+    }
+
+  } catch (err) {
+    console.error("❌ Error loading vendors:", err);
+    alert("Failed to load vendors. Check console for details.");
+  } finally {
+    _loadVendorsInProgress = false;
+    console.log("🎯 loadVendors() completed");
+
+    // If another load was requested during this one, run once more
+    if (_loadVendorsPending) {
+      _loadVendorsPending = false;
+      setTimeout(() => loadVendors(), 200); // slight debounce delay
+    }
   }
-
-  // =============== 🧱 Manage Products Page ===============
-  const vendorSelect = document.getElementById("vendor");
-  if (vendorSelect) {
-    console.log("🔹 Populating vendor dropdown...");
-    vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-
-    vendors.forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.id;
-      opt.textContent = v.name;
-      vendorSelect.appendChild(opt);
-    });
-
-    console.log(`✅ Vendor dropdown populated with ${vendors.length} options`);
-  } else {
-    console.log("ℹ️ Not on Manage Products page (vendor select not found)");
-  }
-
-  console.log("🎯 loadVendors() completed");
 }
 
 // 🗑️ Remove Vendor
