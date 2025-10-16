@@ -130,20 +130,23 @@
         const supabase = await ensureSupabaseClient();
 
         // ✅ Case-insensitive exact duplicate check
-        const { data: existing, error: checkErr } = await supabase
-          .from("vendors")
-          .select("id, name")
-          .filter("name", "ilike", name.replace(/([_%])/g, "\\$1")); // escape wildcards
+        // ✅ Strict duplicate check (re-fetch fresh data)
+const { data: existing, error: checkErr } = await supabase
+  .from("vendors")
+  .select("id, name");
 
-        if (checkErr) console.warn("Duplicate check error:", checkErr);
+if (checkErr) console.warn("Duplicate check error:", checkErr);
 
-        const alreadyExists = existing?.some(v => v.name?.toLowerCase() === name.toLowerCase());
-        if (alreadyExists) {
-          alert("Vendor name already exists. Please use a different name.");
-          submitting = false;
-          btn.disabled = false;
-          return;
-        }
+const alreadyExists = existing?.some(
+  v => v.name?.trim().toLowerCase() === name.trim().toLowerCase()
+);
+
+if (alreadyExists) {
+  alert("Vendor name already exists. Please use a different name.");
+  submitting = false;
+  btn.disabled = false;
+  return;
+}
 
         // ✅ Insert new vendor safely
         const { error } = await supabase
