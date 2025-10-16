@@ -87,25 +87,26 @@
     </div>
   </div>
 
-  <!-- 🔹 Page Logic -->
+  <!-- 🔹 Vendor Page Logic -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       const form = document.getElementById("add-vendor-form");
       const btn = document.getElementById("add-vendor-btn");
       let submitting = false;
 
-      // ✅ Only call loadVendors here (remove duplicate call from inline scripts)
-      await loadVendors();
+      await loadVendors(); // uses common.js safely
 
+      // Enable button only if vendor name entered
       const validate = () => {
         btn.disabled = document.getElementById("vendor-name").value.trim() === "";
       };
       form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
       validate();
 
+      // Submit handler
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (submitting) return; // prevent double-click inserts
+        if (submitting) return;
         submitting = true;
         btn.disabled = true;
 
@@ -123,12 +124,20 @@
 
         const supabase = await ensureSupabaseClient();
 
-        // 🔍 Prevent duplicate insert
-        const { data: existing } = await supabase
+        // Check if vendor already exists (avoid duplicates)
+        const { data: existing, error: fetchErr } = await supabase
           .from("vendors")
           .select("id")
           .eq("name", name)
           .maybeSingle();
+
+        if (fetchErr) {
+          console.error("⚠️ Error checking existing vendor:", fetchErr);
+          alert("Error checking vendor. Try again.");
+          submitting = false;
+          btn.disabled = false;
+          return;
+        }
 
         if (existing) {
           alert("Vendor name already exists. Please use a different name.");
@@ -137,12 +146,13 @@
           return;
         }
 
-        const { error } = await supabase
+        // Insert vendor
+        const { error: insertErr } = await supabase
           .from("vendors")
           .insert([{ name, contact, phone_number: phone, address }]);
 
-        if (error) {
-          console.error("❌ Failed to add vendor:", error);
+        if (insertErr) {
+          console.error("❌ Failed to add vendor:", insertErr);
           alert("Failed to add vendor. Check console for details.");
         } else {
           alert("✅ Vendor added successfully!");
