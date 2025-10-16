@@ -92,21 +92,20 @@
     document.addEventListener("DOMContentLoaded", async () => {
       const form = document.getElementById("add-vendor-form");
       const btn = document.getElementById("add-vendor-btn");
-      let submitting = false; // prevent double-submit
+      let submitting = false;
 
+      // ✅ Only call loadVendors here (remove duplicate call from inline scripts)
       await loadVendors();
 
-      // ✅ Enable / disable submit based on name input
       const validate = () => {
         btn.disabled = document.getElementById("vendor-name").value.trim() === "";
       };
       form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
       validate();
 
-      // ✅ Submit handler with debounce + duplicate check
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (submitting) return; // debounce
+        if (submitting) return; // prevent double-click inserts
         submitting = true;
         btn.disabled = true;
 
@@ -124,7 +123,7 @@
 
         const supabase = await ensureSupabaseClient();
 
-        // 🔍 First, check if the vendor name already exists (prevent conflict)
+        // 🔍 Prevent duplicate insert
         const { data: existing } = await supabase
           .from("vendors")
           .select("id")
@@ -138,7 +137,6 @@
           return;
         }
 
-        // 🧩 Now safely insert
         const { error } = await supabase
           .from("vendors")
           .insert([{ name, contact, phone_number: phone, address }]);
