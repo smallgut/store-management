@@ -31,31 +31,31 @@
     <h1 class="text-3xl font-bold mb-6 text-gray-800">Manage Products</h1>
 
     <!-- 🔹 Add Product Form -->
-    <form id="add-product-form" class="bg-white rounded-2xl shadow p-6 mb-10">
+    <form id="add-product-form" class="bg-white rounded-2xl shadow p-6 mb-10" onsubmit="addProduct(event)">
       <h2 class="text-xl font-semibold mb-4">Add New Product</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
           <input id="name" name="name" required maxlength="100"
-                 class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
-                 placeholder="Enter product name" />
+            class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+            placeholder="Enter product name" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Barcode (optional)</label>
           <input id="barcode" name="barcode" maxlength="50"
-                 class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
-                 placeholder="(Optional) Barcode" />
+            class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+            placeholder="(Optional) Barcode" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Buy-In Price</label>
           <input id="price" name="price" type="number" min="0" step="0.01" required
-                 class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
-                 placeholder="Enter buy-in price" />
+            class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+            placeholder="Enter buy-in price" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Units</label>
           <select id="units" name="units" required
-                  class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200">
+            class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200">
             <option value="">-- Select Unit --</option>
             <option value="pcs">pcs</option>
             <option value="box">box</option>
@@ -66,20 +66,20 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
           <input id="quantity" name="quantity" type="number" min="0" step="1" required
-                 class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
-                 placeholder="Initial stock quantity" />
+            class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200"
+            placeholder="Initial stock quantity" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
           <select id="vendor" name="vendor" required
-                  class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200">
+            class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200">
             <option value="">-- Select Vendor --</option>
           </select>
         </div>
       </div>
       <div class="mt-6">
         <button type="submit"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium">
+          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium">
           ➕ Add Product
         </button>
       </div>
@@ -92,9 +92,9 @@
 
         <!-- ✅ Show/Hide Zero Stock Toggle -->
         <div class="flex items-center space-x-2">
-          <label for="toggle-zero-stock" class="text-sm font-medium text-gray-700">Show Zero Stock</label>
+          <label class="text-sm font-medium text-gray-700">Show Zero Stock</label>
           <input type="checkbox" id="toggle-zero-stock"
-                 class="h-4 w-4 text-blue-600 border-gray-300 rounded cursor-pointer" />
+            class="h-4 w-4 text-blue-600 border-gray-300 rounded cursor-pointer" />
         </div>
       </div>
 
@@ -131,7 +131,7 @@
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Buy-In Price</label>
             <input type="number" id="adjust-price" min="0" step="0.01" required
-                   class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200" />
+              class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Units</label>
@@ -145,33 +145,29 @@
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
             <input type="number" id="adjust-qty" min="0" step="1" required
-                   class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200" />
+              class="w-full border-gray-300 rounded-lg p-2 focus:ring focus:ring-blue-200" />
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
           <button type="button" onclick="hideAdjustProduct()"
-                  class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg">Cancel</button>
+            class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg">Cancel</button>
           <button type="submit"
-                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Save</button>
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Save</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- 🔹 Page Logic -->
+  <!-- 🔹 Load Products + Toggle Logic -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      const toggle = document.getElementById("toggle-zero-stock");
-
-      // ✅ Default: hide zero-stock (unchecked = hide)
-      toggle.checked = false;
-
       await loadVendors();
-      await loadProducts(true); // onlyInStock = true
+      const toggle = document.getElementById("toggle-zero-stock");
+      toggle.checked = false; // Default: hide zero-stock items
+      await loadProducts(toggle.checked);
 
       toggle.addEventListener("change", () => {
-        // When checked → show zero-stock, unchecked → hide them
-        loadProducts(!toggle.checked);
+        loadProducts(toggle.checked); // if checked → show zero-stock, unchecked → hide them
       });
     });
   </script>
