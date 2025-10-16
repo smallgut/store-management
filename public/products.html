@@ -31,7 +31,7 @@
     <h1 class="text-3xl font-bold mb-6 text-gray-800">Manage Products</h1>
 
     <!-- 🔹 Add Product Form -->
-    <form id="add-product-form" class="bg-white rounded-2xl shadow p-6 mb-10">
+    <form id="add-product-form" class="bg-white rounded-2xl shadow p-6 mb-10" onsubmit="addProduct(event)">
       <h2 class="text-xl font-semibold mb-4">Add New Product</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
@@ -61,7 +61,6 @@
             <option value="box">box</option>
             <option value="pack">pack</option>
             <option value="kg">kg</option>
-            
           </select>
         </div>
         <div>
@@ -93,7 +92,7 @@
 
         <!-- ✅ Show/Hide Zero Stock Toggle -->
         <div class="flex items-center space-x-2">
-          <label class="text-sm font-medium text-gray-700">Show Zero Stock</label>
+          <label for="toggle-zero-stock" class="text-sm font-medium text-gray-700">Show Zero Stock</label>
           <input type="checkbox" id="toggle-zero-stock"
                  class="h-4 w-4 text-blue-600 border-gray-300 rounded cursor-pointer" />
         </div>
@@ -141,7 +140,6 @@
               <option value="box">box</option>
               <option value="pack">pack</option>
               <option value="kg">kg</option>
-              
             </select>
           </div>
           <div>
@@ -160,15 +158,21 @@
     </div>
   </div>
 
-  <!-- 🔹 Load Data & Toggle Logic -->
+  <!-- 🔹 Page Logic -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      await loadVendors();
-      await loadProducts();
-
       const toggle = document.getElementById("toggle-zero-stock");
-      toggle.checked = false; // Default: hide zero-stock
-      toggle.addEventListener("change", () => loadProducts(!toggle.checked));
+
+      // ✅ Default: hide zero-stock (unchecked = hide)
+      toggle.checked = false;
+
+      await loadVendors();
+      await loadProducts(true); // onlyInStock = true
+
+      toggle.addEventListener("change", () => {
+        // When checked → show zero-stock, unchecked → hide them
+        loadProducts(!toggle.checked);
+      });
     });
   </script>
 </body>
