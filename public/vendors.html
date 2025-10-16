@@ -35,7 +35,8 @@
       <div>
         <label for="vendor-name" class="block font-medium text-gray-700 mb-1">Vendor Name</label>
         <input id="vendor-name" type="text"
-               class="border border-gray-300 rounded p-2 w-full focus:ring focus:ring-blue-200" required />
+               class="border border-gray-300 rounded p-2 w-full focus:ring focus:ring-blue-200"
+               required />
       </div>
 
       <div>
@@ -90,7 +91,7 @@
   <!-- 🔹 Page Logic -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      // ✅ Prevent double initialization
+      // ✅ Prevent multiple bindings (safety)
       if (window._vendorsInit) return;
       window._vendorsInit = true;
 
@@ -100,17 +101,17 @@
 
       await loadVendors();
 
-      // ✅ Disable submit if no name
+      // ✅ Disable Add button unless name entered
       const validate = () => {
         btn.disabled = document.getElementById("vendor-name").value.trim() === "";
       };
       form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
       validate();
 
-      // ✅ Handle submit (safe, one-time, duplicate-proof)
+      // ✅ Handle submit safely
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (submitting) return;
+        if (submitting) return; // prevent double submit
         submitting = true;
         btn.disabled = true;
 
@@ -128,22 +129,25 @@
 
         const supabase = await ensureSupabaseClient();
 
-        // ✅ Case-insensitive duplicate check (accurate & fast)
+        // ✅ Case-insensitive duplicate check
         const { data: existing, error: checkErr } = await supabase
           .from("vendors")
           .select("id")
           .ilike("name", name);
 
-        if (checkErr) console.warn("Duplicate check error:", checkErr);
+        if (checkErr) {
+          console.warn("Duplicate check warning:", checkErr);
+        }
 
-        if (existing && existing.length > 0) {
+        // Only check existing if not null/empty
+        if (Array.isArray(existing) && existing.length > 0) {
           alert("Vendor name already exists. Please use a different name.");
           submitting = false;
           btn.disabled = false;
           return;
         }
 
-        // ✅ Insert new vendor
+        // ✅ Insert new vendor safely
         const { error } = await supabase
           .from("vendors")
           .insert([{ name, contact, phone_number: phone, address }]);
