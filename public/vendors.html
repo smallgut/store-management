@@ -90,7 +90,6 @@
   <!-- 🔹 Page Logic -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      // ✅ Ensure single init
       if (window._vendorsInit) return;
       window._vendorsInit = true;
 
@@ -98,17 +97,16 @@
       const btn = document.getElementById("add-vendor-btn");
       let submitting = false;
 
-      // ✅ Debounced vendor loading (handled in common.js)
-      await loadVendors();
+      await loadVendors(); // initial load
 
-      // ✅ Enable/disable button based on input
+      // ✅ Enable/disable button
       const validate = () => {
         btn.disabled = document.getElementById("vendor-name").value.trim() === "";
       };
       form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
       validate();
 
-      // ✅ Safe submit handler
+      // ✅ Safe form submission
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         if (submitting) return;
@@ -129,24 +127,25 @@
 
         const supabase = await ensureSupabaseClient();
 
-        // ✅ Case-insensitive exact duplicate check
-        // ✅ Strict duplicate check (re-fetch fresh data)
-const { data: existing, error: checkErr } = await supabase
-  .from("vendors")
-  .select("id, name");
+        // ✅ Fetch fresh vendor list (no cache)
+        const { data: allVendors, error: fetchErr } = await supabase
+          .from("vendors")
+          .select("id, name");
 
-if (checkErr) console.warn("Duplicate check error:", checkErr);
+        if (fetchErr) {
+          console.warn("Vendor check error:", fetchErr);
+        }
 
-const alreadyExists = existing?.some(
-  v => v.name?.trim().toLowerCase() === name.trim().toLowerCase()
-);
+        const exists = allVendors?.some(
+          v => v.name?.trim().toLowerCase() === name.trim().toLowerCase()
+        );
 
-if (alreadyExists) {
-  alert("Vendor name already exists. Please use a different name.");
-  submitting = false;
-  btn.disabled = false;
-  return;
-}
+        if (exists) {
+          alert("Vendor name already exists. Please use a different name.");
+          submitting = false;
+          btn.disabled = false;
+          return;
+        }
 
         // ✅ Insert new vendor safely
         const { error } = await supabase
@@ -159,7 +158,7 @@ if (alreadyExists) {
         } else {
           alert("✅ Vendor added successfully!");
           form.reset();
-          await loadVendors();
+          await loadVendors(); // refresh view
         }
 
         submitting = false;
