@@ -91,80 +91,79 @@
 
   <!-- 🔹 Page Logic -->
   <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      if (window._vendorsInit) return;
-      window._vendorsInit = true;
+  document.addEventListener("DOMContentLoaded", async () => {
+    // ✅ Ensure only one initialization
+    if (window._vendorsInit) return;
+    window._vendorsInit = true;
 
-      const form = document.getElementById("add-vendor-form");
-      const btn = document.getElementById("add-vendor-btn");
-      let submitting = false;
+    const form = document.getElementById("add-vendor-form");
+    const btn = document.getElementById("add-vendor-btn");
+    let submitting = false;
 
-      await loadVendors();
+    await loadVendors();
 
-      const validate = () => {
-        btn.disabled = document.getElementById("vendor-name").value.trim() === "";
-      };
-      form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
-      validate();
+    // ✅ Disable submit if no name
+    const validate = () => {
+      btn.disabled = document.getElementById("vendor-name").value.trim() === "";
+    };
+    form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
+    validate();
 
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (submitting) return;
-        submitting = true;
-        btn.disabled = true;
+    // ✅ Submit Handler
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-        const name = document.getElementById("vendor-name").value.trim();
-        const contact = document.getElementById("vendor-contact").value.trim();
-        const phone = document.getElementById("vendor-phone").value.trim();
-        const address = document.getElementById("vendor-address").value.trim();
+      if (submitting) return; // prevent double-submit
+      submitting = true;
+      btn.disabled = true;
 
-        if (!name) {
-          alert("Vendor name is required.");
-          submitting = false;
-          btn.disabled = false;
-          return;
-        }
+      const name = document.getElementById("vendor-name").value.trim();
+      const contact = document.getElementById("vendor-contact").value.trim();
+      const phone = document.getElementById("vendor-phone").value.trim();
+      const address = document.getElementById("vendor-address").value.trim();
 
-        const supabase = await ensureSupabaseClient();
-
-        // 🕓 Short delay to ensure table refresh completes before duplicate check
-        await new Promise(r => setTimeout(r, 200));
-
-        // ✅ Use case-insensitive duplicate check
-        const { data: existing, error: checkError } = await supabase
-          .from("vendors")
-          .select("id")
-          .ilike("name", name);
-
-        if (checkError) {
-          console.error("❌ Error checking duplicates:", checkError);
-        }
-
-        if (existing && existing.length > 0) {
-          alert("Vendor name already exists. Please use a different name.");
-          submitting = false;
-          btn.disabled = false;
-          return;
-        }
-
-        // 🧩 Insert new vendor safely
-        const { error } = await supabase
-          .from("vendors")
-          .insert([{ name, contact, phone_number: phone, address }]);
-
-        if (error) {
-          console.error("❌ Failed to add vendor:", error);
-          alert("Failed to add vendor. Check console for details.");
-        } else {
-          alert("✅ Vendor added successfully!");
-          form.reset();
-          await loadVendors();
-        }
-
+      if (!name) {
+        alert("Vendor name is required.");
         submitting = false;
         btn.disabled = false;
-      });
+        return;
+      }
+
+      const supabase = await ensureSupabaseClient();
+
+      // ✅ Case-insensitive duplicate check
+      const { data: existing, error: checkErr } = await supabase
+        .from("vendors")
+        .select("id")
+        .ilike("name", name);
+
+      if (checkErr) console.warn("Duplicate check error:", checkErr);
+
+      if (existing && existing.length > 0) {
+        alert("Vendor name already exists. Please use a different name.");
+        submitting = false;
+        btn.disabled = false;
+        return;
+      }
+
+      // ✅ Safe insert
+      const { error } = await supabase
+        .from("vendors")
+        .insert([{ name, contact, phone_number: phone, address }]);
+
+      if (error) {
+        console.error("❌ Failed to add vendor:", error);
+        alert("Failed to add vendor. Check console for details.");
+      } else {
+        alert("✅ Vendor added successfully!");
+        form.reset();
+        await loadVendors();
+      }
+
+      submitting = false;
+      btn.disabled = false;
     });
-  </script>
+  });
+</script>
 </body>
 </html>
