@@ -35,8 +35,7 @@
       <div>
         <label for="vendor-name" class="block font-medium text-gray-700 mb-1">Vendor Name</label>
         <input id="vendor-name" type="text"
-               class="border border-gray-300 rounded p-2 w-full focus:ring focus:ring-blue-200"
-               required />
+               class="border border-gray-300 rounded p-2 w-full focus:ring focus:ring-blue-200" required />
       </div>
 
       <div>
@@ -91,7 +90,7 @@
   <!-- 🔹 Page Logic -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      // ✅ Prevent multiple bindings (safety)
+      // ✅ Ensure single init
       if (window._vendorsInit) return;
       window._vendorsInit = true;
 
@@ -99,19 +98,20 @@
       const btn = document.getElementById("add-vendor-btn");
       let submitting = false;
 
+      // ✅ Debounced vendor loading (handled in common.js)
       await loadVendors();
 
-      // ✅ Disable Add button unless name entered
+      // ✅ Enable/disable button based on input
       const validate = () => {
         btn.disabled = document.getElementById("vendor-name").value.trim() === "";
       };
       form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
       validate();
 
-      // ✅ Handle submit safely
+      // ✅ Safe submit handler
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (submitting) return; // prevent double submit
+        if (submitting) return;
         submitting = true;
         btn.disabled = true;
 
@@ -129,18 +129,16 @@
 
         const supabase = await ensureSupabaseClient();
 
-        // ✅ Case-insensitive duplicate check
+        // ✅ Case-insensitive exact duplicate check
         const { data: existing, error: checkErr } = await supabase
           .from("vendors")
-          .select("id")
-          .ilike("name", name);
+          .select("id, name")
+          .filter("name", "ilike", name.replace(/([_%])/g, "\\$1")); // escape wildcards
 
-        if (checkErr) {
-          console.warn("Duplicate check warning:", checkErr);
-        }
+        if (checkErr) console.warn("Duplicate check error:", checkErr);
 
-        // Only check existing if not null/empty
-        if (Array.isArray(existing) && existing.length > 0) {
+        const alreadyExists = existing?.some(v => v.name?.toLowerCase() === name.toLowerCase());
+        if (alreadyExists) {
           alert("Vendor name already exists. Please use a different name.");
           submitting = false;
           btn.disabled = false;
