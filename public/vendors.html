@@ -89,84 +89,61 @@
 
   <!-- 🔹 Page Logic -->
   <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      if (window._vendorsInit) return;
-      window._vendorsInit = true;
+  document.addEventListener("DOMContentLoaded", async () => {
+    // ✅ prevent double-init
+    if (window._vendorsInit) return;
+    window._vendorsInit = true;
 
-      const form = document.getElementById("add-vendor-form");
-      const btn = document.getElementById("add-vendor-btn");
-      let submitting = false;
+    const form = document.getElementById("add-vendor-form");
+    const btn = document.getElementById("add-vendor-btn");
+    let submitting = false;
 
-      await loadVendors(); // initial load
+    await loadVendors();
 
-      // ✅ Enable/disable button
-      const validate = () => {
-        btn.disabled = document.getElementById("vendor-name").value.trim() === "";
-      };
-      form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
-      validate();
+    // ✅ Disable button if no name entered
+    const validate = () => {
+      btn.disabled = document.getElementById("vendor-name").value.trim() === "";
+    };
+    form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
+    validate();
 
-      // ✅ Safe form submission
-      // ✅ Safe form submission
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (submitting) return;
-        submitting = true;
-        btn.disabled = true;
+    // ✅ Final safe form submission using addVendor() helper
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (submitting) return;
+      submitting = true;
+      btn.disabled = true;
 
-        const name = document.getElementById("vendor-name").value.trim();
-        const contact = document.getElementById("vendor-contact").value.trim();
-        const phone = document.getElementById("vendor-phone").value.trim();
-        const address = document.getElementById("vendor-address").value.trim();
+      const name = document.getElementById("vendor-name").value.trim();
+      const contact = document.getElementById("vendor-contact").value.trim();
+      const phone = document.getElementById("vendor-phone").value.trim();
+      const address = document.getElementById("vendor-address").value.trim();
 
-        if (!name) {
-          alert("Vendor name is required.");
-          submitting = false;
-          btn.disabled = false;
-          return;
-        }
- const supabase = await ensureSupabaseClient();
-
-        
-
-        // ✅ Fetch fresh vendor list (no cache)
-        const { data: allVendors, error: fetchErr } = await supabase
-          .from("vendors")
-          .select("id, name");
-
-        if (fetchErr) {
-          console.warn("Vendor check error:", fetchErr);
-        }
-
-        const exists = allVendors?.some(
-          v => v.name?.trim().toLowerCase() === name.trim().toLowerCase()
-        );
-
-        if (exists) {
-          alert("Vendor name already exists. Please use a different name.");
-          submitting = false;
-          btn.disabled = false;
-          return;
-        }
-
-        // ✅ Insert new vendor safely
-        const { error } = await supabase
-          .from("vendors")
-          .insert([{ name, contact, phone_number: phone, address }]);
-
-        if (error) {
-          console.error("❌ Failed to add vendor:", error);
-          alert("Failed to add vendor. Check console for details.");
-        } else {
-          alert("✅ Vendor added successfully!");
-          form.reset();
-          await loadVendors(); // refresh view
-        }
-
+      if (!name) {
+        alert("Vendor name is required.");
         submitting = false;
         btn.disabled = false;
-      });
+        return;
+      }
+
+      const { success, error } = await addVendor({ name, contact, phone, address });
+
+      if (error) {
+        if (error.message === "duplicate") {
+          alert("Vendor name already exists. Please use a different name.");
+        } else {
+          console.error("❌ Failed to add vendor:", error);
+          alert("Failed to add vendor. Check console for details.");
+        }
+      } else if (success) {
+        alert("✅ Vendor added successfully!");
+        form.reset();
+      }
+
+      submitting = false;
+      btn.disabled = false;
     });
-  </script>
+  });
+</script>
 </body>
 </html>
