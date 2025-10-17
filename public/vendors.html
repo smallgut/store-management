@@ -23,7 +23,9 @@
       <li><a href="vendor-loan-record.html">Vendor Loan Record</a></li>
       <li><a href="product-catalog.html">Product Catalog</a></li>
     </ul>
-    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">Logout</button>
+    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">
+      Logout
+    </button>
   </nav>
 
   <!-- 🔹 Main Content -->
@@ -35,7 +37,8 @@
       <div>
         <label for="vendor-name" class="block font-medium text-gray-700 mb-1">Vendor Name</label>
         <input id="vendor-name" type="text"
-               class="border border-gray-300 rounded p-2 w-full focus:ring focus:ring-blue-200" required />
+               class="border border-gray-300 rounded p-2 w-full focus:ring focus:ring-blue-200"
+               required />
       </div>
 
       <div>
@@ -89,61 +92,62 @@
 
   <!-- 🔹 Page Logic -->
   <script>
-  document.addEventListener("DOMContentLoaded", async () => {
-    // ✅ prevent double-init
-    if (window._vendorsInit) return;
-    window._vendorsInit = true;
+    document.addEventListener("DOMContentLoaded", async () => {
+      // ✅ Prevent double init
+      if (window._vendorsInit) return;
+      window._vendorsInit = true;
 
-    const form = document.getElementById("add-vendor-form");
-    const btn = document.getElementById("add-vendor-btn");
-    let submitting = false;
+      const form = document.getElementById("add-vendor-form");
+      const btn = document.getElementById("add-vendor-btn");
+      let submitting = false;
 
-    await loadVendors();
+      await loadVendors(); // initial table load
 
-    // ✅ Disable button if no name entered
-    const validate = () => {
-      btn.disabled = document.getElementById("vendor-name").value.trim() === "";
-    };
-    form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
-    validate();
+      // ✅ Enable/disable add button dynamically
+      const validate = () => {
+        btn.disabled = document.getElementById("vendor-name").value.trim() === "";
+      };
+      form.querySelectorAll("input, textarea").forEach(el => el.addEventListener("input", validate));
+      validate();
 
-    // ✅ Final safe form submission using addVendor() helper
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (submitting) return;
-      submitting = true;
-      btn.disabled = true;
+      // ✅ Safe vendor submission using addVendor helper in common.js
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (submitting) return;
+        submitting = true;
+        btn.disabled = true;
 
-      const name = document.getElementById("vendor-name").value.trim();
-      const contact = document.getElementById("vendor-contact").value.trim();
-      const phone = document.getElementById("vendor-phone").value.trim();
-      const address = document.getElementById("vendor-address").value.trim();
+        const name = document.getElementById("vendor-name").value.trim();
+        const contact = document.getElementById("vendor-contact").value.trim();
+        const phone = document.getElementById("vendor-phone").value.trim();
+        const address = document.getElementById("vendor-address").value.trim();
 
-      if (!name) {
-        alert("Vendor name is required.");
+        if (!name) {
+          alert("Vendor name is required.");
+          submitting = false;
+          btn.disabled = false;
+          return;
+        }
+
+        // 🧩 Call the helper function
+        const { success, error } = await addVendor({ name, contact, phone, address });
+
+        if (error) {
+          if (error.message === "duplicate") {
+            alert("Vendor name already exists. Please use a different name.");
+          } else {
+            console.error("❌ Failed to add vendor:", error);
+            alert("Failed to add vendor. Check console for details.");
+          }
+        } else if (success) {
+          alert("✅ Vendor added successfully!");
+          form.reset();
+        }
+
         submitting = false;
         btn.disabled = false;
-        return;
-      }
-
-      const { success, error } = await addVendor({ name, contact, phone, address });
-
-      if (error) {
-        if (error.message === "duplicate") {
-          alert("Vendor name already exists. Please use a different name.");
-        } else {
-          console.error("❌ Failed to add vendor:", error);
-          alert("Failed to add vendor. Check console for details.");
-        }
-      } else if (success) {
-        alert("✅ Vendor added successfully!");
-        form.reset();
-      }
-
-      submitting = false;
-      btn.disabled = false;
+      });
     });
-  });
-</script>
+  </script>
 </body>
 </html>
