@@ -108,22 +108,39 @@
 
       // ✅ Safe form submission
       form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (submitting) return;
-        submitting = true;
-        btn.disabled = true;
+  e.preventDefault();
+  if (submitting) return;
+  submitting = true;
+  btn.disabled = true;
 
-        const name = document.getElementById("vendor-name").value.trim();
-        const contact = document.getElementById("vendor-contact").value.trim();
-        const phone = document.getElementById("vendor-phone").value.trim();
-        const address = document.getElementById("vendor-address").value.trim();
+  const name = document.getElementById("vendor-name").value.trim();
+  const contact = document.getElementById("vendor-contact").value.trim();
+  const phone = document.getElementById("vendor-phone").value.trim();
+  const address = document.getElementById("vendor-address").value.trim();
 
-        if (!name) {
-          alert("Vendor name is required.");
-          submitting = false;
-          btn.disabled = false;
-          return;
-        }
+  if (!name) {
+    alert("Vendor name is required.");
+    submitting = false;
+    btn.disabled = false;
+    return;
+  }
+
+  const { success, error } = await addVendor({ name, contact, phone, address });
+
+  if (error) {
+    if (error.message === "duplicate") {
+      alert("Vendor name already exists. Please use a different name.");
+    } else {
+      alert("Failed to add vendor. Check console for details.");
+    }
+  } else {
+    alert("✅ Vendor added successfully!");
+    form.reset();
+  }
+
+  submitting = false;
+  btn.disabled = false;
+});
 
         const supabase = await ensureSupabaseClient();
 
