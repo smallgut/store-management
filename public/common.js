@@ -1046,11 +1046,15 @@ async function addVendor({ name, contact, phone, address }) {
     const { data: vendors, error: checkErr } = await supabase
       .from("vendors")
       .select("name");
+
     if (checkErr) throw checkErr;
 
-    const exists = (vendors || []).some(v => {
+    const exists = Array.isArray(vendors) && vendors.some(v => {
+      // ✅ guard against nulls, non-objects, missing names
       if (!v || typeof v.name !== "string") return false;
-      return v.name.trim().toLowerCase() === name.trim().toLowerCase();
+      const dbName = v.name?.trim?.().toLowerCase?.() || "";
+      const newName = name?.trim?.().toLowerCase?.() || "";
+      return dbName === newName;
     });
 
     if (exists) {
