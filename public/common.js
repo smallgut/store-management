@@ -770,67 +770,54 @@ window._vendorInsertBusy = false;
  *  - Manage Vendors table
  *  - Product Vendor dropdown (if present)
  */
-/* =======================================================
-   ✅ FINAL Vendor Management Section (Safe, Debounced, Hardened)
-   ======================================================= */
+// ===============================
+// ✅ Vendor Management Section
+// ===============================
 
+// Debounce flags to prevent overlapping calls
 window._loadVendorsBusy = false;
 window._vendorInsertBusy = false;
 
-/** Load vendors (debounced) */
+// ✅ Load Vendors (safe and debounced)
 async function loadVendors() {
   if (window._loadVendorsBusy) {
-    console.warn("⚠️ loadVendors skipped — already running");
+    console.warn("⏳ loadVendors skipped — still running");
     return;
   }
   window._loadVendorsBusy = true;
-  console.log("📦 Loading vendors...");
 
   try {
+    console.log("📦 Loading vendors...");
     const supabase = await ensureSupabaseClient();
-    const { data, error } = await supabase.from("vendors").select("*").order("id");
+    const { data, error } = await supabase.from("vendors").select("*").order("id", { ascending: true });
+
     if (error) throw error;
 
     console.log(`✅ Vendors loaded: (${data?.length || 0})`, data);
+    const tbody = document.querySelector("#vendors-table tbody");
+    if (!tbody) return;
 
-    // Update vendor table
-    const tableBody = document.querySelector("#vendors-table tbody");
-    if (tableBody) {
-      tableBody.innerHTML = "";
-      if (!data?.length) {
-        tableBody.innerHTML =
-          `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
-      } else {
-        data.forEach(v => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="border p-2">${v.id}</td>
-            <td class="border p-2">${v.name || ""}</td>
-            <td class="border p-2">${v.contact || ""}</td>
-            <td class="border p-2">${v.phone_number || ""}</td>
-            <td class="border p-2">${v.address || ""}</td>
-            <td class="border p-2 text-center">
-              <button onclick="removeVendor(${v.id})"
-                class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">Remove</button>
-            </td>`;
-          tableBody.appendChild(tr);
-        });
-      }
+    tbody.innerHTML = "";
+    if (!data || data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
+      return;
     }
 
-    // Populate vendor dropdown on product page (if present)
-    const vendorSel = document.querySelector("#vendor");
-    if (vendorSel) {
-      vendorSel.innerHTML = `<option value="">-- Select Vendor --</option>`;
-      data?.forEach(v => {
-        if (v?.id && v?.name) {
-          const opt = document.createElement("option");
-          opt.value = v.id;
-          opt.textContent = v.name;
-          vendorSel.appendChild(opt);
-        }
-      });
-    }
+    data.forEach(vendor => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${vendor.id}</td>
+        <td class="border p-2">${vendor.name || "-"}</td>
+        <td class="border p-2">${vendor.contact || "-"}</td>
+        <td class="border p-2">${vendor.phone_number || "-"}</td>
+        <td class="border p-2">${vendor.address || "-"}</td>
+        <td class="border p-2 text-center">
+          <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                  onclick="removeVendor(${vendor.id})">Remove</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
   } catch (err) {
     console.error("❌ loadVendors failed:", err);
   } finally {
@@ -844,6 +831,7 @@ async function loadVendors() {
  * Remove a vendor by ID (with confirmation)
  */
 /** Remove vendor */
+// ✅ Remove Vendor (safe)
 async function removeVendor(id) {
   if (!confirm("Are you sure you want to remove this vendor?")) return;
   try {
@@ -854,7 +842,6 @@ async function removeVendor(id) {
     await loadVendors();
   } catch (err) {
     console.error("❌ removeVendor failed:", err);
-    alert("Failed to remove vendor. Check console for details.");
   }
 }
 
@@ -1030,10 +1017,11 @@ async function applyAdjustProduct(e) {
  * Safely add a new vendor — used by vendors.html
  */
 /** Add vendor safely (debounced & duplicate-protected) */
+// ✅ Add Vendor (duplicate-safe, debounced, and guarded)
 async function addVendor({ name, contact, phone, address }) {
   if (window._vendorInsertBusy) {
     console.warn("⚠️ addVendor skipped — insert already in progress");
-    return { error: { message: "Insert already in progress" } };
+    return { success: false, error: { message: "Insert already in progress" } };
   }
 
   window._vendorInsertBusy = true;
@@ -1042,30 +1030,43 @@ async function addVendor({ name, contact, phone, address }) {
   try {
     const supabase = await ensureSupabaseClient();
 
-    // Fetch vendor list for duplicate check
+    // ✅ Extra input guard
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      console.warn("🚫 Invalid vendor name — skipping insert");
+      return { success: false, error: { message: "invalid_name" } };
+    }
+
+    // ✅ Fetch fresh vendors and check duplicates safely
     const { data: vendors, error: checkErr } = await supabase
       .from("vendors")
-      .select("name");
+      .select("id, name");
 
     if (checkErr) throw checkErr;
 
-    const exists = Array.isArray(vendors) && vendors.some(v => {
-      // ✅ guard against nulls, non-objects, missing names
-      if (!v || typeof v.name !== "string") return false;
-      const dbName = v.name?.trim?.().toLowerCase?.() || "";
-      const newName = name?.trim?.().toLowerCase?.() || "";
-      return dbName === newName;
-    });
+    const newName = name.trim().toLowerCase();
+    const exists =
+      Array.isArray(vendors) &&
+      vendors.some(v => {
+        if (!v || typeof v.name !== "string") return false;
+        const dbName = v.name?.trim?.().toLowerCase?.() || "";
+        return dbName === newName;
+      });
 
     if (exists) {
       console.warn("🚫 Duplicate vendor name detected");
-      return { error: { message: "duplicate" } };
+      return { success: false, error: { message: "duplicate" } };
     }
 
-    // Perform insert
-    const { error: insertErr } = await supabase
-      .from("vendors")
-      .insert([{ name, contact, phone_number: phone, address }]);
+    // ✅ Perform insert
+    const { error: insertErr } = await supabase.from("vendors").insert([
+      {
+        name: name.trim(),
+        contact: contact || null,
+        phone_number: phone || null,
+        address: address || null,
+      },
+    ]);
+
     if (insertErr) throw insertErr;
 
     console.log("✅ Vendor added successfully!");
@@ -1073,13 +1074,12 @@ async function addVendor({ name, contact, phone, address }) {
     return { success: true };
   } catch (err) {
     console.error("❌ addVendor failed:", err);
-    return { error: err };
+    return { success: false, error: err };
   } finally {
     window._vendorInsertBusy = false;
     console.log("🔵 addVendor finished, insert lock cleared");
   }
 }
-
 
 // ---------------------------------------------------------
 // 🧾 Receipt
