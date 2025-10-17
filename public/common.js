@@ -771,14 +771,13 @@ window._vendorInsertBusy = false;
  *  - Product Vendor dropdown (if present)
  */
 /* =======================================================
-   ✅ Vendor Management Section (Final Stable Version)
+   ✅ FINAL Vendor Management Section (Safe, Debounced)
    ======================================================= */
 
-// 🔹 Shared state flags
 window._loadVendorsBusy = false;
 window._vendorInsertBusy = false;
 
-/** Load vendors safely (debounced) */
+/** Load vendors (debounced) */
 async function loadVendors() {
   if (window._loadVendorsBusy) {
     console.warn("⚠️ loadVendors skipped — already running");
@@ -791,17 +790,17 @@ async function loadVendors() {
     const supabase = await ensureSupabaseClient();
     const { data, error } = await supabase.from("vendors").select("*").order("id");
     if (error) throw error;
-    console.log(`✅ Vendors loaded: (${data.length})`, data);
 
-    // 🔹 Vendors table
+    console.log(`✅ Vendors loaded: (${data?.length || 0})`, data);
+
+    // Update Vendors Table
     const tableBody = document.querySelector("#vendors-table tbody");
     if (tableBody) {
       tableBody.innerHTML = "";
-      if (!data || !data.length) {
-        tableBody.innerHTML =
-          `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
+      if (!data?.length) {
+        tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
       } else {
-        for (const v of data) {
+        data.forEach(v => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td class="border p-2">${v.id}</td>
@@ -814,15 +813,15 @@ async function loadVendors() {
                 class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">Remove</button>
             </td>`;
           tableBody.appendChild(tr);
-        }
+        });
       }
     }
 
-    // 🔹 Vendor dropdown (products.html)
+    // Update Vendor Select (products.html)
     const vendorSel = document.querySelector("#vendor");
     if (vendorSel) {
       vendorSel.innerHTML = `<option value="">-- Select Vendor --</option>`;
-      (data || []).forEach(v => {
+      data?.forEach(v => {
         const opt = document.createElement("option");
         opt.value = v.id;
         opt.textContent = v.name;
@@ -833,9 +832,9 @@ async function loadVendors() {
     console.error("❌ loadVendors failed:", err);
   } finally {
     window._loadVendorsBusy = false;
+    console.log("🎯 loadVendors() completed");
   }
 }
-
 
 // 🗑️ Remove Vendor
 /**
@@ -855,6 +854,7 @@ async function removeVendor(id) {
     alert("Failed to remove vendor. Check console for details.");
   }
 }
+
 
 
 // --- remove product ---
@@ -1026,32 +1026,32 @@ async function applyAdjustProduct(e) {
 /**
  * Safely add a new vendor — used by vendors.html
  */
-/** Add vendor (safe duplicate + concurrency guard) */
+/** Add vendor safely (debounced & duplicate-protected) */
 async function addVendor({ name, contact, phone, address }) {
   if (window._vendorInsertBusy) {
     console.warn("⚠️ addVendor skipped — insert already in progress");
     return { error: { message: "Insert already in progress" } };
   }
+
   window._vendorInsertBusy = true;
 
   try {
     const supabase = await ensureSupabaseClient();
 
-    // 🔍 Fetch all vendor names for strict case-insensitive check
-    const { data: all, error: checkErr } = await supabase
-      .from("vendors")
-      .select("name");
-    if (checkErr) console.warn("⚠️ Duplicate check error:", checkErr);
+    // Fetch vendor names for duplicate check
+    const { data: vendors, error: checkErr } = await supabase.from("vendors").select("name");
+    if (checkErr) throw checkErr;
 
-    const exists = all?.some(
-      v => v.name?.trim().toLowerCase() === name.trim().toLowerCase()
-    );
-    if (exists) return { error: { message: "duplicate" } };
+    const exists = vendors?.some(v => v?.name && v.name.trim().toLowerCase() === name.trim().toLowerCase());
+    if (exists) {
+      return { error: { message: "duplicate" } };
+    }
 
-    // 🧾 Insert
+    // Perform insert
     const { error: insertErr } = await supabase
       .from("vendors")
       .insert([{ name, contact, phone_number: phone, address }]);
+
     if (insertErr) throw insertErr;
 
     console.log("✅ Vendor added successfully!");
