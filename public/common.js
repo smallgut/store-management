@@ -771,7 +771,7 @@ window._vendorInsertBusy = false;
  *  - Product Vendor dropdown (if present)
  */
 /* =======================================================
-   ✅ FINAL Vendor Management Section (Safe, Debounced)
+   ✅ FINAL Vendor Management Section (Safe, Debounced, Hardened)
    ======================================================= */
 
 window._loadVendorsBusy = false;
@@ -793,12 +793,13 @@ async function loadVendors() {
 
     console.log(`✅ Vendors loaded: (${data?.length || 0})`, data);
 
-    // Update Vendors Table
+    // Update vendor table
     const tableBody = document.querySelector("#vendors-table tbody");
     if (tableBody) {
       tableBody.innerHTML = "";
       if (!data?.length) {
-        tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
+        tableBody.innerHTML =
+          `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
       } else {
         data.forEach(v => {
           const tr = document.createElement("tr");
@@ -817,15 +818,17 @@ async function loadVendors() {
       }
     }
 
-    // Update Vendor Select (products.html)
+    // Populate vendor dropdown on product page (if present)
     const vendorSel = document.querySelector("#vendor");
     if (vendorSel) {
       vendorSel.innerHTML = `<option value="">-- Select Vendor --</option>`;
       data?.forEach(v => {
-        const opt = document.createElement("option");
-        opt.value = v.id;
-        opt.textContent = v.name;
-        vendorSel.appendChild(opt);
+        if (v?.id && v?.name) {
+          const opt = document.createElement("option");
+          opt.value = v.id;
+          opt.textContent = v.name;
+          vendorSel.appendChild(opt);
+        }
       });
     }
   } catch (err) {
@@ -1034,16 +1037,24 @@ async function addVendor({ name, contact, phone, address }) {
   }
 
   window._vendorInsertBusy = true;
+  console.log("🟢 addVendor started");
 
   try {
     const supabase = await ensureSupabaseClient();
 
-    // Fetch vendor names for duplicate check
-    const { data: vendors, error: checkErr } = await supabase.from("vendors").select("name");
+    // Fetch vendor list for duplicate check
+    const { data: vendors, error: checkErr } = await supabase
+      .from("vendors")
+      .select("name");
     if (checkErr) throw checkErr;
 
-    const exists = vendors?.some(v => v?.name && v.name.trim().toLowerCase() === name.trim().toLowerCase());
+    const exists = (vendors || []).some(v => {
+      if (!v || typeof v.name !== "string") return false;
+      return v.name.trim().toLowerCase() === name.trim().toLowerCase();
+    });
+
     if (exists) {
+      console.warn("🚫 Duplicate vendor name detected");
       return { error: { message: "duplicate" } };
     }
 
@@ -1051,7 +1062,6 @@ async function addVendor({ name, contact, phone, address }) {
     const { error: insertErr } = await supabase
       .from("vendors")
       .insert([{ name, contact, phone_number: phone, address }]);
-
     if (insertErr) throw insertErr;
 
     console.log("✅ Vendor added successfully!");
@@ -1062,6 +1072,7 @@ async function addVendor({ name, contact, phone, address }) {
     return { error: err };
   } finally {
     window._vendorInsertBusy = false;
+    console.log("🔵 addVendor finished, insert lock cleared");
   }
 }
 
