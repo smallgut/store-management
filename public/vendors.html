@@ -148,6 +148,12 @@
         btn.disabled = false;
       });
     });
+
+    setInterval(() => {
+    if (window._vendorInsertBusy || window._loadVendorsBusy) {
+      console.log(`⏱ Busy flags — insert: ${!!window._vendorInsertBusy}, load: ${!!window._loadVendorsBusy}`);
+    }
+  }, 500);
   </script>
 </body>
 </html>
