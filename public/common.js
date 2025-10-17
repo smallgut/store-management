@@ -770,34 +770,36 @@ window._vendorInsertBusy = false;
  *  - Manage Vendors table
  *  - Product Vendor dropdown (if present)
  */
+/* =======================================================
+   ✅ Vendor Management Section (Final Stable Version)
+   ======================================================= */
+
+// 🔹 Shared state flags
+window._loadVendorsBusy = false;
+window._vendorInsertBusy = false;
+
+/** Load vendors safely (debounced) */
 async function loadVendors() {
-  // 🧩 Debounce guard to prevent overlapping Supabase vendor loads
   if (window._loadVendorsBusy) {
-    console.warn("⚠️ loadVendors() skipped — already running");
+    console.warn("⚠️ loadVendors skipped — already running");
     return;
   }
-
   window._loadVendorsBusy = true;
   console.log("📦 Loading vendors...");
 
   try {
     const supabase = await ensureSupabaseClient();
-    const { data, error } = await supabase
-      .from("vendors")
-      .select("*")
-      .order("id", { ascending: true });
-
+    const { data, error } = await supabase.from("vendors").select("*").order("id");
     if (error) throw error;
     console.log(`✅ Vendors loaded: (${data.length})`, data);
 
-    // 🔹 If vendor table exists, populate it
-    const vendorTable = document.querySelector("#vendors-table tbody");
-    if (vendorTable) {
-      console.log("🔹 Populating vendor table...");
-      vendorTable.innerHTML = "";
-
-      if (!data || data.length === 0) {
-        vendorTable.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
+    // 🔹 Vendors table
+    const tableBody = document.querySelector("#vendors-table tbody");
+    if (tableBody) {
+      tableBody.innerHTML = "";
+      if (!data || !data.length) {
+        tableBody.innerHTML =
+          `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
       } else {
         for (const v of data) {
           const tr = document.createElement("tr");
@@ -810,32 +812,25 @@ async function loadVendors() {
             <td class="border p-2 text-center">
               <button onclick="removeVendor(${v.id})"
                 class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">Remove</button>
-            </td>
-          `;
-          vendorTable.appendChild(tr);
+            </td>`;
+          tableBody.appendChild(tr);
         }
       }
-    } else {
-      console.log("ℹ️ Not on Manage Vendors page (table not found)");
     }
 
-    // 🔹 If product page dropdown exists, populate vendor list
-    const vendorSelect = document.querySelector("#vendor");
-    if (vendorSelect) {
-      console.log("🔹 Populating vendor dropdown...");
-      vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-      data.forEach(v => {
+    // 🔹 Vendor dropdown (products.html)
+    const vendorSel = document.querySelector("#vendor");
+    if (vendorSel) {
+      vendorSel.innerHTML = `<option value="">-- Select Vendor --</option>`;
+      (data || []).forEach(v => {
         const opt = document.createElement("option");
         opt.value = v.id;
         opt.textContent = v.name;
-        vendorSelect.appendChild(opt);
+        vendorSel.appendChild(opt);
       });
-      console.log(`✅ Vendor dropdown populated with ${data.length} options`);
     }
-
-    console.log("🎯 loadVendors() completed");
   } catch (err) {
-    console.error("❌ loadVendors() failed:", err);
+    console.error("❌ loadVendors failed:", err);
   } finally {
     window._loadVendorsBusy = false;
   }
@@ -846,22 +841,20 @@ async function loadVendors() {
 /**
  * Remove a vendor by ID (with confirmation)
  */
+/** Remove vendor */
 async function removeVendor(id) {
   if (!confirm("Are you sure you want to remove this vendor?")) return;
-
   try {
     const supabase = await ensureSupabaseClient();
     const { error } = await supabase.from("vendors").delete().eq("id", id);
     if (error) throw error;
-
     console.log(`✅ Vendor ${id} removed.`);
     await loadVendors();
   } catch (err) {
-    console.error("❌ Failed to remove vendor:", err);
+    console.error("❌ removeVendor failed:", err);
     alert("Failed to remove vendor. Check console for details.");
   }
 }
-
 
 
 // --- remove product ---
@@ -1033,44 +1026,39 @@ async function applyAdjustProduct(e) {
 /**
  * Safely add a new vendor — used by vendors.html
  */
+/** Add vendor (safe duplicate + concurrency guard) */
 async function addVendor({ name, contact, phone, address }) {
   if (window._vendorInsertBusy) {
-    console.warn("⚠️ Vendor insert skipped — another add is in progress");
+    console.warn("⚠️ addVendor skipped — insert already in progress");
     return { error: { message: "Insert already in progress" } };
   }
-
   window._vendorInsertBusy = true;
 
   try {
     const supabase = await ensureSupabaseClient();
 
-    // ✅ Strict duplicate name check (case-insensitive)
-    const { data: vendors, error: checkErr } = await supabase
+    // 🔍 Fetch all vendor names for strict case-insensitive check
+    const { data: all, error: checkErr } = await supabase
       .from("vendors")
-      .select("id, name");
-
+      .select("name");
     if (checkErr) console.warn("⚠️ Duplicate check error:", checkErr);
 
-    const alreadyExists = vendors?.some(
+    const exists = all?.some(
       v => v.name?.trim().toLowerCase() === name.trim().toLowerCase()
     );
+    if (exists) return { error: { message: "duplicate" } };
 
-    if (alreadyExists) {
-      return { error: { message: "duplicate" } };
-    }
-
-    // ✅ Safe insert
-    const { error } = await supabase
+    // 🧾 Insert
+    const { error: insertErr } = await supabase
       .from("vendors")
       .insert([{ name, contact, phone_number: phone, address }]);
-
-    if (error) throw error;
+    if (insertErr) throw insertErr;
 
     console.log("✅ Vendor added successfully!");
     await loadVendors();
     return { success: true };
   } catch (err) {
-    console.error("❌ addVendor() failed:", err);
+    console.error("❌ addVendor failed:", err);
     return { error: err };
   } finally {
     window._vendorInsertBusy = false;
