@@ -778,7 +778,7 @@ window._vendorInsertBusy = false;
 window._loadVendorsBusy = false;
 window._vendorInsertBusy = false;
 
-// ✅ Load Vendors (safe and debounced)
+// ✅ Unified loadVendors() — works for both Manage Vendors and Manage Products
 async function loadVendors() {
   if (window._loadVendorsBusy) {
     console.warn("⏳ loadVendors skipped — still running");
@@ -789,35 +789,51 @@ async function loadVendors() {
   try {
     console.log("📦 Loading vendors...");
     const supabase = await ensureSupabaseClient();
-    const { data, error } = await supabase.from("vendors").select("*").order("id", { ascending: true });
+    const { data, error } = await supabase
+      .from("vendors")
+      .select("*")
+      .order("id", { ascending: true });
 
     if (error) throw error;
-
     console.log(`✅ Vendors loaded: (${data?.length || 0})`, data);
-    const tbody = document.querySelector("#vendors-table tbody");
-    if (!tbody) return;
 
-    tbody.innerHTML = "";
-    if (!data || data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
-      return;
+    // --- Populate vendor table (Manage Vendors page) ---
+    const vendorTable = document.querySelector("#vendors-table tbody");
+    if (vendorTable) {
+      vendorTable.innerHTML = "";
+      if (!data || data.length === 0) {
+        vendorTable.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">No vendors found.</td></tr>`;
+      } else {
+        data.forEach(v => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="border p-2">${v.id}</td>
+            <td class="border p-2">${v.name || "-"}</td>
+            <td class="border p-2">${v.contact || "-"}</td>
+            <td class="border p-2">${v.phone_number || "-"}</td>
+            <td class="border p-2">${v.address || "-"}</td>
+            <td class="border p-2 text-center">
+              <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                      onclick="removeVendor(${v.id})">Remove</button>
+            </td>`;
+          vendorTable.appendChild(tr);
+        });
+      }
     }
 
-    data.forEach(vendor => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${vendor.id}</td>
-        <td class="border p-2">${vendor.name || "-"}</td>
-        <td class="border p-2">${vendor.contact || "-"}</td>
-        <td class="border p-2">${vendor.phone_number || "-"}</td>
-        <td class="border p-2">${vendor.address || "-"}</td>
-        <td class="border p-2 text-center">
-          <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-                  onclick="removeVendor(${vendor.id})">Remove</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
+    // --- Populate vendor dropdown (Manage Products page) ---
+    const vendorSelect = document.querySelector("#vendor");
+    if (vendorSelect) {
+      console.log("🔹 Populating vendor dropdown...");
+      vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+      data?.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.id;
+        opt.textContent = v.name;
+        vendorSelect.appendChild(opt);
+      });
+      console.log(`✅ Vendor dropdown populated with ${data?.length || 0} options`);
+    }
   } catch (err) {
     console.error("❌ loadVendors failed:", err);
   } finally {
