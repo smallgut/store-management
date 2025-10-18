@@ -170,6 +170,18 @@
         loadProducts(toggle.checked); // if checked → show zero-stock, unchecked → hide them
       });
     });
+
+const barcodeInput = document.getElementById("barcode");
+  if (barcodeInput) {
+    let debounce;
+    barcodeInput.addEventListener("input", () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        autofillProductNameByBarcode(barcodeInput.value);
+      }, 400); // debounce typing/scanning
+    });
+  }
+    
   </script>
 </body>
 </html>
