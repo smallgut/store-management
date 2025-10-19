@@ -432,87 +432,81 @@ async function addItemToCart() {
 // Checkout: create order + items in two-step, roll back if items insert fails
 // and decrement stock using RPC
 // -----------------------------
-/* ---------------------- 💳 CHECKOUT PROCESS FIX ---------------------- */
-async function checkoutOrder(e) {
-  if (e) e.preventDefault();
-
+async function checkoutOrder() {
+  if (cart.length === 0) {
+    alert("Cart is empty");
+    return;
+  }
+  const supabase = await ensureSupabaseClient();
   try {
-    const tbody = document.querySelector("#cart-table tbody");
-    if (!tbody) {
-      alert("❌ Cart table not found.");
-      return;
-    }
+    const customerName = document.getElementById("customer-name")?.value || "";
+    const saleDateInput = document.getElementById("sale-date")?.value;
+    const saleDate = saleDateInput ? new Date(saleDateInput).toISOString() : new Date().toISOString();
+    const total = cart.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.sellingPrice || 0), 0);
 
-    const rows = Array.from(tbody.querySelectorAll("tr"));
-    if (rows.length === 0) {
-      alert("🛒 Your cart is empty.");
-      return;
-    }
+    debugLog("💳 Checking out order...", new Date().toISOString());
 
-    const customerName = document.getElementById("customer-name")?.value?.trim() || "Walk-in";
-    const saleDate = document.getElementById("sale-date")?.value || new Date().toISOString().split("T")[0];
-    const totalCost = parseFloat(document.getElementById("total-cost")?.textContent || "0");
-
-    // ✅ Prepare order summary
-    const order = {
-      customer_name: customerName,
-      sale_date: saleDate,
-      total_amount: totalCost,
-    };
-
-    const supabase = await ensureSupabaseClient();
-
-    console.log("🧾 Creating order:", order);
+    // 1) insert order
     const { data: orderData, error: orderErr } = await supabase
-      .from("customer_sales_orders")
-      .insert([order])
-      .select("id")
+      .from("customer_sales")
+      .insert([{ customer_name: customerName, sale_date: saleDate, total }])
+      .select()
       .single();
 
-    if (orderErr) {
-      console.error("❌ Failed to create order:", orderErr);
-      alert("Failed to create order. See console.");
-      return;
-    }
+    if (orderErr) throw orderErr;
+    debugLog("🆕 Order created:", orderData);
 
-    const orderId = orderData.id;
+    // 2) prepare items payload
+    const itemsPayload = cart.map(it => ({
+      order_id: orderData.id,
+      product_id: it.productId,
+      batch_id: it.batchId,
+      quantity: it.quantity,
+      selling_price: it.sellingPrice
+    }));
 
-    // ✅ Prepare line items
-    const items = rows.map((row) => {
-      const cells = row.querySelectorAll("td");
-      return {
-        order_id: orderId,
-        product_name: cells[0]?.textContent || "",
-        barcode: cells[1]?.textContent || "",
-        batch_no: cells[2]?.textContent || "",
-        quantity: parseFloat(cells[3]?.textContent || "0"),
-        price: parseFloat(cells[4]?.textContent || "0"),
-        subtotal: parseFloat(cells[5]?.textContent || "0"),
-      };
-    });
-
-    console.log("📦 Inserting order items:", items);
-    const { error: itemsErr } = await supabase.from("customer_sales_items").insert(items);
+    // 3) insert items
+    const { data: insertedItems, error: itemsErr } = await supabase
+      .from("customer_sales_items")
+      .insert(itemsPayload)
+      .select();
 
     if (itemsErr) {
-      console.error("❌ Failed to insert order items:", itemsErr);
-      alert("Order created but failed to save items.");
-      return;
+      // rollback - delete created order
+      console.error("❌ Failed inserting items, rolling back order...", itemsErr);
+      await supabase.from("customer_sales").delete().eq("id", orderData.id);
+      throw itemsErr;
+    }
+    debugLog("📦 Items inserted:", insertedItems);
+
+    // 4) decrement stock for each batch via RPC
+    for (const it of itemsPayload) {
+      try {
+        const { error: rpcErr } = await supabase.rpc("decrement_remaining_quantity", { p_batch_id: it.batch_id, p_quantity: it.quantity });
+        if (rpcErr) {
+          console.error("❌ Failed to decrement stock for batch", it.batch_id, rpcErr);
+          // not throwing here to allow other updates to continue; you can choose to fail hard instead
+        } else {
+          debugLog("✅ Decremented batch", it.batch_id, "by", it.quantity);
+        }
+      } catch (rpcEx) {
+        console.error("RPC error:", rpcEx);
+      }
     }
 
-    // ✅ Clear cart
-    tbody.innerHTML = "";
-    updateCartTotal();
+    // success
+    cart = []; // clear cart
+    renderCart();
+    loadCustomerSales(); // refresh list
 
-    alert("✅ Checkout complete!");
-    console.log("🎉 Order saved successfully with items.");
+    // show receipt
+    showReceipt(orderData.id);
 
   } catch (err) {
-    console.error("❌ checkoutOrder() failed:", err);
-    alert("Checkout failed. See console for details.");
+    console.error("❌ checkoutOrder failed:", err);
+    alert("Checkout failed: " + (err.message || JSON.stringify(err)));
   }
 }
-/* ---------------------- 💳 END CHECKOUT FIX ---------------------- */
 
 
 // --------------------
@@ -676,39 +670,7 @@ async function inStockProductIds() {
   return data.map((r) => r.product_id);
 }
 
-// ✅ Auto-fill product name when barcode exists in Product Catalog
-async function autofillProductNameByBarcode(barcode) {
-  if (!barcode || barcode.trim() === "") return;
 
-  try {
-    const supabase = await ensureSupabaseClient();
-
-    // 🔍 Look up in your "product_catalog" table
-    const { data, error } = await supabase
-      .from("product_catalog")
-      .select("name")
-      .eq("barcode", barcode.trim())
-      .maybeSingle();
-
-    if (error) {
-      console.warn("⚠️ Barcode lookup failed:", error.message);
-      return;
-    }
-
-    if (data && data.name) {
-      const nameInput = document.querySelector("#name");
-      if (nameInput) {
-        nameInput.value = data.name;
-        nameInput.classList.add("bg-green-50"); // subtle visual feedback
-        console.log(`✅ Autofilled product name: ${data.name}`);
-      }
-    } else {
-      console.log("ℹ️ No matching barcode found in Product Catalog.");
-    }
-  } catch (err) {
-    console.error("❌ autofillProductNameByBarcode() error:", err);
-  }
-}
 
 // =========================================================
 // Products Management
@@ -1409,118 +1371,35 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
- // ✅ Add Item button — collect inputs safely and call addItemToCart()
-const addBtn = document.getElementById("add-item");
-if (addBtn) {
-  addBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-
-    const barcode = document.getElementById("product-barcode")?.value?.trim();
-    const batchNo = document.getElementById("batch-no")?.value?.trim();
-    const qty = parseFloat(document.getElementById("quantity")?.value || "0");
-    const price = parseFloat(document.getElementById("selling-price")?.value || "0");
-    const productSelect = document.getElementById("product-select");
-    const productName =
-      productSelect?.options[productSelect.selectedIndex]?.text ||
-      document.getElementById("product-name")?.value ||
-      "";
-
-    addItemToCart(barcode, batchNo, qty, price, productName);
-  });
-}
-
-  
-  /* ---------------------- 🛒 CART ADD ITEM FIX ---------------------- */
-/* Remove/replace any existing addItemToCartImpl/addItemToCart_internal/etc. */
-
-async function addItemToCart(barcode, batchNo, quantity, price, productName) {
-  try {
-    console.log("🟢 addItemToCart() called", { barcode, batchNo, quantity, price, productName });
-
-    // --- Validation ---
-    if (!barcode || typeof barcode !== "string" || barcode.trim() === "") {
-      alert("❌ Please enter a valid product barcode.");
-      return;
-    }
-    if (!quantity || isNaN(quantity) || quantity <= 0) {
-      alert("❌ Please enter a valid quantity.");
-      return;
-    }
-    if (!price || isNaN(price) || price <= 0) {
-      alert("❌ Please enter a valid selling price.");
-      return;
-    }
-
-    // --- Target table ---
-    const tbody = document.querySelector("#cart-table tbody");
-    if (!tbody) {
-      console.warn("⚠️ cart tbody not found; skipping addItemToCart");
-      return;
-    }
-
-    // --- Check for existing cart row ---
-    const existingRow = Array.from(tbody.querySelectorAll("tr")).find(row => {
-      const cellBarcode = row.querySelector("td:nth-child(2)")?.textContent?.trim();
-      const cellBatch = row.querySelector("td:nth-child(3)")?.textContent?.trim();
-      return cellBarcode === barcode && cellBatch === batchNo;
-    });
-
-    if (existingRow) {
-      // ✅ Update existing item quantity & subtotal
-      const qtyCell = existingRow.querySelector("td:nth-child(4)");
-      const subtotalCell = existingRow.querySelector("td:nth-child(6)");
-      const oldQty = parseFloat(qtyCell.textContent) || 0;
-      const newQty = oldQty + Number(quantity);
-      qtyCell.textContent = newQty;
-      subtotalCell.textContent = (newQty * Number(price)).toFixed(2);
-    } else {
-      // ✅ Create new item row
-      const subtotal = (Number(quantity) * Number(price)).toFixed(2);
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td class="border p-2">${productName || ""}</td>
-        <td class="border p-2">${barcode}</td>
-        <td class="border p-2">${batchNo || ""}</td>
-        <td class="border p-2">${quantity}</td>
-        <td class="border p-2">${Number(price).toFixed(2)}</td>
-        <td class="border p-2">${subtotal}</td>
-        <td class="border p-2 text-center">
-          <button class="bg-red-500 text-white px-2 py-1 rounded remove-item">🗑️</button>
-        </td>
-      `;
-      tbody.appendChild(row);
-    }
-
-    // --- Update total cost ---
-    updateCartTotal();
-
-    // --- Wire up remove buttons ---
-    tbody.querySelectorAll(".remove-item").forEach(btn => {
-      btn.onclick = (e) => {
-        const row = e.target.closest("tr");
-        row?.remove();
-        updateCartTotal();
-      };
-    });
-
-  } catch (err) {
-    console.error("❌ addItemToCart() failed:", err);
+  // add item button
+  const addBtn = document.getElementById("add-item");
+  if (addBtn) addBtn.addEventListener("click", addItemToCart);
+  // wire addItemToCart wrapper to collect user inputs
+  async function addItemToCart(e) {
+    e?.preventDefault();
+    await addItemToCart_core();
   }
-}
+  // keep a core function named differently to avoid confusion
+  async function addItemToCart_core() {
+    await addItemToCart_actual();
+  }
+  // actual add (kept modular)
+  async function addItemToCart_actual() {
+    await addItemToCart_internal();
+  }
+  // internal function that calls the real addItemToCart implementation above
+  async function addItemToCart_internal() {
+    await addItemToCartImpl();
+  }
+  // finally: the real implementation (to avoid duplicate function names across versions)
+  async function addItemToCartImpl() {
+    await addItemToCartReal();
+  }
+  async function addItemToCartReal() {
+    // fallback to global addItemToCart
+    return addItemToCart ? await addItemToCart() : null;
+  }
 
-/* 🔹 Helper: Recalculate total cost from cart */
-function updateCartTotal() {
-  const tbody = document.querySelector("#cart-table tbody");
-  if (!tbody) return;
-  let total = 0;
-  tbody.querySelectorAll("tr").forEach(row => {
-    const subtotal = parseFloat(row.querySelector("td:nth-child(6)")?.textContent || "0");
-    total += subtotal;
-  });
-  const totalEl = document.getElementById("total-cost");
-  if (totalEl) totalEl.textContent = total.toFixed(2);
-}
-/* ---------------------- 🛒 END CART FIX ---------------------- */
   // fallback: if there is a Checkout button
   const checkoutBtn = document.getElementById("checkout");
   if (checkoutBtn) checkoutBtn.addEventListener("click", checkoutOrder);
