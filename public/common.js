@@ -1449,7 +1449,35 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
+ /* ---------------------- 🧩 AUTO-FILL BARCODE ON PRODUCT SELECT ---------------------- */
+  const productSelect = document.getElementById("product-select");
+  if (productSelect) {
+    productSelect.addEventListener("change", async (e) => {
+      const productId = e.target.value;
+      if (!productId) return;
 
+      const supabase = await ensureSupabaseClient();
+      const { data, error } = await supabase
+        .from("product_catalog")
+        .select("barcode")
+        .eq("id", productId)
+        .single();
+
+      if (error) {
+        console.warn("⚠️ Failed to fetch barcode for product", error);
+        return;
+      }
+
+      const barcodeField = document.getElementById("product-barcode");
+      if (barcodeField) {
+        barcodeField.value = data.barcode || "";
+        console.log("✅ Barcode auto-filled:", data.barcode);
+      }
+    });
+  }
+  /* ---------------------- 🧩 END AUTO-FILL BARCODE ---------------------- */
+
+  
   // barcode input Enter handler
   const barcodeInput = document.getElementById("product-barcode");
   if (barcodeInput) {
