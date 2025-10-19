@@ -1404,24 +1404,35 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   
-  // ✅ Fixed version — no recursion
+  /* ---------------------- 🛒 CART ADD ITEM FIX ---------------------- */
+/* Remove/replace any existing addItemToCartImpl/addItemToCart_internal/etc. */
+
 async function addItemToCart(barcode, batchNo, quantity, price, productName) {
   try {
     console.log("🟢 addItemToCart() called", { barcode, batchNo, quantity, price, productName });
 
-    // basic validation
-    if (!barcode || !quantity || quantity <= 0) {
-      alert("Invalid barcode or quantity.");
+    // --- Validation ---
+    if (!barcode || typeof barcode !== "string" || barcode.trim() === "") {
+      alert("❌ Please enter a valid product barcode.");
+      return;
+    }
+    if (!quantity || isNaN(quantity) || quantity <= 0) {
+      alert("❌ Please enter a valid quantity.");
+      return;
+    }
+    if (!price || isNaN(price) || price <= 0) {
+      alert("❌ Please enter a valid selling price.");
       return;
     }
 
+    // --- Target table ---
     const tbody = document.querySelector("#cart-table tbody");
     if (!tbody) {
       console.warn("⚠️ cart tbody not found; skipping addItemToCart");
       return;
     }
 
-    // check if item already exists in cart
+    // --- Check for existing cart row ---
     const existingRow = Array.from(tbody.querySelectorAll("tr")).find(row => {
       const cellBarcode = row.querySelector("td:nth-child(2)")?.textContent?.trim();
       const cellBatch = row.querySelector("td:nth-child(3)")?.textContent?.trim();
@@ -1429,23 +1440,23 @@ async function addItemToCart(barcode, batchNo, quantity, price, productName) {
     });
 
     if (existingRow) {
-      // update existing qty/subtotal
+      // ✅ Update existing item quantity & subtotal
       const qtyCell = existingRow.querySelector("td:nth-child(4)");
       const subtotalCell = existingRow.querySelector("td:nth-child(6)");
       const oldQty = parseFloat(qtyCell.textContent) || 0;
-      const newQty = oldQty + quantity;
+      const newQty = oldQty + Number(quantity);
       qtyCell.textContent = newQty;
-      subtotalCell.textContent = (newQty * price).toFixed(2);
+      subtotalCell.textContent = (newQty * Number(price)).toFixed(2);
     } else {
-      // create new row
-      const subtotal = (quantity * price).toFixed(2);
+      // ✅ Create new item row
+      const subtotal = (Number(quantity) * Number(price)).toFixed(2);
       const row = document.createElement("tr");
       row.innerHTML = `
         <td class="border p-2">${productName || ""}</td>
         <td class="border p-2">${barcode}</td>
         <td class="border p-2">${batchNo || ""}</td>
         <td class="border p-2">${quantity}</td>
-        <td class="border p-2">${price.toFixed(2)}</td>
+        <td class="border p-2">${Number(price).toFixed(2)}</td>
         <td class="border p-2">${subtotal}</td>
         <td class="border p-2 text-center">
           <button class="bg-red-500 text-white px-2 py-1 rounded remove-item">🗑️</button>
@@ -1454,9 +1465,33 @@ async function addItemToCart(barcode, batchNo, quantity, price, productName) {
       tbody.appendChild(row);
     }
 
-    // recalc total
+    // --- Update total cost ---
     updateCartTotal();
+
+    // --- Wire up remove buttons ---
+    tbody.querySelectorAll(".remove-item").forEach(btn => {
+      btn.onclick = (e) => {
+        const row = e.target.closest("tr");
+        row?.remove();
+        updateCartTotal();
+      };
+    });
+
   } catch (err) {
-    console.error("❌ addItemToCart() failed", err);
+    console.error("❌ addItemToCart() failed:", err);
   }
 }
+
+/* 🔹 Helper: Recalculate total cost from cart */
+function updateCartTotal() {
+  const tbody = document.querySelector("#cart-table tbody");
+  if (!tbody) return;
+  let total = 0;
+  tbody.querySelectorAll("tr").forEach(row => {
+    const subtotal = parseFloat(row.querySelector("td:nth-child(6)")?.textContent || "0");
+    total += subtotal;
+  });
+  const totalEl = document.getElementById("total-cost");
+  if (totalEl) totalEl.textContent = total.toFixed(2);
+}
+/* ---------------------- 🛒 END CART FIX ---------------------- */
