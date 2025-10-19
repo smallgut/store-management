@@ -466,7 +466,7 @@ function updateCartTotal() {
 // Checkout: create order + items in two-step, roll back if items insert fails
 // and decrement stock using RPC
 // -----------------------------
-/* ---------------------- 💳 CHECKOUT PROCESS (FIXED TABLE NAMES) ---------------------- */
+/* ---------------------- 💳 CHECKOUT PROCESS FIX (v2 with stock decrement) ---------------------- */
 async function checkoutOrder(e) {
   if (e) e.preventDefault();
 
@@ -484,20 +484,16 @@ async function checkoutOrder(e) {
     }
 
     const customerName = document.getElementById("customer-name")?.value?.trim() || "Walk-in";
-    const saleDate = document.getElementById("sale-date")?.value || new Date().toISOString();
-    const totalCost = parseFloat(document.getElementById("total-cost")?.textContent || "0");
+    const saleDate = document.getElementById("sale-date")?.value || new Date().toISOString().split("T")[0];
+    const total = parseFloat(document.getElementById("total-cost")?.textContent || "0");
 
-    const order = {
-      customer_name: customerName,
-      sale_date: saleDate,
-      total: totalCost, // ✅ field name fixed
-    };
-
+    // ✅ Create order
     const supabase = await ensureSupabaseClient();
+    const order = { customer_name: customerName, sale_date: saleDate, total };
 
     console.log("🧾 Creating order:", order);
     const { data: orderData, error: orderErr } = await supabase
-      .from("customer_sales") // ✅ correct table
+      .from("customer_sales_orders")
       .insert([order])
       .select("id")
       .single();
@@ -510,13 +506,12 @@ async function checkoutOrder(e) {
 
     const orderId = orderData.id;
 
-    // ✅ Prepare line items
+    // ✅ Prepare line items (only valid columns)
     const items = rows.map((row) => {
       const cells = row.querySelectorAll("td");
       return {
         order_id: orderId,
         product_name: cells[0]?.textContent || "",
-        barcode: cells[1]?.textContent || "",
         batch_no: cells[2]?.textContent || "",
         quantity: parseFloat(cells[3]?.textContent || "0"),
         price: parseFloat(cells[4]?.textContent || "0"),
@@ -525,7 +520,10 @@ async function checkoutOrder(e) {
     });
 
     console.log("📦 Inserting order items:", items);
-    const { error: itemsErr } = await supabase.from("customer_sales_items").insert(items);
+
+    const { error: itemsErr } = await supabase
+      .from("customer_sales_items")
+      .insert(items);
 
     if (itemsErr) {
       console.error("❌ Failed to insert order items:", itemsErr);
@@ -533,11 +531,41 @@ async function checkoutOrder(e) {
       return;
     }
 
+    // ✅ Decrement batch stock for each sold item
+    for (const item of items) {
+      const { batch_no, quantity } = item;
+      if (!batch_no || !quantity) continue;
+
+      console.log(`🔻 Decrementing stock for batch ${batch_no} by ${quantity}...`);
+      const { data: batchData, error: batchErr } = await supabase
+        .from("batches")
+        .select("quantity")
+        .eq("id", batch_no)
+        .single();
+
+      if (batchErr) {
+        console.warn(`⚠️ Could not fetch batch ${batch_no}:`, batchErr);
+        continue;
+      }
+
+      const newQty = Math.max(0, (batchData?.quantity || 0) - quantity);
+      const { error: updateErr } = await supabase
+        .from("batches")
+        .update({ quantity: newQty })
+        .eq("id", batch_no);
+
+      if (updateErr) {
+        console.warn(`⚠️ Failed to update batch ${batch_no}:`, updateErr);
+      } else {
+        console.log(`✅ Batch ${batch_no} stock updated to ${newQty}`);
+      }
+    }
+
+    // ✅ Clear cart after success
     tbody.innerHTML = "";
     updateCartTotal();
-
     alert("✅ Checkout complete!");
-    console.log("🎉 Order saved successfully with items.");
+    console.log("🎉 Order & items saved successfully, stock updated.");
 
   } catch (err) {
     console.error("❌ checkoutOrder() failed:", err);
