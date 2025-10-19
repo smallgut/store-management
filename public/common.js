@@ -1403,10 +1403,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // add item button
-  const addBtn = document.getElementById("add-item");
-  if (addBtn) addBtn.addEventListener("click", addItemToCart);
-  // wire addItemToCart wrapper to collect user inputs
+  
   // ✅ Fixed version — no recursion
 async function addItemToCart(barcode, batchNo, quantity, price, productName) {
   try {
