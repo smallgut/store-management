@@ -364,7 +364,7 @@ function escapeHtml(s) {
 /* ---------------------- 🛒 CART ADD ITEM FIX ---------------------- */
 /* Remove/replace any existing addItemToCartImpl/addItemToCart_internal/etc. */
 
-/* ---------------------- 🛒 CART ADD ITEM FIX ---------------------- */
+/* ---------------------- 🛒 CART ADD ITEM (FIXED BATCH DISPLAY) ---------------------- */
 async function addItemToCart(barcode, batchNo, quantity, price, productName) {
   try {
     console.log("🟢 addItemToCart() called", { barcode, batchNo, quantity, price, productName });
@@ -383,6 +383,19 @@ async function addItemToCart(barcode, batchNo, quantity, price, productName) {
       return;
     }
 
+    const supabase = await ensureSupabaseClient();
+
+    // ✅ Fetch readable batch number
+    let batchLabel = batchNo;
+    if (batchNo && /^\d+$/.test(batchNo)) {
+      const { data: b } = await supabase
+        .from("product_batches")
+        .select("batch_number")
+        .eq("id", batchNo)
+        .maybeSingle();
+      if (b?.batch_number) batchLabel = b.batch_number;
+    }
+
     const tbody = document.querySelector("#cart-table tbody");
     if (!tbody) {
       console.warn("⚠️ cart tbody not found; skipping addItemToCart");
@@ -393,7 +406,7 @@ async function addItemToCart(barcode, batchNo, quantity, price, productName) {
     const existingRow = Array.from(tbody.querySelectorAll("tr")).find(row => {
       const cellBarcode = row.querySelector("td:nth-child(2)")?.textContent?.trim();
       const cellBatch = row.querySelector("td:nth-child(3)")?.textContent?.trim();
-      return cellBarcode === barcode && cellBatch === batchNo;
+      return cellBarcode === barcode && cellBatch === batchLabel;
     });
 
     if (existingRow) {
@@ -409,7 +422,7 @@ async function addItemToCart(barcode, batchNo, quantity, price, productName) {
       row.innerHTML = `
         <td class="border p-2">${productName || ""}</td>
         <td class="border p-2">${barcode}</td>
-        <td class="border p-2">${batchNo || ""}</td>
+        <td class="border p-2">${batchLabel || ""}</td>
         <td class="border p-2">${quantity}</td>
         <td class="border p-2">${Number(price).toFixed(2)}</td>
         <td class="border p-2">${subtotal}</td>
@@ -448,11 +461,12 @@ function updateCartTotal() {
 }
 /* ---------------------- 🛒 END CART FIX ---------------------- */
 
+
 // -----------------------------
 // Checkout: create order + items in two-step, roll back if items insert fails
 // and decrement stock using RPC
 // -----------------------------
-/* ---------------------- 💳 CHECKOUT PROCESS FIX ---------------------- */
+/* ---------------------- 💳 CHECKOUT PROCESS (FIXED TABLE NAMES) ---------------------- */
 async function checkoutOrder(e) {
   if (e) e.preventDefault();
 
@@ -470,20 +484,20 @@ async function checkoutOrder(e) {
     }
 
     const customerName = document.getElementById("customer-name")?.value?.trim() || "Walk-in";
-    const saleDate = document.getElementById("sale-date")?.value || new Date().toISOString().split("T")[0];
+    const saleDate = document.getElementById("sale-date")?.value || new Date().toISOString();
     const totalCost = parseFloat(document.getElementById("total-cost")?.textContent || "0");
 
     const order = {
       customer_name: customerName,
       sale_date: saleDate,
-      total_amount: totalCost,
+      total: totalCost, // ✅ field name fixed
     };
 
     const supabase = await ensureSupabaseClient();
 
     console.log("🧾 Creating order:", order);
     const { data: orderData, error: orderErr } = await supabase
-      .from("customer_sales_orders")
+      .from("customer_sales") // ✅ correct table
       .insert([order])
       .select("id")
       .single();
@@ -495,7 +509,9 @@ async function checkoutOrder(e) {
     }
 
     const orderId = orderData.id;
-    const items = rows.map(row => {
+
+    // ✅ Prepare line items
+    const items = rows.map((row) => {
       const cells = row.querySelectorAll("td");
       return {
         order_id: orderId,
@@ -529,7 +545,6 @@ async function checkoutOrder(e) {
   }
 }
 /* ---------------------- 💳 END CHECKOUT FIX ---------------------- */
-
 // --------------------
 // 📊 Loaders per page
 // --------------------
