@@ -670,7 +670,39 @@ async function inStockProductIds() {
   return data.map((r) => r.product_id);
 }
 
+// ✅ Auto-fill product name when barcode exists in Product Catalog
+async function autofillProductNameByBarcode(barcode) {
+  if (!barcode || barcode.trim() === "") return;
 
+  try {
+    const supabase = await ensureSupabaseClient();
+
+    // 🔍 Look up in your "product_catalog" table
+    const { data, error } = await supabase
+      .from("product_catalog")
+      .select("name")
+      .eq("barcode", barcode.trim())
+      .maybeSingle();
+
+    if (error) {
+      console.warn("⚠️ Barcode lookup failed:", error.message);
+      return;
+    }
+
+    if (data && data.name) {
+      const nameInput = document.querySelector("#name");
+      if (nameInput) {
+        nameInput.value = data.name;
+        nameInput.classList.add("bg-green-50"); // subtle visual feedback
+        console.log(`✅ Autofilled product name: ${data.name}`);
+      }
+    } else {
+      console.log("ℹ️ No matching barcode found in Product Catalog.");
+    }
+  } catch (err) {
+    console.error("❌ autofillProductNameByBarcode() error:", err);
+  }
+}
 
 // =========================================================
 // Products Management
