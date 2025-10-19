@@ -466,7 +466,7 @@ function updateCartTotal() {
 // Checkout: create order + items in two-step, roll back if items insert fails
 // and decrement stock using RPC
 // -----------------------------
-/* ---------------------- 💳 CHECKOUT PROCESS FIX (v2 with stock decrement) ---------------------- */
+/* ---------------------- 💳 CHECKOUT PROCESS FIX (v3 - correct Supabase schema + stock decrement) ---------------------- */
 async function checkoutOrder(e) {
   if (e) e.preventDefault();
 
@@ -484,16 +484,17 @@ async function checkoutOrder(e) {
     }
 
     const customerName = document.getElementById("customer-name")?.value?.trim() || "Walk-in";
-    const saleDate = document.getElementById("sale-date")?.value || new Date().toISOString().split("T")[0];
+    const saleDate = document.getElementById("sale-date")?.value || new Date().toISOString();
     const total = parseFloat(document.getElementById("total-cost")?.textContent || "0");
 
-    // ✅ Create order
     const supabase = await ensureSupabaseClient();
-    const order = { customer_name: customerName, sale_date: saleDate, total };
 
+    // ✅ 1️⃣ Create main order in customer_sales
+    const order = { customer_name: customerName, sale_date: saleDate, total };
     console.log("🧾 Creating order:", order);
+
     const { data: orderData, error: orderErr } = await supabase
-      .from("customer_sales_orders")
+      .from("customer_sales")
       .insert([order])
       .select("id")
       .single();
@@ -506,16 +507,23 @@ async function checkoutOrder(e) {
 
     const orderId = orderData.id;
 
-    // ✅ Prepare line items (only valid columns)
+    // ✅ 2️⃣ Prepare items for customer_sales_items insert
     const items = rows.map((row) => {
       const cells = row.querySelectorAll("td");
+      const productName = cells[0]?.textContent || "";
+      const barcode = cells[1]?.textContent || "";
+      const batchId = parseInt(cells[2]?.textContent || "0"); // use numeric id
+      const qty = parseFloat(cells[3]?.textContent || "0");
+      const price = parseFloat(cells[4]?.textContent || "0");
+      const subTotal = parseFloat(cells[5]?.textContent || "0");
+
       return {
         order_id: orderId,
-        product_name: cells[0]?.textContent || "",
-        batch_no: cells[2]?.textContent || "",
-        quantity: parseFloat(cells[3]?.textContent || "0"),
-        price: parseFloat(cells[4]?.textContent || "0"),
-        subtotal: parseFloat(cells[5]?.textContent || "0"),
+        product_id: null,        // you can fill this later if you want to map to products.id
+        batch_id: batchId,
+        quantity: qty,
+        selling_price: price,
+        sub_total: subTotal
       };
     });
 
@@ -531,37 +539,38 @@ async function checkoutOrder(e) {
       return;
     }
 
-    // ✅ Decrement batch stock for each sold item
+    // ✅ 3️⃣ Decrement stock in product_batches
     for (const item of items) {
-      const { batch_no, quantity } = item;
-      if (!batch_no || !quantity) continue;
+      const { batch_id, quantity } = item;
+      if (!batch_id || !quantity) continue;
 
-      console.log(`🔻 Decrementing stock for batch ${batch_no} by ${quantity}...`);
+      console.log(`🔻 Decrementing stock for batch ${batch_id} by ${quantity}...`);
+
       const { data: batchData, error: batchErr } = await supabase
-        .from("batches")
-        .select("quantity")
-        .eq("id", batch_no)
+        .from("product_batches")
+        .select("remaining_quantity")
+        .eq("id", batch_id)
         .single();
 
       if (batchErr) {
-        console.warn(`⚠️ Could not fetch batch ${batch_no}:`, batchErr);
+        console.warn(`⚠️ Could not fetch batch ${batch_id}:`, batchErr);
         continue;
       }
 
-      const newQty = Math.max(0, (batchData?.quantity || 0) - quantity);
+      const newQty = Math.max(0, (batchData?.remaining_quantity || 0) - quantity);
       const { error: updateErr } = await supabase
-        .from("batches")
-        .update({ quantity: newQty })
-        .eq("id", batch_no);
+        .from("product_batches")
+        .update({ remaining_quantity: newQty })
+        .eq("id", batch_id);
 
       if (updateErr) {
-        console.warn(`⚠️ Failed to update batch ${batch_no}:`, updateErr);
+        console.warn(`⚠️ Failed to update batch ${batch_id}:`, updateErr);
       } else {
-        console.log(`✅ Batch ${batch_no} stock updated to ${newQty}`);
+        console.log(`✅ Batch ${batch_id} remaining_quantity updated to ${newQty}`);
       }
     }
 
-    // ✅ Clear cart after success
+    // ✅ 4️⃣ Final cleanup
     tbody.innerHTML = "";
     updateCartTotal();
     alert("✅ Checkout complete!");
