@@ -1407,42 +1407,59 @@ document.addEventListener("DOMContentLoaded", async () => {
   const addBtn = document.getElementById("add-item");
   if (addBtn) addBtn.addEventListener("click", addItemToCart);
   // wire addItemToCart wrapper to collect user inputs
-  async function addItemToCart(e) {
-    e?.preventDefault();
-    await addItemToCart_core();
-  }
-  // keep a core function named differently to avoid confusion
-  async function addItemToCart_core() {
-    await addItemToCart_actual();
-  }
-  // actual add (kept modular)
-  async function addItemToCart_actual() {
-    await addItemToCart_internal();
-  }
-  // internal function that calls the real addItemToCart implementation above
-  async function addItemToCart_internal() {
-    await addItemToCartImpl();
-  }
-  // finally: the real implementation (to avoid duplicate function names across versions)
-  async function addItemToCartImpl() {
-    await addItemToCartReal();
-  }
-  async function addItemToCartReal() {
-    // fallback to global addItemToCart
-    return addItemToCart ? await addItemToCart() : null;
-  }
+  // ✅ Fixed version — no recursion
+async function addItemToCart(barcode, batchNo, quantity, price, productName) {
+  try {
+    console.log("🟢 addItemToCart() called", { barcode, batchNo, quantity, price, productName });
 
-  // fallback: if there is a Checkout button
-  const checkoutBtn = document.getElementById("checkout");
-  if (checkoutBtn) checkoutBtn.addEventListener("click", checkoutOrder);
+    // basic validation
+    if (!barcode || !quantity || quantity <= 0) {
+      alert("Invalid barcode or quantity.");
+      return;
+    }
 
-  // bind product form submit (manage-products page)
-  const addProductForm = document.getElementById("add-product-form");
-  if (addProductForm) addProductForm.addEventListener("submit", addProduct);
+    const tbody = document.querySelector("#cart-table tbody");
+    if (!tbody) {
+      console.warn("⚠️ cart tbody not found; skipping addItemToCart");
+      return;
+    }
 
-  const addVendorForm = document.getElementById("add-vendor-form");
-  if (addVendorForm) addVendorForm.addEventListener("submit", addVendor);
+    // check if item already exists in cart
+    const existingRow = Array.from(tbody.querySelectorAll("tr")).find(row => {
+      const cellBarcode = row.querySelector("td:nth-child(2)")?.textContent?.trim();
+      const cellBatch = row.querySelector("td:nth-child(3)")?.textContent?.trim();
+      return cellBarcode === barcode && cellBatch === batchNo;
+    });
 
-  // wire cart render initially
-  renderCart();
-});
+    if (existingRow) {
+      // update existing qty/subtotal
+      const qtyCell = existingRow.querySelector("td:nth-child(4)");
+      const subtotalCell = existingRow.querySelector("td:nth-child(6)");
+      const oldQty = parseFloat(qtyCell.textContent) || 0;
+      const newQty = oldQty + quantity;
+      qtyCell.textContent = newQty;
+      subtotalCell.textContent = (newQty * price).toFixed(2);
+    } else {
+      // create new row
+      const subtotal = (quantity * price).toFixed(2);
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td class="border p-2">${productName || ""}</td>
+        <td class="border p-2">${barcode}</td>
+        <td class="border p-2">${batchNo || ""}</td>
+        <td class="border p-2">${quantity}</td>
+        <td class="border p-2">${price.toFixed(2)}</td>
+        <td class="border p-2">${subtotal}</td>
+        <td class="border p-2 text-center">
+          <button class="bg-red-500 text-white px-2 py-1 rounded remove-item">🗑️</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    }
+
+    // recalc total
+    updateCartTotal();
+  } catch (err) {
+    console.error("❌ addItemToCart() failed", err);
+  }
+}
