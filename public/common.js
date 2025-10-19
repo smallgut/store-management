@@ -1450,32 +1450,44 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
  /* ---------------------- 🧩 AUTO-FILL BARCODE ON PRODUCT SELECT ---------------------- */
-  const productSelect = document.getElementById("product-select");
-  if (productSelect) {
-    productSelect.addEventListener("change", async (e) => {
-      const productId = e.target.value;
-      if (!productId) return;
+const productSelect = document.getElementById("product-select");
+if (productSelect) {
+  productSelect.addEventListener("change", async (e) => {
+    const productId = e.target.value;
+    if (!productId) return;
 
-      const supabase = await ensureSupabaseClient();
-      const { data, error } = await supabase
+    const supabase = await ensureSupabaseClient();
+
+    // Try from "products" first (since that’s what your dropdown uses)
+    let { data, error } = await supabase
+      .from("products")
+      .select("barcode")
+      .eq("id", productId)
+      .single();
+
+    // If not found in "products", fall back to "product_catalog"
+    if (error || !data) {
+      const alt = await supabase
         .from("product_catalog")
         .select("barcode")
         .eq("id", productId)
-        .single();
+        .maybeSingle(); // handles missing rows gracefully
+      data = alt.data;
+    }
 
-      if (error) {
-        console.warn("⚠️ Failed to fetch barcode for product", error);
-        return;
-      }
+    if (!data || !data.barcode) {
+      console.warn("⚠️ No barcode found for selected product");
+      return;
+    }
 
-      const barcodeField = document.getElementById("product-barcode");
-      if (barcodeField) {
-        barcodeField.value = data.barcode || "";
-        console.log("✅ Barcode auto-filled:", data.barcode);
-      }
-    });
-  }
-  /* ---------------------- 🧩 END AUTO-FILL BARCODE ---------------------- */
+    const barcodeField = document.getElementById("product-barcode");
+    if (barcodeField) {
+      barcodeField.value = data.barcode;
+      console.log("✅ Barcode auto-filled:", data.barcode);
+    }
+  });
+}
+/* ---------------------- 🧩 END AUTO-FILL BARCODE ---------------------- */
 
   
   // barcode input Enter handler
