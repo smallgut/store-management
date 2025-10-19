@@ -466,7 +466,7 @@ function updateCartTotal() {
 // Checkout: create order + items in two-step, roll back if items insert fails
 // and decrement stock using RPC
 // -----------------------------
-/* ---------------------- 💳 CHECKOUT PROCESS FIX (v3 - correct Supabase schema + stock decrement) ---------------------- */
+/* ---------------------- 💳 CHECKOUT PROCESS FIX (v4 - omit generated sub_total) ---------------------- */
 async function checkoutOrder(e) {
   if (e) e.preventDefault();
 
@@ -510,20 +510,17 @@ async function checkoutOrder(e) {
     // ✅ 2️⃣ Prepare items for customer_sales_items insert
     const items = rows.map((row) => {
       const cells = row.querySelectorAll("td");
-      const productName = cells[0]?.textContent || "";
-      const barcode = cells[1]?.textContent || "";
       const batchId = parseInt(cells[2]?.textContent || "0"); // use numeric id
       const qty = parseFloat(cells[3]?.textContent || "0");
       const price = parseFloat(cells[4]?.textContent || "0");
-      const subTotal = parseFloat(cells[5]?.textContent || "0");
 
       return {
         order_id: orderId,
-        product_id: null,        // you can fill this later if you want to map to products.id
+        product_id: null,  // optional mapping
         batch_id: batchId,
         quantity: qty,
-        selling_price: price,
-        sub_total: subTotal
+        selling_price: price
+        // ⚠️ sub_total is omitted because it's a generated column
       };
     });
 
