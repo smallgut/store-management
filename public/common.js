@@ -1173,12 +1173,13 @@ async function addVendor({ name, contact, phone, address }) {
 // -----------------------------
 /* ---------------------- 🧾 SHOW RECEIPT MODAL (Hybrid with Print Support) ---------------------- */
 /* ---------------------- 🧾 SHOW RECEIPT MODAL (with Print + Taiwan Timezone + Data Fix) ---------------------- */
+/* ---------------------- 🧾 SHOW RECEIPT MODAL (Final Full Version) ---------------------- */
 async function showReceipt(orderId) {
   try {
     const supabase = await ensureSupabaseClient();
     console.log(`🧾 Loading receipt for order #${orderId}...`);
 
-    // 1️⃣ Fetch main order
+    // 1️⃣ Fetch order header
     const { data: order, error: orderErr } = await supabase
       .from("customer_sales")
       .select("id, customer_name, sale_date, total")
@@ -1187,7 +1188,7 @@ async function showReceipt(orderId) {
 
     if (orderErr || !order) throw orderErr || new Error("Order not found");
 
-    // 2️⃣ Fetch order items
+    // 2️⃣ Fetch items
     const { data: items, error: itemsErr } = await supabase
       .from("customer_sales_items")
       .select("id, batch_id, quantity, selling_price")
@@ -1195,7 +1196,7 @@ async function showReceipt(orderId) {
 
     if (itemsErr) throw itemsErr;
 
-    // 3️⃣ Enrich with product & batch info
+    // 3️⃣ Build detailed items
     const detailedItems = [];
     for (const it of items || []) {
       let productName = "Unknown";
@@ -1205,14 +1206,14 @@ async function showReceipt(orderId) {
       if (it.batch_id) {
         const { data: batchData, error: batchErr } = await supabase
           .from("product_batches")
-          .select("batch_number, product_id")
+          .select("batch_number, product_id, barcode")
           .eq("id", it.batch_id)
           .maybeSingle();
 
         if (!batchErr && batchData) {
           batchNum = batchData.batch_number || "";
 
-          // Lookup product info from catalog
+          // Primary: by product_id
           if (batchData.product_id) {
             const { data: prodData, error: prodErr } = await supabase
               .from("product_catalog")
@@ -1223,6 +1224,20 @@ async function showReceipt(orderId) {
             if (!prodErr && prodData) {
               productName = prodData.name || "Unnamed Product";
               barcode = prodData.barcode || "";
+            }
+          }
+
+          // Secondary fallback: by batch barcode (for older data)
+          if ((!productName || productName === "Unknown") && batchData.barcode) {
+            const { data: prodFallback } = await supabase
+              .from("product_catalog")
+              .select("name, barcode")
+              .eq("barcode", batchData.barcode)
+              .maybeSingle();
+
+            if (prodFallback) {
+              productName = prodFallback.name || productName;
+              barcode = prodFallback.barcode || barcode;
             }
           }
         }
@@ -1238,7 +1253,7 @@ async function showReceipt(orderId) {
       });
     }
 
-    // 4️⃣ Build HTML
+    // 4️⃣ Render modal
     const content = document.getElementById("receipt-content");
     const modal = document.getElementById("receipt-modal");
     if (!content || !modal) return;
@@ -1296,7 +1311,6 @@ async function showReceipt(orderId) {
     modal.classList.remove("hidden");
     modal.classList.add("flex");
 
-    // 5️⃣ Button handlers
     document.getElementById("close-receipt").onclick = () => {
       modal.classList.add("hidden");
       modal.classList.remove("flex");
@@ -1310,6 +1324,7 @@ async function showReceipt(orderId) {
     alert("Failed to show receipt. Check console for details.");
   }
 }
+
 /* ============================================================ */
 
 function closeReceiptModal() {
