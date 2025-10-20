@@ -572,7 +572,10 @@ async function checkoutOrder(e) {
     updateCartTotal();
     alert("✅ Checkout complete!");
     console.log("🎉 Order & items saved successfully, stock updated.");
-
+    
+// 🔄 Refresh sales list
+loadCustomerSales();
+    
   } catch (err) {
     console.error("❌ checkoutOrder() failed:", err);
     alert("Checkout failed. See console for details.");
@@ -1564,4 +1567,7 @@ if (addBtn) {
 
   // wire cart render initially
   renderCart();
+
+  // ✅ Load sales table if applicable
+  loadCustomerSales();
 });
