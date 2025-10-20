@@ -1227,82 +1227,148 @@ async function addVendor({ name, contact, phone, address }) {
 // -----------------------------
 // Receipt modal + print
 // -----------------------------
+/* ---------------------- 🧾 SHOW RECEIPT MODAL (Hybrid with Print Support) ---------------------- */
 async function showReceipt(orderId) {
   try {
-    debugLog("🧾 Loading receipt for order:", orderId);
+    console.log(`🧾 Loading receipt for order #${orderId}...`);
     const supabase = await ensureSupabaseClient();
 
+    // 1️⃣ Fetch main order
     const { data: order, error: orderErr } = await supabase
       .from("customer_sales")
       .select("id, customer_name, sale_date, total")
       .eq("id", orderId)
       .single();
 
-    if (orderErr) throw orderErr;
+    if (orderErr || !order) {
+      console.error("❌ Failed to load order:", orderErr);
+      alert("Failed to load order details.");
+      return;
+    }
 
+    // 2️⃣ Fetch items (no broken joins)
     const { data: items, error: itemsErr } = await supabase
       .from("customer_sales_items")
-      .select("product_id, batch_id, quantity, selling_price, products(name, barcode), product_batches(batch_number)")
+      .select("batch_id, quantity, selling_price")
       .eq("order_id", orderId);
 
-    if (itemsErr) throw itemsErr;
+    if (itemsErr) {
+      console.error("❌ Failed to load order items:", itemsErr);
+      alert("Failed to load order items.");
+      return;
+    }
 
-    const totalQty = (items || []).reduce((s, i) => s + (i.quantity || 0), 0);
-    const totalCost = (items || []).reduce((s, i) => s + (Number(i.quantity || 0) * Number(i.selling_price || 0)), 0);
+    // 3️⃣ Load product + batch info manually
+    const detailedItems = [];
+    for (const it of items) {
+      let productName = "Unknown";
+      let barcode = "";
+      let batchNum = "";
+      try {
+        const { data: batchData } = await supabase
+          .from("product_batches")
+          .select("batch_number, product_id")
+          .eq("id", it.batch_id)
+          .single();
 
-    let html = `
-      <h2 class="text-lg font-bold mb-2">Receipt</h2>
-      <p><strong>Order #:</strong> ${order.id}</p>
-      <p><strong>Customer:</strong> ${order.customer_name || "(無)"}</p>
-      <p><strong>Sale Date:</strong> ${formatDate(order.sale_date)}</p>
-      <p><strong>Items:</strong> ${totalQty}</p>
-      <p><strong>Total Cost:</strong> ${Number(order.total || totalCost).toFixed(2)}</p>
+        if (batchData) {
+          batchNum = batchData.batch_number;
 
-      <table class="w-full border mt-3">
-        <thead>
-          <tr class="border-b">
-            <th class="p-1 text-left">Product</th>
-            <th class="p-1">Barcode</th>
-            <th class="p-1">Batch</th>
-            <th class="p-1">Qty</th>
-            <th class="p-1">Price</th>
-            <th class="p-1">Sub-Total</th>
+          const { data: prodData } = await supabase
+            .from("product_catalog")
+            .select("name, barcode")
+            .eq("id", batchData.product_id)
+            .single();
+
+          if (prodData) {
+            productName = prodData.name;
+            barcode = prodData.barcode;
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ Error loading item details:", err);
+      }
+
+      detailedItems.push({
+        name: productName,
+        barcode,
+        batch: batchNum,
+        qty: it.quantity,
+        price: it.selling_price,
+        subtotal: (it.quantity * it.selling_price).toFixed(2),
+      });
+    }
+
+    // 4️⃣ Render modal HTML (same design, plus Print button)
+    const modal = document.getElementById("receipt-modal");
+    const content = document.getElementById("receipt-content");
+    if (!modal || !content) return;
+
+    const date = new Date(order.sale_date).toLocaleString();
+    const total = Number(order.total).toFixed(2);
+
+    content.innerHTML = `
+      <h2 class="text-2xl font-bold mb-4">Receipt #${order.id}</h2>
+      <p><strong>Customer:</strong> ${order.customer_name}</p>
+      <p><strong>Date:</strong> ${date}</p>
+
+      <table class="w-full border-collapse border border-gray-300 text-sm mt-4 mb-4">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="border p-2 text-left">Product</th>
+            <th class="border p-2 text-left">Barcode</th>
+            <th class="border p-2 text-center">Batch</th>
+            <th class="border p-2 text-center">Qty</th>
+            <th class="border p-2 text-right">Price</th>
+            <th class="border p-2 text-right">Subtotal</th>
           </tr>
         </thead>
         <tbody>
-          ${(items || []).map(i => `
-            <tr class="border-b">
-              <td class="p-1">${i.products?.name || ""}</td>
-              <td class="p-1">${i.products?.barcode || ""}</td>
-              <td class="p-1">${i.product_batches?.batch_number || ""}</td>
-              <td class="p-1">${i.quantity}</td>
-              <td class="p-1">${Number(i.selling_price || 0).toFixed(2)}</td>
-              <td class="p-1">${(Number(i.quantity || 0) * Number(i.selling_price || 0)).toFixed(2)}</td>
-            </tr>`).join("")}
+          ${detailedItems
+            .map(
+              (it) => `
+            <tr>
+              <td class="border p-2">${it.name}</td>
+              <td class="border p-2">${it.barcode}</td>
+              <td class="border p-2 text-center">${it.batch}</td>
+              <td class="border p-2 text-center">${it.qty}</td>
+              <td class="border p-2 text-right">${Number(it.price).toFixed(2)}</td>
+              <td class="border p-2 text-right">${it.subtotal}</td>
+            </tr>`
+            )
+            .join("")}
         </tbody>
+        <tfoot>
+          <tr class="bg-gray-100 font-semibold">
+            <td colspan="5" class="border p-2 text-right">Total:</td>
+            <td class="border p-2 text-right">$${total}</td>
+          </tr>
+        </tfoot>
       </table>
 
-      <div class="mt-4 text-right">
-        <button id="print-receipt" class="bg-blue-500 text-white px-3 py-1 rounded">🖨 Print</button>
-        <button id="close-receipt" class="ml-2 bg-gray-400 text-white px-3 py-1 rounded">Close</button>
+      <div class="text-right space-x-2">
+        <button id="print-receipt" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">🖨 Print</button>
+        <button id="close-receipt" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Close</button>
       </div>
     `;
 
-    const modal = document.getElementById("receipt-modal");
-    if (!modal) {
-      alert("Receipt modal not found in DOM");
-      return;
-    }
-    modal.querySelector("#receipt-content").innerHTML = html;
     modal.classList.remove("hidden");
+    modal.classList.add("flex");
 
-    modal.querySelector("#print-receipt").addEventListener("click", () => printReceipt(order, items));
-    modal.querySelector("#close-receipt").addEventListener("click", () => closeReceiptModal());
+    // ✅ Button handlers
+    document.getElementById("close-receipt").onclick = () => {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    };
+    document.getElementById("print-receipt").onclick = () => printReceipt(order, detailedItems);
+
+    console.log("✅ Receipt displayed successfully.");
   } catch (err) {
-    console.error("❌ Failed to fetch order:", err);
-    alert("Failed to fetch order: " + (err.message || JSON.stringify(err)));
+    console.error("❌ showReceipt() failed:", err);
+    alert("Failed to show receipt. Check console for details.");
   }
 }
+/* ---------------------- 🧾 END SHOW RECEIPT MODAL ---------------------- */
 
 function closeReceiptModal() {
   const modal = document.getElementById("receipt-modal");
