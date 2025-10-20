@@ -586,6 +586,9 @@ async function checkoutOrder(e) {
 // -----------------------------
 // Load customer sales (for table)
 // -----------------------------
+// -----------------------------
+// Load customer sales (merged improved version)
+// -----------------------------
 async function loadCustomerSales() {
   const supabase = await ensureSupabaseClient();
   try {
@@ -603,10 +606,16 @@ async function loadCustomerSales() {
       console.warn("customer-sales-body not found on page.");
       return;
     }
+
+    if (!sales || sales.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">No sales found</td></tr>`;
+      return;
+    }
+
     tbody.innerHTML = "";
 
     for (const sale of sales || []) {
-      // count items
+      // Count items per sale
       const { data: items, error: itemsErr } = await supabase
         .from("customer_sales_items")
         .select("quantity")
@@ -618,16 +627,24 @@ async function loadCustomerSales() {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="border p-2 text-blue-600 cursor-pointer" onclick="showReceipt(${sale.id})">#${sale.id}</td>
-        <td class="border p-2">${itemCount}</td>
-        <td class="border p-2">${(Number(sale.total) || 0).toFixed(2)}</td>
-        <td class="border p-2">${shortDate(sale.sale_date)}</td>
+        <td class="border p-2 text-center">${itemCount}</td>
+        <td class="border p-2 text-right">${(Number(sale.total) || 0).toFixed(2)}</td>
+        <td class="border p-2 text-center">${shortDate(sale.sale_date)}</td>
         <td class="border p-2">${sale.customer_name || ""}</td>
-        <td class="border p-2"><button class="bg-gray-200 px-2 py-1 rounded" onclick="showReceipt(${sale.id})">Receipt</button></td>
+        <td class="border p-2 text-center">
+          <button class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded" onclick="showReceipt(${sale.id})">🧾</button>
+        </td>
       `;
       tbody.appendChild(tr);
     }
+
+    console.log(`✅ Loaded ${sales.length} customer sales`);
   } catch (err) {
     console.error("❌ loadCustomerSales failed:", err);
+    const tbody = document.getElementById("customer-sales-body");
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-500">Failed to load sales</td></tr>`;
+    }
   }
 }
 
