@@ -1174,6 +1174,7 @@ async function addVendor({ name, contact, phone, address }) {
 /* ---------------------- 🧾 SHOW RECEIPT MODAL (Hybrid with Print Support) ---------------------- */
 /* ---------------------- 🧾 SHOW RECEIPT MODAL (with Print + Taiwan Timezone + Data Fix) ---------------------- */
 /* ---------------------- 🧾 SHOW RECEIPT MODAL (Final Full Version) ---------------------- */
+/* ---------------------- 🧾 SHOW RECEIPT MODAL (Final Fixed for 400 Error) ---------------------- */
 async function showReceipt(orderId) {
   try {
     const supabase = await ensureSupabaseClient();
@@ -1188,7 +1189,7 @@ async function showReceipt(orderId) {
 
     if (orderErr || !order) throw orderErr || new Error("Order not found");
 
-    // 2️⃣ Fetch items
+    // 2️⃣ Fetch order items
     const { data: items, error: itemsErr } = await supabase
       .from("customer_sales_items")
       .select("id, batch_id, quantity, selling_price")
@@ -1204,16 +1205,17 @@ async function showReceipt(orderId) {
       let batchNum = "";
 
       if (it.batch_id) {
+        // ✅ Only select existing columns
         const { data: batchData, error: batchErr } = await supabase
           .from("product_batches")
-          .select("batch_number, product_id, barcode")
+          .select("batch_number, product_id")
           .eq("id", it.batch_id)
           .maybeSingle();
 
         if (!batchErr && batchData) {
           batchNum = batchData.batch_number || "";
 
-          // Primary: by product_id
+          // Lookup product details from product_catalog
           if (batchData.product_id) {
             const { data: prodData, error: prodErr } = await supabase
               .from("product_catalog")
@@ -1225,22 +1227,14 @@ async function showReceipt(orderId) {
               productName = prodData.name || "Unnamed Product";
               barcode = prodData.barcode || "";
             }
+          } else {
+            console.warn(`⚠️ Batch ${it.batch_id} has no product_id linked.`);
           }
-
-          // Secondary fallback: by batch barcode (for older data)
-          if ((!productName || productName === "Unknown") && batchData.barcode) {
-            const { data: prodFallback } = await supabase
-              .from("product_catalog")
-              .select("name, barcode")
-              .eq("barcode", batchData.barcode)
-              .maybeSingle();
-
-            if (prodFallback) {
-              productName = prodFallback.name || productName;
-              barcode = prodFallback.barcode || barcode;
-            }
-          }
+        } else {
+          console.warn(`⚠️ Could not load batch ${it.batch_id}:`, batchErr);
         }
+      } else {
+        console.warn("⚠️ Item missing batch_id:", it);
       }
 
       detailedItems.push({
@@ -1316,7 +1310,8 @@ async function showReceipt(orderId) {
       modal.classList.remove("flex");
     };
 
-    document.getElementById("print-receipt").onclick = () => printReceipt(order, detailedItems);
+    document.getElementById("print-receipt").onclick = () =>
+      printReceipt(order, detailedItems);
 
     console.log("✅ Receipt displayed successfully.");
   } catch (err) {
@@ -1324,17 +1319,8 @@ async function showReceipt(orderId) {
     alert("Failed to show receipt. Check console for details.");
   }
 }
-
 /* ============================================================ */
 
-function closeReceiptModal() {
-  const modal = document.getElementById("receipt-modal");
-  if (modal) modal.classList.add("hidden");
-}
-
-// 58mm print function
-/* ---------------------- 🖨 LIGHTWEIGHT PRINT RECEIPT (vFinal) ---------------------- */
-/* ---------------------- 🖨 LIGHTWEIGHT PRINT FUNCTION ---------------------- */
 function printReceipt(order, items) {
   const printWindow = window.open("", "PRINT", "height=600,width=400");
   const dateStr = new Date(order.sale_date).toLocaleString("zh-TW", {
@@ -1386,6 +1372,7 @@ function printReceipt(order, items) {
   printWindow.focus();
   printWindow.print();
 }
+
 /* ---------------------- 🧾 END SHOW RECEIPT MODAL ---------------------- */
 
 
