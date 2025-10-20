@@ -1172,77 +1172,86 @@ async function addVendor({ name, contact, phone, address }) {
 // Receipt modal + print
 // -----------------------------
 /* ---------------------- 🧾 SHOW RECEIPT MODAL (Hybrid with Print Support) ---------------------- */
-/* ---------------------- 🧾 FIXED SHOW RECEIPT (TAIWAN TIMEZONE) ---------------------- */
+/* ---------------------- 🧾 SHOW RECEIPT MODAL (with Print + Taiwan Timezone + Data Fix) ---------------------- */
 async function showReceipt(orderId) {
   try {
     const supabase = await ensureSupabaseClient();
     console.log(`🧾 Loading receipt for order #${orderId}...`);
 
-    // Fetch order
+    // 1️⃣ Fetch main order
     const { data: order, error: orderErr } = await supabase
       .from("customer_sales")
       .select("id, customer_name, sale_date, total")
       .eq("id", orderId)
       .single();
+
     if (orderErr || !order) throw orderErr || new Error("Order not found");
 
-    // Fetch items
+    // 2️⃣ Fetch order items
     const { data: items, error: itemsErr } = await supabase
       .from("customer_sales_items")
-      .select("batch_id, quantity, selling_price")
+      .select("id, batch_id, quantity, selling_price")
       .eq("order_id", orderId);
+
     if (itemsErr) throw itemsErr;
 
-    // Load details
+    // 3️⃣ Enrich with product & batch info
     const detailedItems = [];
-    for (const it of items) {
-      if (!it.batch_id) continue;
-      let productName = "Unknown", barcode = "", batchNum = "";
-      try {
-        const { data: batchData } = await supabase
+    for (const it of items || []) {
+      let productName = "Unknown";
+      let barcode = "";
+      let batchNum = "";
+
+      if (it.batch_id) {
+        const { data: batchData, error: batchErr } = await supabase
           .from("product_batches")
           .select("batch_number, product_id")
           .eq("id", it.batch_id)
-          .single();
-        if (batchData?.product_id) {
-          batchNum = batchData.batch_number;
-          const { data: prodData } = await supabase
-            .from("product_catalog")
-            .select("name, barcode")
-            .eq("id", batchData.product_id)
-            .single();
-          if (prodData) {
-            productName = prodData.name;
-            barcode = prodData.barcode;
+          .maybeSingle();
+
+        if (!batchErr && batchData) {
+          batchNum = batchData.batch_number || "";
+
+          // Lookup product info from catalog
+          if (batchData.product_id) {
+            const { data: prodData, error: prodErr } = await supabase
+              .from("product_catalog")
+              .select("name, barcode")
+              .eq("id", batchData.product_id)
+              .maybeSingle();
+
+            if (!prodErr && prodData) {
+              productName = prodData.name || "Unnamed Product";
+              barcode = prodData.barcode || "";
+            }
           }
         }
-      } catch (err) {
-        console.warn("⚠️ Error loading item details:", err);
       }
 
       detailedItems.push({
         name: productName,
         barcode,
         batch: batchNum,
-        qty: it.quantity,
-        price: it.selling_price,
-        subtotal: (it.quantity * it.selling_price).toFixed(2),
+        qty: it.quantity || 0,
+        price: it.selling_price || 0,
+        subtotal: ((it.quantity || 0) * (it.selling_price || 0)).toFixed(2),
       });
     }
 
+    // 4️⃣ Build HTML
     const content = document.getElementById("receipt-content");
     const modal = document.getElementById("receipt-modal");
     if (!content || !modal) return;
 
-    const date = new Date(order.sale_date).toLocaleString("zh-TW", {
+    const dateStr = new Date(order.sale_date).toLocaleString("zh-TW", {
       timeZone: "Asia/Taipei",
       hour12: false,
     });
 
     content.innerHTML = `
       <h2 class="text-2xl font-bold mb-4">Receipt #${order.id}</h2>
-      <p><strong>Customer:</strong> ${order.customer_name}</p>
-      <p><strong>Date:</strong> ${date}</p>
+      <p><strong>Customer:</strong> ${order.customer_name || "(無)"}</p>
+      <p><strong>Date:</strong> ${dateStr}</p>
 
       <table class="w-full border-collapse border border-gray-300 text-sm mt-4 mb-4">
         <thead class="bg-gray-100">
@@ -1256,7 +1265,9 @@ async function showReceipt(orderId) {
           </tr>
         </thead>
         <tbody>
-          ${detailedItems.map(it => `
+          ${detailedItems
+            .map(
+              (it) => `
             <tr>
               <td class="border p-2">${it.name}</td>
               <td class="border p-2">${it.barcode}</td>
@@ -1264,7 +1275,9 @@ async function showReceipt(orderId) {
               <td class="border p-2 text-center">${it.qty}</td>
               <td class="border p-2 text-right">${Number(it.price).toFixed(2)}</td>
               <td class="border p-2 text-right">${it.subtotal}</td>
-            </tr>`).join("")}
+            </tr>`
+            )
+            .join("")}
         </tbody>
         <tfoot>
           <tr class="bg-gray-100 font-semibold">
@@ -1275,19 +1288,22 @@ async function showReceipt(orderId) {
       </table>
 
       <div class="text-right space-x-2">
-  <button id="print-receipt" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">🖨 Print</button>
-  <button id="close-receipt" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">Close</button>
-</div>
+        <button id="print-receipt" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">🖨 Print</button>
+        <button id="close-receipt" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">Close</button>
+      </div>
     `;
 
     modal.classList.remove("hidden");
     modal.classList.add("flex");
 
+    // 5️⃣ Button handlers
     document.getElementById("close-receipt").onclick = () => {
       modal.classList.add("hidden");
       modal.classList.remove("flex");
     };
-document.getElementById("print-receipt").onclick = () => printReceipt(order, detailedItems);
+
+    document.getElementById("print-receipt").onclick = () => printReceipt(order, detailedItems);
+
     console.log("✅ Receipt displayed successfully.");
   } catch (err) {
     console.error("❌ showReceipt() failed:", err);
@@ -1303,82 +1319,59 @@ function closeReceiptModal() {
 
 // 58mm print function
 /* ---------------------- 🖨 LIGHTWEIGHT PRINT RECEIPT (vFinal) ---------------------- */
-function printReceipt(order, detailedItems = []) {
-  try {
-    const totalAmount = Number(order.total || 0).toFixed(2);
-    const taiwanDate = new Date(order.sale_date).toLocaleString("zh-TW", {
-      timeZone: "Asia/Taipei",
-      hour12: false,
-    });
+/* ---------------------- 🖨 LIGHTWEIGHT PRINT FUNCTION ---------------------- */
+function printReceipt(order, items) {
+  const printWindow = window.open("", "PRINT", "height=600,width=400");
+  const dateStr = new Date(order.sale_date).toLocaleString("zh-TW", {
+    timeZone: "Asia/Taipei",
+    hour12: false,
+  });
 
-    const printWindow = window.open("", "PRINT", "height=600,width=400");
-    printWindow.document.write(`
-      <html>
-      <head>
-        <title>Receipt #${order.id}</title>
-        <style>
-          body {
-            font-family: monospace;
-            width: 58mm;
-            margin: 0;
-            padding: 6px;
-          }
-          .center { text-align: center; }
-          .bold { font-weight: bold; }
-          .line { border-top: 1px dashed #000; margin: 4px 0; }
-          .item-line { display: flex; justify-content: space-between; white-space: nowrap; }
-          .left { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-          .mid { width: 40px; text-align: center; }
-          .right { width: 60px; text-align: right; }
-        </style>
-      </head>
-      <body>
-        <div class="center bold">POS Receipt</div>
-        <div>日期: ${taiwanDate.split(" ")[0]}</div>
-        <div>時間: ${taiwanDate.split(" ")[1]}</div>
-        <div>客戶: ${order.customer_name || "(無)"}</div>
-        <div class="line"></div>
-        <div class="item-line bold">
-          <div class="left">商品</div>
-          <div class="mid">數量</div>
-          <div class="right">小計</div>
-        </div>
-        <div class="line"></div>
-        ${detailedItems
-          .map((it) => {
-            const subtotal = (Number(it.qty) * Number(it.price)).toFixed(2);
-            return `
-              <div class="item-line">
-                <div class="left">${it.name || "Unknown"}</div>
-                <div class="mid">${it.qty}</div>
-                <div class="right">${subtotal}</div>
-              </div>
-            `;
-          })
-          .join("")}
-        <div class="line"></div>
-        <div class="item-line bold">
-          <div class="left">合計</div>
-          <div class="mid"></div>
-          <div class="right">${totalAmount}</div>
-        </div>
-        <div class="line"></div>
-        <div class="center">感謝您的惠顧</div>
-      </body>
-      </html>
-    `);
+  let html = `
+    <html><head><style>
+      body { font-family: monospace; width: 58mm; font-size: 12px; }
+      .center { text-align:center; }
+      .bold { font-weight:bold; }
+      .line { border-top:1px dashed #000; margin:4px 0; }
+      .item-line { display:flex; justify-content:space-between; }
+      .left { flex:1; }
+      .mid { width:40px; text-align:center; }
+      .right { width:60px; text-align:right; }
+    </style></head><body>
+      <div class="center bold">POS Receipt</div>
+      <div>日期: ${dateStr.split(" ")[0]}</div>
+      <div>時間: ${dateStr.split(" ")[1]}</div>
+      <div>客戶: ${order.customer_name || "(無)"}</div>
+      <div class="line"></div>
+      <div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>
+      <div class="line"></div>
+  `;
 
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    // Optional: auto-close after print
-    // printWindow.close();
-  } catch (err) {
-    console.error("❌ printReceipt() failed:", err);
-    alert("Print failed. Check console for details.");
+  for (const it of items) {
+    html += `
+      <div class="item-line">
+        <div class="left">${it.name}</div>
+        <div class="mid">${it.qty}</div>
+        <div class="right">${Number(it.subtotal).toFixed(2)}</div>
+      </div>
+    `;
   }
+
+  const total = items.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
+  html += `
+      <div class="line"></div>
+      <div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${total.toFixed(2)}</div></div>
+      <div class="line"></div>
+      <div class="center">感謝您的惠顧</div>
+    </body></html>
+  `;
+
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
 }
-/* ---------------------- 🖨 END PRINT RECEIPT ---------------------- */
+/* ---------------------- 🧾 END SHOW RECEIPT MODAL ---------------------- */
 
 
 // -----------------------------
