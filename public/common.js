@@ -1274,9 +1274,10 @@ async function showReceipt(orderId) {
         </tfoot>
       </table>
 
-      <div class="text-right">
-        <button id="close-receipt" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">Close</button>
-      </div>
+      <div class="text-right space-x-2">
+  <button id="print-receipt" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">🖨 Print</button>
+  <button id="close-receipt" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">Close</button>
+</div>
     `;
 
     modal.classList.remove("hidden");
@@ -1286,7 +1287,7 @@ async function showReceipt(orderId) {
       modal.classList.add("hidden");
       modal.classList.remove("flex");
     };
-
+document.getElementById("print-receipt").onclick = () => printReceipt(order, detailedItems);
     console.log("✅ Receipt displayed successfully.");
   } catch (err) {
     console.error("❌ showReceipt() failed:", err);
