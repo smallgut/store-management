@@ -1175,6 +1175,7 @@ async function addVendor({ name, contact, phone, address }) {
 /* ---------------------- 🧾 SHOW RECEIPT MODAL (with Print + Taiwan Timezone + Data Fix) ---------------------- */
 /* ---------------------- 🧾 SHOW RECEIPT MODAL (Final Full Version) ---------------------- */
 /* ---------------------- 🧾 SHOW RECEIPT MODAL (Final Fixed for 400 Error) ---------------------- */
+/* ---------------------- 🧾 FINAL SHOW RECEIPT (PRODUCTS table + Taiwan TZ + Print) ---------------------- */
 async function showReceipt(orderId) {
   try {
     const supabase = await ensureSupabaseClient();
@@ -1186,7 +1187,6 @@ async function showReceipt(orderId) {
       .select("id, customer_name, sale_date, total")
       .eq("id", orderId)
       .single();
-
     if (orderErr || !order) throw orderErr || new Error("Order not found");
 
     // 2️⃣ Fetch order items
@@ -1194,10 +1194,9 @@ async function showReceipt(orderId) {
       .from("customer_sales_items")
       .select("id, batch_id, quantity, selling_price")
       .eq("order_id", orderId);
-
     if (itemsErr) throw itemsErr;
 
-    // 3️⃣ Build detailed items
+    // 3️⃣ Join product + batch details
     const detailedItems = [];
     for (const it of items || []) {
       let productName = "Unknown";
@@ -1205,7 +1204,7 @@ async function showReceipt(orderId) {
       let batchNum = "";
 
       if (it.batch_id) {
-        // ✅ Only select existing columns
+        // ✅ Get batch info
         const { data: batchData, error: batchErr } = await supabase
           .from("product_batches")
           .select("batch_number, product_id")
@@ -1215,26 +1214,24 @@ async function showReceipt(orderId) {
         if (!batchErr && batchData) {
           batchNum = batchData.batch_number || "";
 
-          // Lookup product details from product_catalog
+          // ✅ Now lookup product from PRODUCTS table (correct schema)
           if (batchData.product_id) {
             const { data: prodData, error: prodErr } = await supabase
-              .from("product_catalog")
+              .from("products")
               .select("name, barcode")
               .eq("id", batchData.product_id)
               .maybeSingle();
 
             if (!prodErr && prodData) {
-              productName = prodData.name || "Unnamed Product";
+              productName = prodData.name || "Unnamed";
               barcode = prodData.barcode || "";
             }
           } else {
-            console.warn(`⚠️ Batch ${it.batch_id} has no product_id linked.`);
+            console.warn(`⚠️ Batch ${it.batch_id} missing product_id`);
           }
         } else {
-          console.warn(`⚠️ Could not load batch ${it.batch_id}:`, batchErr);
+          console.warn(`⚠️ Failed to fetch batch ${it.batch_id}`, batchErr);
         }
-      } else {
-        console.warn("⚠️ Item missing batch_id:", it);
       }
 
       detailedItems.push({
@@ -1247,10 +1244,10 @@ async function showReceipt(orderId) {
       });
     }
 
-    // 4️⃣ Render modal
-    const content = document.getElementById("receipt-content");
+    // 4️⃣ Render receipt modal
     const modal = document.getElementById("receipt-modal");
-    if (!content || !modal) return;
+    const content = document.getElementById("receipt-content");
+    if (!modal || !content) return;
 
     const dateStr = new Date(order.sale_date).toLocaleString("zh-TW", {
       timeZone: "Asia/Taipei",
@@ -1274,9 +1271,7 @@ async function showReceipt(orderId) {
           </tr>
         </thead>
         <tbody>
-          ${detailedItems
-            .map(
-              (it) => `
+          ${detailedItems.map(it => `
             <tr>
               <td class="border p-2">${it.name}</td>
               <td class="border p-2">${it.barcode}</td>
@@ -1284,9 +1279,7 @@ async function showReceipt(orderId) {
               <td class="border p-2 text-center">${it.qty}</td>
               <td class="border p-2 text-right">${Number(it.price).toFixed(2)}</td>
               <td class="border p-2 text-right">${it.subtotal}</td>
-            </tr>`
-            )
-            .join("")}
+            </tr>`).join("")}
         </tbody>
         <tfoot>
           <tr class="bg-gray-100 font-semibold">
@@ -1316,13 +1309,13 @@ async function showReceipt(orderId) {
     console.log("✅ Receipt displayed successfully.");
   } catch (err) {
     console.error("❌ showReceipt() failed:", err);
-    alert("Failed to show receipt. Check console for details.");
+    alert("Failed to show receipt. See console for details.");
   }
 }
-/* ============================================================ */
 
+/* ---------------------- 🖨 LIGHTWEIGHT PRINT FUNCTION ---------------------- */
 function printReceipt(order, items) {
-  const printWindow = window.open("", "PRINT", "height=600,width=400");
+  const win = window.open("", "PRINT", "height=600,width=400");
   const dateStr = new Date(order.sale_date).toLocaleString("zh-TW", {
     timeZone: "Asia/Taipei",
     hour12: false,
@@ -1367,12 +1360,11 @@ function printReceipt(order, items) {
     </body></html>
   `;
 
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
 }
-
 /* ---------------------- 🧾 END SHOW RECEIPT MODAL ---------------------- */
 
 
