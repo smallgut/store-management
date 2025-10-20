@@ -1301,53 +1301,83 @@ function closeReceiptModal() {
 }
 
 // 58mm print function
-function printReceipt(order, items) {
-  const printWindow = window.open("", "PRINT", "height=600,width=400");
-  let content = `
-    <html><head><style>
-      body { font-family: monospace; width: 58mm; }
-      .center { text-align:center; }
-      .bold { font-weight:bold; }
-      .line { border-top:1px dashed #000; margin:4px 0; }
-      .item-line { display:flex; justify-content:space-between; }
-      .left { flex:1; }
-      .mid { width:40px; text-align:center; }
-      .right { width:60px; text-align:right; }
-    </style></head><body>
-    <div class="center bold">POS Receipt</div>
-    <div>日期: ${shortDate(order.sale_date)}</div>
-    <div>時間: ${new Date(order.sale_date).toLocaleTimeString("zh-TW",{hour12:false})}</div>
-    <div>客戶: ${order.customer_name || "(無)"}</div>
-    <div class="line"></div>
-    <div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>
-    <div class="line"></div>
-  `;
+/* ---------------------- 🖨 LIGHTWEIGHT PRINT RECEIPT (vFinal) ---------------------- */
+function printReceipt(order, detailedItems = []) {
+  try {
+    const totalAmount = Number(order.total || 0).toFixed(2);
+    const taiwanDate = new Date(order.sale_date).toLocaleString("zh-TW", {
+      timeZone: "Asia/Taipei",
+      hour12: false,
+    });
 
-  (items || []).forEach(item => {
-    const subtotal = Number(item.quantity || 0) * Number(item.selling_price || 0);
-    content += `
-      <div class="item-line">
-        <div class="left">${item.products?.name || ""}</div>
-        <div class="mid">${item.quantity}</div>
-        <div class="right">${subtotal.toFixed(2)}</div>
-      </div>
-    `;
-  });
+    const printWindow = window.open("", "PRINT", "height=600,width=400");
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>Receipt #${order.id}</title>
+        <style>
+          body {
+            font-family: monospace;
+            width: 58mm;
+            margin: 0;
+            padding: 6px;
+          }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .line { border-top: 1px dashed #000; margin: 4px 0; }
+          .item-line { display: flex; justify-content: space-between; white-space: nowrap; }
+          .left { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+          .mid { width: 40px; text-align: center; }
+          .right { width: 60px; text-align: right; }
+        </style>
+      </head>
+      <body>
+        <div class="center bold">POS Receipt</div>
+        <div>日期: ${taiwanDate.split(" ")[0]}</div>
+        <div>時間: ${taiwanDate.split(" ")[1]}</div>
+        <div>客戶: ${order.customer_name || "(無)"}</div>
+        <div class="line"></div>
+        <div class="item-line bold">
+          <div class="left">商品</div>
+          <div class="mid">數量</div>
+          <div class="right">小計</div>
+        </div>
+        <div class="line"></div>
+        ${detailedItems
+          .map((it) => {
+            const subtotal = (Number(it.qty) * Number(it.price)).toFixed(2);
+            return `
+              <div class="item-line">
+                <div class="left">${it.name || "Unknown"}</div>
+                <div class="mid">${it.qty}</div>
+                <div class="right">${subtotal}</div>
+              </div>
+            `;
+          })
+          .join("")}
+        <div class="line"></div>
+        <div class="item-line bold">
+          <div class="left">合計</div>
+          <div class="mid"></div>
+          <div class="right">${totalAmount}</div>
+        </div>
+        <div class="line"></div>
+        <div class="center">感謝您的惠顧</div>
+      </body>
+      </html>
+    `);
 
-  content += `
-    <div class="line"></div>
-    <div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${(items || []).reduce((s,i)=>s + (Number(i.quantity || 0) * Number(i.selling_price || 0)), 0).toFixed(2)}</div></div>
-    <div class="line"></div>
-    <div class="center">感謝您的惠顧</div>
-    </body></html>
-  `;
-
-  printWindow.document.write(content);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
-  // do not close automatically in case user wants to inspect
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    // Optional: auto-close after print
+    // printWindow.close();
+  } catch (err) {
+    console.error("❌ printReceipt() failed:", err);
+    alert("Print failed. Check console for details.");
+  }
 }
+/* ---------------------- 🖨 END PRINT RECEIPT ---------------------- */
 
 
 // -----------------------------
