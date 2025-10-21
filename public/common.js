@@ -1338,7 +1338,7 @@ function printReceipt(order, items) {
         body {
           width: 52mm;
           font-family: monospace;
-          font-size: 10px;
+          font-size: 11px;
           line-height: 1.3;
           margin: 0;
           padding: 2mm;
@@ -1350,7 +1350,7 @@ function printReceipt(order, items) {
         .item-line { display: flex; }
         .left { flex: 1; word-break: break-word; }
         .mid { width: 8mm; text-align: right; padding-right: 1mm; }
-        .right { width: 20mm; text-align: right; padding-left: 1mm; word-break: break-word; }
+        .right { width: 26mm; text-align: right; padding-left: 1mm; word-break: break-word; }
       </style>
     </head>
     <body>
