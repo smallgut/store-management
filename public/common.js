@@ -1336,10 +1336,10 @@ function printReceipt(order, items) {
           margin: 0;
         }
         body {
-          width: 52mm;
+          width: 48mm; /* ✅ Safe printable width */
           font-family: monospace;
-          font-size: 11px;
-          line-height: 1.3;
+          font-size: 10.5px; /* ✅ Slightly smaller, prevents clipping */
+          line-height: 1.35;
           margin: 0;
           padding: 2mm;
           box-sizing: border-box;
@@ -1348,9 +1348,21 @@ function printReceipt(order, items) {
         .bold { font-weight: bold; }
         .line { border-top: 1px dashed #000; margin: 2px 0; }
         .item-line { display: flex; }
-        .left { flex: 1; word-break: break-word; }
-        .mid { width: 8mm; text-align: right; padding-right: 1mm; }
-        .right { width: 28mm; text-align: right; padding-left: 1mm; word-break: break-word; }
+        .left {
+          flex: 1;
+          word-break: break-word;
+        }
+        .mid {
+          width: 8mm;
+          text-align: right;
+          padding-right: 1mm;
+        }
+        .right {
+          width: 16mm; /* ✅ Reduced width to avoid cutoff */
+          text-align: right;
+          padding-right: 1mm; /* ✅ Adds right margin for digits */
+          word-break: break-word;
+        }
       </style>
     </head>
     <body>
@@ -1374,7 +1386,6 @@ function printReceipt(order, items) {
       <div class="line"></div>
   `;
 
-  // 🧾 List each item
   items.forEach((item) => {
     const name = item.name || "";
     const qty = String(item.qty || 0);
