@@ -1358,9 +1358,9 @@ function printReceipt(order, items) {
           padding-right: 1mm;
         }
         .right {
-          width: 16mm; /* ✅ Reduced width to avoid cutoff */
+          width: 20mm; /* ✅ Reduced width to avoid cutoff */
           text-align: right;
-          padding-right: 1mm; /* ✅ Adds right margin for digits */
+          padding-right: 3mm; /* ✅ Adds right margin for digits */
           word-break: break-word;
         }
       </style>
