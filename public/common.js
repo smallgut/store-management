@@ -446,28 +446,21 @@ function updateCartTotal() {
 // -----------------------------
 /* ---------------------- 💳 CHECKOUT PROCESS FIX (v4 - omit generated sub_total) ---------------------- */
 /* ---------------------- 💳 FIXED CHECKOUT ORDER ---------------------- */
-/* ---------------------- 🧩 PATCH 1 — Fix checkoutOrder() date to full timestamp ---------------------- */
 async function checkoutOrder(e) {
   if (e) e.preventDefault();
 
   try {
     const tbody = document.querySelector("#cart-table tbody");
-    if (!tbody || tbody.children.length === 0) {
-      alert("🛒 Your cart is empty.");
-      return;
-    }
+    if (!tbody) return alert("❌ Cart table not found.");
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    if (rows.length === 0) return alert("🛒 Your cart is empty.");
 
     const customerName = document.getElementById("customer-name")?.value?.trim() || "Walk-in";
-
-    // ✅ Save actual time (ISO with local timezone)
-    const saleDateInput = document.getElementById("sale-date")?.value;
-    const saleDate = saleDateInput
-      ? new Date(saleDateInput + "T" + new Date().toLocaleTimeString("en-GB")).toISOString()
-      : new Date().toISOString();
-
+    const saleDate = document.getElementById("sale-date")?.value || new Date().toISOString();
     const total = parseFloat(document.getElementById("total-cost")?.textContent || "0");
     const supabase = await ensureSupabaseClient();
 
+    // ✅ 1️⃣ Create order
     const order = { customer_name: customerName, sale_date: saleDate, total };
     console.log("🧾 Creating order:", order);
 
@@ -479,50 +472,59 @@ async function checkoutOrder(e) {
 
     if (orderErr) {
       console.error("❌ Failed to create order:", orderErr);
-      alert("Failed to create order. See console.");
-      return;
+      return alert("Failed to create order. See console.");
     }
 
     const orderId = orderData.id;
-    const rows = Array.from(tbody.querySelectorAll("tr"));
-    const items = rows.map((r) => {
-      const c = r.querySelectorAll("td");
+
+    // ✅ 2️⃣ Prepare items
+    const items = rows.map(row => {
+      const cells = row.querySelectorAll("td");
+      const batchId = parseInt(cells[2]?.dataset?.batchId || "0");
+      const qty = parseFloat(cells[3]?.textContent || "0");
+      const price = parseFloat(cells[4]?.textContent || "0");
+      const subTotal = parseFloat(cells[5]?.textContent || "0");
       return {
         order_id: orderId,
-        batch_id: parseInt(c[2]?.textContent || "0"),
-        quantity: parseFloat(c[3]?.textContent || "0"),
-        selling_price: parseFloat(c[4]?.textContent || "0"),
+        product_id: null,
+        batch_id: batchId,
+        quantity: qty,
+        selling_price: price,
+        // sub_total removed — generated column!
       };
     });
 
     console.log("📦 Inserting order items:", items);
     const { error: itemsErr } = await supabase.from("customer_sales_items").insert(items);
-    if (itemsErr) throw itemsErr;
+    if (itemsErr) {
+      console.error("❌ Failed to insert order items:", itemsErr);
+      return alert("Order created but failed to save items.");
+    }
 
-    // ✅ Decrement stock
-    for (const it of items) {
-      if (!it.batch_id || !it.quantity) continue;
-      const { data: b } = await supabase
+    // ✅ 3️⃣ Decrement stock
+    for (const item of items) {
+      if (!item.batch_id || !item.quantity) continue;
+      const { data: batchData } = await supabase
         .from("product_batches")
         .select("remaining_quantity")
-        .eq("id", it.batch_id)
+        .eq("id", item.batch_id)
         .single();
-      const newQty = Math.max(0, (b?.remaining_quantity || 0) - it.quantity);
-      await supabase.from("product_batches").update({ remaining_quantity: newQty }).eq("id", it.batch_id);
-      console.log(`✅ Batch ${it.batch_id} stock updated to ${newQty}`);
+      const newQty = Math.max(0, (batchData?.remaining_quantity || 0) - item.quantity);
+      await supabase.from("product_batches").update({ remaining_quantity: newQty }).eq("id", item.batch_id);
+      console.log(`✅ Batch ${item.batch_id} stock updated to ${newQty}`);
     }
 
     tbody.innerHTML = "";
     updateCartTotal();
     alert("✅ Checkout complete!");
     console.log("🎉 Order & items saved successfully, stock updated.");
-    await loadCustomerSales();
+
+    if (typeof loadCustomerSales === "function") loadCustomerSales();
   } catch (err) {
     console.error("❌ checkoutOrder() failed:", err);
     alert("Checkout failed. See console for details.");
   }
 }
-/* ---------------------- 🧩 END PATCH 1 ---------------------- */
 /* ---------------------- 💳 END CHECKOUT FIX ---------------------- */
 // --------------------
 // 📊 Loaders per page
@@ -1312,36 +1314,27 @@ async function showReceipt(orderId) {
 }
 
 /* ---------------------- 🖨 LIGHTWEIGHT PRINT FUNCTION ---------------------- */
-/* ---------------------- 🧩 PATCH 2 — Improved print layout (margins + font) ---------------------- */
 function printReceipt(order, items) {
   const win = window.open("", "PRINT", "height=600,width=400");
-  const date = new Date(order.sale_date);
-  const dateStr = date.toLocaleString("zh-TW", {
+  const dateStr = new Date(order.sale_date).toLocaleString("zh-TW", {
     timeZone: "Asia/Taipei",
     hour12: false,
   });
 
-  const [day, time] = dateStr.split(" ");
-
   let html = `
     <html><head><style>
-      body { 
-        font-family: monospace; 
-        width: 58mm; 
-        font-size: 13px; 
-        margin: 6mm; 
-      }
+      body { font-family: monospace; width: 58mm; font-size: 12px; }
       .center { text-align:center; }
       .bold { font-weight:bold; }
-      .line { border-top:1px dashed #000; margin:6px 0; }
-      .item-line { display:flex; justify-content:space-between; margin-bottom:2px; }
+      .line { border-top:1px dashed #000; margin:4px 0; }
+      .item-line { display:flex; justify-content:space-between; }
       .left { flex:1; }
       .mid { width:40px; text-align:center; }
       .right { width:60px; text-align:right; }
     </style></head><body>
       <div class="center bold">POS Receipt</div>
-      <div>日期: ${day}</div>
-      <div>時間: ${time}</div>
+      <div>日期: ${dateStr.split(" ")[0]}</div>
+      <div>時間: ${dateStr.split(" ")[1]}</div>
       <div>客戶: ${order.customer_name || "(無)"}</div>
       <div class="line"></div>
       <div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>
@@ -1361,11 +1354,7 @@ function printReceipt(order, items) {
   const total = items.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
   html += `
       <div class="line"></div>
-      <div class="item-line bold">
-        <div class="left">合計</div>
-        <div class="mid"></div>
-        <div class="right">${total.toFixed(2)}</div>
-      </div>
+      <div class="item-line bold"><div class="left">合計</div><div class="mid"></div><div class="right">${total.toFixed(2)}</div></div>
       <div class="line"></div>
       <div class="center">感謝您的惠顧</div>
     </body></html>
@@ -1376,7 +1365,7 @@ function printReceipt(order, items) {
   win.focus();
   win.print();
 }
-/* ---------------------- 🧩 END PATCH 2 ---------------------- */
+/* ---------------------- 🧾 END SHOW RECEIPT MODAL ---------------------- */
 
 
 // -----------------------------
