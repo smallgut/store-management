@@ -1312,53 +1312,84 @@ async function showReceipt(orderId) {
 }
 
 /* ---------------------- 🧩 PATCH 2 — Improved print layout (margins + font) ---------------------- */
+/* ---------------------- 🧾 FINAL PRINT RECEIPT (POS STYLE 58mm) ---------------------- */
 function printReceipt(order, items) {
-  const win = window.open("", "PRINT", "height=600,width=400");
-  const date = new Date(order.sale_date);
-  const dateStr = date.toLocaleString("zh-TW", {
+  const printWindow = window.open("", "", "width=400,height=600");
+  if (!printWindow) {
+    alert("⚠️ 無法開啟列印視窗，請檢查瀏覽器彈出視窗設定。");
+    return;
+  }
+
+  const dateObj = new Date(order.sale_date);
+  const taiwanTime = dateObj.toLocaleString("zh-TW", {
     timeZone: "Asia/Taipei",
     hour12: false,
   });
+  const [date, time] = taiwanTime.split(" ");
 
-  const [day, time] = dateStr.split(" ");
+  let content = `
+    <html>
+    <head>
+      <style>
+        @page {
+          size: 58mm auto;
+          margin: 0;
+        }
+        body {
+          width: 48mm;
+          font-family: monospace;
+          font-size: 12px;
+          line-height: 1.3;
+          margin: 0;
+          padding: 2mm;
+          box-sizing: border-box;
+        }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .line { border-top: 1px dashed #000; margin: 2px 0; }
+        .item-line { display: flex; }
+        .left { flex: 1; word-break: break-word; }
+        .mid { width: 8mm; text-align: right; padding-right: 1mm; }
+        .right { width: 16mm; text-align: right; padding-left: 1mm; word-break: break-word; }
+      </style>
+    </head>
+    <body>
+      <!-- 🏪 Header -->
+      <div class="center bold">二姐叫菜</div>
+      <div class="center">TEL: 0912-345-678</div>
+      <div class="line"></div>
 
-  let html = `
-    <html><head><style>
-      body { 
-        font-family: monospace; 
-        width: 58mm; 
-        font-size: 13px; 
-        margin: 6mm; 
-      }
-      .center { text-align:center; }
-      .bold { font-weight:bold; }
-      .line { border-top:1px dashed #000; margin:6px 0; }
-      .item-line { display:flex; justify-content:space-between; margin-bottom:2px; }
-      .left { flex:1; }
-      .mid { width:40px; text-align:center; }
-      .right { width:60px; text-align:right; }
-    </style></head><body>
-      <div class="center bold">POS Receipt</div>
-      <div>日期: ${day}</div>
+      <!-- 🧾 Order Info -->
+      <div>日期: ${date}</div>
       <div>時間: ${time}</div>
       <div>客戶: ${order.customer_name || "(無)"}</div>
       <div class="line"></div>
-      <div class="item-line bold"><div class="left">商品</div><div class="mid">數量</div><div class="right">小計</div></div>
+
+      <!-- 🧺 Table Header -->
+      <div class="item-line bold">
+        <div class="left">商品</div>
+        <div class="mid">數量</div>
+        <div class="right">小計</div>
+      </div>
       <div class="line"></div>
   `;
 
-  for (const it of items) {
-    html += `
+  // 🧾 List each item
+  items.forEach((item) => {
+    const name = item.name || "";
+    const qty = String(item.qty || 0);
+    const subtotal = (item.qty * item.price).toFixed(2);
+    content += `
       <div class="item-line">
-        <div class="left">${it.name}</div>
-        <div class="mid">${it.qty}</div>
-        <div class="right">${Number(it.subtotal).toFixed(2)}</div>
+        <div class="left">${name}</div>
+        <div class="mid">${qty}</div>
+        <div class="right">${subtotal}</div>
       </div>
     `;
-  }
+  });
 
-  const total = items.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
-  html += `
+  const total = items.reduce((s, i) => s + (i.qty * i.price), 0);
+  content += `
       <div class="line"></div>
       <div class="item-line bold">
         <div class="left">合計</div>
@@ -1366,15 +1397,19 @@ function printReceipt(order, items) {
         <div class="right">${total.toFixed(2)}</div>
       </div>
       <div class="line"></div>
-      <div class="center">感謝您的惠顧</div>
-    </body></html>
+      <div class="center">感謝您的惠顧！</div>
+      <div class="center">歡迎再次光臨</div>
+    </body>
+    </html>
   `;
 
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.print();
+  printWindow.document.write(content);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+  printWindow.close();
 }
+/* ---------------------- 🧾 END PRINT RECEIPT ---------------------- */
 /* ---------------------- 🧩 END PATCH 2 ---------------------- */
 
 
