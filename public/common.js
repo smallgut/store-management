@@ -1350,7 +1350,7 @@ function printReceipt(order, items) {
         .item-line { display: flex; }
         .left { flex: 1; word-break: break-word; }
         .mid { width: 8mm; text-align: right; padding-right: 1mm; }
-        .right { width: 20mm; text-align: right; padding-left: 1mm; word-break: break-word; }
+        .right { width: 28mm; text-align: right; padding-left: 1mm; word-break: break-word; }
       </style>
     </head>
     <body>
