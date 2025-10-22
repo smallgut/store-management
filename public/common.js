@@ -1460,7 +1460,7 @@ async function analyticsSalesByProduct() {
   return Object.keys(map).map(k => ({ product: k, total: map[k] }));
 }
 
-/* ---------------------- 💰 ADD VENDOR LOAN RECORD (Corrected for vendor_id column) ---------------------- */
+/* ---------------------- 💰 ADD VENDOR LOAN RECORD (Corrected for vendor_id + products table) ---------------------- */
 async function addLoanRecord(event) {
   event.preventDefault();
   const supabase = await ensureSupabaseClient();
@@ -1474,12 +1474,10 @@ async function addLoanRecord(event) {
   const messageEl = document.getElementById("message");
   const errorEl = document.getElementById("error");
 
-  // reset UI messages
   messageEl.textContent = "";
   errorEl.textContent = "";
 
   try {
-    // ✅ validate input
     const vendorId = vendorSelect.value;
     const productId = productSelect.value;
     const batchNo = batchSelect.options[batchSelect.selectedIndex]?.text?.trim();
@@ -1488,32 +1486,27 @@ async function addLoanRecord(event) {
     const loanDate = dateInput.value;
 
     if (!vendorId || !productId || !batchNo || !quantity || !sellingPrice || !loanDate) {
-      errorEl.textContent = "⚠️ Please fill in all required fields before submitting.";
+      errorEl.textContent = "⚠️ Please fill in all required fields.";
       return;
     }
 
-    // ✅ prepare data (match your Supabase vendor_loans columns)
     const newLoan = {
-      vendor_id: vendorId,       // ✅ correct column name
+      vendor_id: vendorId,
       product_id: productId,
       batch_no: batchNo,
       quantity,
       selling_price: sellingPrice,
-      date: new Date(loanDate).toISOString(), // timestamptz
+      date: new Date(loanDate).toISOString(),
     };
 
     console.log("📦 Inserting vendor loan:", newLoan);
-
-    // ✅ insert into Supabase
     const { error } = await supabase.from("vendor_loans").insert([newLoan]);
     if (error) throw error;
 
     messageEl.textContent = "✅ Loan record added successfully!";
     document.getElementById("add-loan-record-form").reset();
 
-    // ✅ reload loan list
-    if (typeof loadLoanRecords === "function") await loadLoanRecords();
-
+    await loadLoanRecords(); // reload list
   } catch (err) {
     console.error("❌ addLoanRecord() failed:", err);
     errorEl.textContent = "❌ Failed to add loan record: " + (err.message || "Unknown error");
@@ -1525,13 +1518,13 @@ async function addLoanRecord(event) {
 
 /* ---------------------- 📜 LOAD VENDOR LOAN RECORDS ---------------------- */
 /* ---------------------- 📜 LOAD VENDOR LOAN RECORDS (Corrected for vendor_id) ---------------------- */
+/* ---------------------- 📜 LOAD VENDOR LOAN RECORDS (fixed product lookup + Taiwan date) ---------------------- */
 async function loadLoanRecords() {
   const supabase = await ensureSupabaseClient();
   const tableBody = document.querySelector("#loan-records-table tbody");
   if (!tableBody) return;
 
   try {
-    // ✅ fetch data from vendor_loans
     const { data, error } = await supabase
       .from("vendor_loans")
       .select("id, vendor_id, product_id, batch_no, quantity, selling_price, date")
@@ -1547,8 +1540,8 @@ async function loadLoanRecords() {
 
     tableBody.innerHTML = "";
 
-    // ✅ fetch vendor and product names
     for (const record of data) {
+      // ✅ fetch vendor + product name properly
       const [vendorName, productName] = await Promise.all([
         (async () => {
           const { data: v } = await supabase
@@ -1560,7 +1553,7 @@ async function loadLoanRecords() {
         })(),
         (async () => {
           const { data: p } = await supabase
-            .from("product_catalog")
+            .from("products") // ✅ switched from product_catalog → products
             .select("name")
             .eq("id", record.product_id)
             .single();
@@ -1581,7 +1574,8 @@ async function loadLoanRecords() {
         <td class="border p-2 text-right">${Number(record.selling_price).toFixed(2)}</td>
         <td class="border p-2 text-center">${date}</td>
         <td class="border p-2 text-center">
-          <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded" onclick="deleteLoanRecord(${record.id})">🗑</button>
+          <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded" 
+            onclick="deleteLoanRecord(${record.id})">🗑 Delete</button>
         </td>
       `;
       tableBody.appendChild(tr);
@@ -1593,13 +1587,23 @@ async function loadLoanRecords() {
 /* ---------------------- 📜 END LOAD VENDOR LOAN RECORDS ---------------------- */
 
 
+/* ---------------------- ❌ DELETE LOAN RECORD ---------------------- */
 async function deleteLoanRecord(id) {
-  if (!confirm("Delete this record?")) return;
+  if (!confirm("🗑 Are you sure you want to delete this loan record?")) return;
   const supabase = await ensureSupabaseClient();
-  const { error } = await supabase.from("vendor_loan_records").delete().eq("id", id);
-  if (error) alert("Delete failed: " + error.message);
-  else loadLoanRecords();
+
+  try {
+    const { error } = await supabase.from("vendor_loans").delete().eq("id", id);
+    if (error) throw error;
+
+    alert("✅ Loan record deleted successfully.");
+    await loadLoanRecords(); // refresh list
+  } catch (err) {
+    console.error("❌ deleteLoanRecord() failed:", err);
+    alert("❌ Failed to delete record: " + (err.message || "Unknown error"));
+  }
 }
+/* ---------------------- ❌ END DELETE LOAN RECORD ---------------------- */
 
 // ---------- Analytics helper: returns raw rows for page script ----------
 async function fetchAnalyticsRaw() {
