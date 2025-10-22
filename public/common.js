@@ -1460,94 +1460,128 @@ async function analyticsSalesByProduct() {
   return Object.keys(map).map(k => ({ product: k, total: map[k] }));
 }
 
-
-
-
-
-/* ---------------------- 💰 LOAD VENDOR LOAN RECORDS ---------------------- */
-async function loadLoanRecords() {
+/* ---------------------- 💰 ADD VENDOR LOAN RECORD (for vendor_loans table) ---------------------- */
+async function addLoanRecord(event) {
+  event.preventDefault();
   const supabase = await ensureSupabaseClient();
-  const tableBody = document.querySelector("#loan-records-table tbody");
-  if (!tableBody) {
-    console.warn("loan-records-table tbody not found");
-    return;
-  }
 
-  tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-500">Loading...</td></tr>`;
+  const vendorSelect = document.getElementById("vendor-name");
+  const productSelect = document.getElementById("product-select");
+  const batchSelect = document.getElementById("batch-no");
+  const qtyInput = document.getElementById("quantity");
+  const priceInput = document.getElementById("selling-price");
+  const dateInput = document.getElementById("loan-date");
+  const messageEl = document.getElementById("message");
+  const errorEl = document.getElementById("error");
+
+  // reset UI messages
+  messageEl.textContent = "";
+  errorEl.textContent = "";
 
   try {
-    const { data: loans, error } = await supabase
-      .from("vendor_loan_records")
-      .select("id, vendor_id, batch_id, quantity, selling_price, loan_date")
-      .order("id", { ascending: false });
+    // ✅ validate form
+    const vendorId = vendorSelect.value;
+    const productId = productSelect.value;
+    const batchNo = batchSelect.options[batchSelect.selectedIndex]?.text?.trim();
+    const quantity = parseFloat(qtyInput.value);
+    const sellingPrice = parseFloat(priceInput.value);
+    const loanDate = dateInput.value;
 
-    if (error) throw error;
-    if (!loans || loans.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400">No records found</td></tr>`;
+    if (!vendorId || !productId || !batchNo || !quantity || !sellingPrice || !loanDate) {
+      errorEl.textContent = "⚠️ Please fill in all required fields before submitting.";
       return;
     }
 
-    const vendorMap = {};
-    const productMap = {};
+    // ✅ prepare data to match `vendor_loans` columns
+    const newLoan = {
+      vendor: vendorId,          // column name: vendor (int4)
+      product_id: productId,     // column name: product_id (int4)
+      batch_no: batchNo,         // varchar
+      quantity,                  // int4
+      selling_price: sellingPrice, // numeric
+      date: new Date(loanDate).toISOString(), // timestamptz
+    };
 
-    for (const loan of loans) {
-      // 🔹 Get Vendor Name
-      if (loan.vendor_id && !vendorMap[loan.vendor_id]) {
-        const { data: v } = await supabase
-          .from("vendors")
-          .select("name")
-          .eq("id", loan.vendor_id)
-          .single();
-        vendorMap[loan.vendor_id] = v?.name || "Unknown Vendor";
-      }
+    console.log("📦 Inserting vendor loan:", newLoan);
 
-      // 🔹 Get Batch and Product Info
-      let batchNo = "N/A";
-      let productName = "Unknown";
-      if (loan.batch_id) {
-        const { data: batch } = await supabase
-          .from("product_batches")
-          .select("batch_number, product_id")
-          .eq("id", loan.batch_id)
-          .single();
+    // ✅ insert into vendor_loans table
+    const { error } = await supabase.from("vendor_loans").insert([newLoan]);
+    if (error) throw error;
 
-        if (batch) {
-          batchNo = batch.batch_number;
-          if (batch.product_id && !productMap[batch.product_id]) {
-            const { data: prod } = await supabase
-              .from("product_catalog")
-              .select("name")
-              .eq("id", batch.product_id)
-              .single();
-            productMap[batch.product_id] = prod?.name || "Unknown Product";
-          }
-          productName = productMap[batch.product_id] || "Unknown Product";
-        }
-      }
+    // ✅ success feedback
+    messageEl.textContent = "✅ Loan record added successfully!";
+    document.getElementById("add-loan-record-form").reset();
 
-      const row = `
-        <tr>
-          <td class="border p-2">${vendorMap[loan.vendor_id] || "Unknown Vendor"}</td>
-          <td class="border p-2">${productName}</td>
-          <td class="border p-2">${batchNo}</td>
-          <td class="border p-2 text-right">${loan.quantity}</td>
-          <td class="border p-2 text-right">${Number(loan.selling_price).toFixed(2)}</td>
-          <td class="border p-2">${new Date(loan.loan_date).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</td>
-          <td class="border p-2 text-center">
-            <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded" onclick="deleteLoanRecord(${loan.id})">🗑</button>
-          </td>
-        </tr>
-      `;
-      tableBody.insertAdjacentHTML("beforeend", row);
+    // ✅ reload table if available
+    if (typeof loadLoanRecords === "function") {
+      await loadLoanRecords();
     }
 
-    console.log(`✅ Loan records loaded: ${loans.length}`);
   } catch (err) {
-    console.error("❌ loadLoanRecords() failed:", err);
-    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Failed to load records</td></tr>`;
+    console.error("❌ addLoanRecord() failed:", err);
+    errorEl.textContent = "❌ Failed to add loan record: " + (err.message || "Unknown error");
   }
 }
-/* ---------------------- 💰 END LOAD VENDOR LOAN RECORDS ---------------------- */
+/* ---------------------- 💰 END ADD VENDOR LOAN RECORD ---------------------- */
+
+
+
+/* ---------------------- 📜 LOAD VENDOR LOAN RECORDS ---------------------- */
+async function loadLoanRecords() {
+  const supabase = await ensureSupabaseClient();
+  const tableBody = document.querySelector("#loan-records-table tbody");
+  if (!tableBody) return;
+
+  try {
+    const { data, error } = await supabase
+      .from("vendor_loans")
+      .select("id, vendor, product_id, batch_no, quantity, selling_price, date")
+      .order("id", { ascending: false });
+
+    if (error) throw error;
+    console.log("📊 Vendor loans loaded:", data);
+
+    if (!data || data.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-500 p-4">No loan records found.</td></tr>`;
+      return;
+    }
+
+    // ✅ optional lookups for vendor & product names
+    for (const record of data) {
+      const [vendorName, productName] = await Promise.all([
+        (async () => {
+          const { data: v } = await supabase.from("vendors").select("name").eq("id", record.vendor).single();
+          return v?.name || "Unknown";
+        })(),
+        (async () => {
+          const { data: p } = await supabase.from("product_catalog").select("name").eq("id", record.product_id).single();
+          return p?.name || "Unknown";
+        })(),
+      ]);
+
+      const date = new Date(record.date).toLocaleDateString("zh-TW", { timeZone: "Asia/Taipei" });
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${vendorName}</td>
+        <td class="border p-2">${productName}</td>
+        <td class="border p-2">${record.batch_no}</td>
+        <td class="border p-2 text-center">${record.quantity}</td>
+        <td class="border p-2 text-right">${Number(record.selling_price).toFixed(2)}</td>
+        <td class="border p-2 text-center">${date}</td>
+        <td class="border p-2 text-center">
+          <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded" onclick="deleteLoanRecord(${record.id})">🗑</button>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    }
+
+  } catch (err) {
+    console.error("❌ loadLoanRecords() failed:", err);
+  }
+}
+/* ---------------------- 📜 END LOAD VENDOR LOAN RECORDS ---------------------- */
+
 
 async function deleteLoanRecord(id) {
   if (!confirm("Delete this record?")) return;
