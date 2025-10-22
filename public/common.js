@@ -1460,7 +1460,7 @@ async function analyticsSalesByProduct() {
   return Object.keys(map).map(k => ({ product: k, total: map[k] }));
 }
 
-/* ---------------------- 💰 ADD VENDOR LOAN RECORD (for vendor_loans table) ---------------------- */
+/* ---------------------- 💰 ADD VENDOR LOAN RECORD (Corrected for vendor_id column) ---------------------- */
 async function addLoanRecord(event) {
   event.preventDefault();
   const supabase = await ensureSupabaseClient();
@@ -1479,7 +1479,7 @@ async function addLoanRecord(event) {
   errorEl.textContent = "";
 
   try {
-    // ✅ validate form
+    // ✅ validate input
     const vendorId = vendorSelect.value;
     const productId = productSelect.value;
     const batchNo = batchSelect.options[batchSelect.selectedIndex]?.text?.trim();
@@ -1492,30 +1492,27 @@ async function addLoanRecord(event) {
       return;
     }
 
-    // ✅ prepare data to match `vendor_loans` columns
+    // ✅ prepare data (match your Supabase vendor_loans columns)
     const newLoan = {
-      vendor: vendorId,          // column name: vendor (int4)
-      product_id: productId,     // column name: product_id (int4)
-      batch_no: batchNo,         // varchar
-      quantity,                  // int4
-      selling_price: sellingPrice, // numeric
+      vendor_id: vendorId,       // ✅ correct column name
+      product_id: productId,
+      batch_no: batchNo,
+      quantity,
+      selling_price: sellingPrice,
       date: new Date(loanDate).toISOString(), // timestamptz
     };
 
     console.log("📦 Inserting vendor loan:", newLoan);
 
-    // ✅ insert into vendor_loans table
+    // ✅ insert into Supabase
     const { error } = await supabase.from("vendor_loans").insert([newLoan]);
     if (error) throw error;
 
-    // ✅ success feedback
     messageEl.textContent = "✅ Loan record added successfully!";
     document.getElementById("add-loan-record-form").reset();
 
-    // ✅ reload table if available
-    if (typeof loadLoanRecords === "function") {
-      await loadLoanRecords();
-    }
+    // ✅ reload loan list
+    if (typeof loadLoanRecords === "function") await loadLoanRecords();
 
   } catch (err) {
     console.error("❌ addLoanRecord() failed:", err);
@@ -1527,15 +1524,17 @@ async function addLoanRecord(event) {
 
 
 /* ---------------------- 📜 LOAD VENDOR LOAN RECORDS ---------------------- */
+/* ---------------------- 📜 LOAD VENDOR LOAN RECORDS (Corrected for vendor_id) ---------------------- */
 async function loadLoanRecords() {
   const supabase = await ensureSupabaseClient();
   const tableBody = document.querySelector("#loan-records-table tbody");
   if (!tableBody) return;
 
   try {
+    // ✅ fetch data from vendor_loans
     const { data, error } = await supabase
       .from("vendor_loans")
-      .select("id, vendor, product_id, batch_no, quantity, selling_price, date")
+      .select("id, vendor_id, product_id, batch_no, quantity, selling_price, date")
       .order("id", { ascending: false });
 
     if (error) throw error;
@@ -1546,20 +1545,32 @@ async function loadLoanRecords() {
       return;
     }
 
-    // ✅ optional lookups for vendor & product names
+    tableBody.innerHTML = "";
+
+    // ✅ fetch vendor and product names
     for (const record of data) {
       const [vendorName, productName] = await Promise.all([
         (async () => {
-          const { data: v } = await supabase.from("vendors").select("name").eq("id", record.vendor).single();
-          return v?.name || "Unknown";
+          const { data: v } = await supabase
+            .from("vendors")
+            .select("name")
+            .eq("id", record.vendor_id)
+            .single();
+          return v?.name || "Unknown Vendor";
         })(),
         (async () => {
-          const { data: p } = await supabase.from("product_catalog").select("name").eq("id", record.product_id).single();
-          return p?.name || "Unknown";
+          const { data: p } = await supabase
+            .from("product_catalog")
+            .select("name")
+            .eq("id", record.product_id)
+            .single();
+          return p?.name || "Unknown Product";
         })(),
       ]);
 
-      const date = new Date(record.date).toLocaleDateString("zh-TW", { timeZone: "Asia/Taipei" });
+      const date = new Date(record.date).toLocaleDateString("zh-TW", {
+        timeZone: "Asia/Taipei",
+      });
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -1575,7 +1586,6 @@ async function loadLoanRecords() {
       `;
       tableBody.appendChild(tr);
     }
-
   } catch (err) {
     console.error("❌ loadLoanRecords() failed:", err);
   }
