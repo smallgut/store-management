@@ -1464,19 +1464,98 @@ async function analyticsSalesByProduct() {
 
 
 
+/* ---------------------- 💰 LOAD VENDOR LOAN RECORDS ---------------------- */
 async function loadLoanRecords() {
+  const supabase = await ensureSupabaseClient();
+  const tableBody = document.querySelector("#loan-records-table tbody");
+  if (!tableBody) {
+    console.warn("loan-records-table tbody not found");
+    return;
+  }
+
+  tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-500">Loading...</td></tr>`;
+
   try {
-    const supabase = await ensureSupabaseClient();
-    const { data, error } = await supabase.from("vendor_loans").select("*");
-    if (error) console.error(error);
-    console.log("Loan records loaded:", data);
-    if (typeof renderLoanRecords === "function") renderLoanRecords(data || []);
+    const { data: loans, error } = await supabase
+      .from("vendor_loan_records")
+      .select("id, vendor_id, batch_id, quantity, selling_price, loan_date")
+      .order("id", { ascending: false });
+
+    if (error) throw error;
+    if (!loans || loans.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400">No records found</td></tr>`;
+      return;
+    }
+
+    const vendorMap = {};
+    const productMap = {};
+
+    for (const loan of loans) {
+      // 🔹 Get Vendor Name
+      if (loan.vendor_id && !vendorMap[loan.vendor_id]) {
+        const { data: v } = await supabase
+          .from("vendors")
+          .select("name")
+          .eq("id", loan.vendor_id)
+          .single();
+        vendorMap[loan.vendor_id] = v?.name || "Unknown Vendor";
+      }
+
+      // 🔹 Get Batch and Product Info
+      let batchNo = "N/A";
+      let productName = "Unknown";
+      if (loan.batch_id) {
+        const { data: batch } = await supabase
+          .from("product_batches")
+          .select("batch_number, product_id")
+          .eq("id", loan.batch_id)
+          .single();
+
+        if (batch) {
+          batchNo = batch.batch_number;
+          if (batch.product_id && !productMap[batch.product_id]) {
+            const { data: prod } = await supabase
+              .from("product_catalog")
+              .select("name")
+              .eq("id", batch.product_id)
+              .single();
+            productMap[batch.product_id] = prod?.name || "Unknown Product";
+          }
+          productName = productMap[batch.product_id] || "Unknown Product";
+        }
+      }
+
+      const row = `
+        <tr>
+          <td class="border p-2">${vendorMap[loan.vendor_id] || "Unknown Vendor"}</td>
+          <td class="border p-2">${productName}</td>
+          <td class="border p-2">${batchNo}</td>
+          <td class="border p-2 text-right">${loan.quantity}</td>
+          <td class="border p-2 text-right">${Number(loan.selling_price).toFixed(2)}</td>
+          <td class="border p-2">${new Date(loan.loan_date).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</td>
+          <td class="border p-2 text-center">
+            <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded" onclick="deleteLoanRecord(${loan.id})">🗑</button>
+          </td>
+        </tr>
+      `;
+      tableBody.insertAdjacentHTML("beforeend", row);
+    }
+
+    console.log(`✅ Loan records loaded: ${loans.length}`);
   } catch (err) {
-    console.error("loadLoanRecords error", err);
+    console.error("❌ loadLoanRecords() failed:", err);
+    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Failed to load records</td></tr>`;
   }
 }
-function addLoanRecord(e) { e?.preventDefault?.(); alert("addLoanRecord stub"); }
+/* ---------------------- 💰 END LOAD VENDOR LOAN RECORDS ---------------------- */
 
+async function deleteLoanRecord(id) {
+  if (!confirm("Delete this record?")) return;
+  const supabase = await ensureSupabaseClient();
+  const { error } = await supabase.from("vendor_loan_records").delete().eq("id", id);
+  if (error) alert("Delete failed: " + error.message);
+  else loadLoanRecords();
+}
 
 // ---------- Analytics helper: returns raw rows for page script ----------
 async function fetchAnalyticsRaw() {
