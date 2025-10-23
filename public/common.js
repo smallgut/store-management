@@ -1468,6 +1468,35 @@ async function analyticsSalesByProduct() {
   return Object.keys(map).map(k => ({ product: k, total: map[k] }));
 }
 
+/* ---------------------- 📊 ANALYTICS: VENDOR PURCHASE REPORT ---------------------- */
+async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
+  const supabase = await ensureSupabaseClient();
+
+  let query = supabase
+    .from("product_batches")
+    .select("batch_number, buy_in_price, remaining_quantity, vendor_id, product_id, products(name)")
+    .eq("vendor_id", vendorId);
+
+  if (dateFrom) query = query.gte("created_at", dateFrom);
+  if (dateTo) query = query.lte("created_at", dateTo);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const total = data.reduce((sum, r) => sum + (Number(r.buy_in_price) * Number(r.remaining_quantity)), 0);
+
+  return {
+    total,
+    rows: data.map(r => ({
+      product: r.products?.name || "Unknown Product",
+      batch: r.batch_number,
+      price: r.buy_in_price,
+      qty: r.remaining_quantity,
+      subtotal: (Number(r.buy_in_price) * Number(r.remaining_quantity)).toFixed(2)
+    }))
+  };
+}
+
 /* ---------------------- 💰 ADD VENDOR LOAN RECORD (Corrected for vendor_id + products table) ---------------------- */
 async function addLoanRecord(event) {
   event.preventDefault();
