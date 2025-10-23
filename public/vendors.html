@@ -93,6 +93,26 @@
   <!-- 🔹 Page Logic -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
+
+      const supabase = await ensureSupabaseClient();
+
+  // 🔒 Auth Guard
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const logoutBtn = document.getElementById("logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = "login.html";
+    });
+  }
+
+  console.log("✅ Authenticated, initializing Manage Vendors...");
+      
       // ✅ Prevent double init
       if (window._vendorsInit) return;
       window._vendorsInit = true;
