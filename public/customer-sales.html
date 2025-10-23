@@ -110,5 +110,35 @@
       <div id="receipt-content"></div>
     </div>
   </div>
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  const supabase = await ensureSupabaseClient();
+
+  // 🔒 Auth Guard
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    console.warn("❌ Not logged in. Redirecting to login page...");
+    window.location.href = "login.html";
+    return;
+  }
+
+  const logoutBtn = document.getElementById("logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = "login.html";
+    });
+  }
+
+  console.log("✅ Authenticated, initializing Customer Sales...");
+
+  // ✅ Continue with your page logic
+  applyTranslations();
+  loadCustomerSales();
+  populateProductDropdown();
+  populateBatchDropdown();
+});
+</script>
+  
 </body>
 </html>
