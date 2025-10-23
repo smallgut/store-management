@@ -767,10 +767,14 @@ async function addProduct(event) {
     return;
   }
 
-  // ✅ Short unique batch number (12 chars max)
-  const uniqueSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const batch_no = `B-${uniqueSuffix}`; // example: B-AB12CD
-  console.log(`🧾 Generated Batch No: ${batch_no}`);
+ // ✅ Short unique batch number + date code
+const uniqueSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+const today = new Date();
+const ymd = today.getFullYear().toString() +
+            String(today.getMonth() + 1).padStart(2, "0") +
+            String(today.getDate()).padStart(2, "0");
+const batch_no = `B-${uniqueSuffix}-${ymd}`; // e.g. B-CFRABS-20251023
+console.log(`🧾 Generated Batch No: ${batch_no}`);
 
   // 1️⃣ Insert into products
   const { data: newProduct, error: prodErr } = await supabase
