@@ -104,16 +104,7 @@ function showError(err) {
   }
 }
 
-/* 🔒 Ensure Authenticated Session */
-async function enforceAuthGuard() {
-  const supabase = await ensureSupabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    window.location.href = "login.html";
-    throw new Error("Redirecting to login...");
-  }
-  return supabase;
-}
+
 
 
 // ---------------------------------------------------------
