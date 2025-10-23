@@ -40,6 +40,50 @@
     </div>
   </div>
 
+<!-- 🔹 Vendor Purchase Report -->
+<div class="bg-white p-4 rounded shadow mt-8">
+  <h2 class="text-lg font-semibold mb-4">Vendor Purchase Report</h2>
+  <div class="flex flex-wrap gap-4 mb-4">
+    <div>
+      <label class="block text-sm font-medium mb-1">Vendor</label>
+      <select id="vendor-report-select" class="border rounded p-2 min-w-[200px]"></select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">From</label>
+      <input type="date" id="vendor-report-from" class="border rounded p-2" />
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">To</label>
+      <input type="date" id="vendor-report-to" class="border rounded p-2" />
+    </div>
+    <div class="flex items-end">
+      <button onclick="runVendorPurchaseReport()"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+        🔍 Run Report
+      </button>
+    </div>
+  </div>
+
+  <table id="vendor-report-table" class="w-full border-collapse border border-gray-300">
+    <thead class="bg-gray-200">
+      <tr>
+        <th class="border p-2">Product</th>
+        <th class="border p-2">Batch No.</th>
+        <th class="border p-2">Buy-In Price</th>
+        <th class="border p-2">Qty</th>
+        <th class="border p-2">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="5" class="p-4 text-center text-gray-500">No data yet.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="text-right font-semibold mt-4">
+    Total Payable: $<span id="vendor-report-total">0.00</span>
+  </div>
+</div>
+  
   <!-- 🔹 Existing Table -->
   <div class="bg-white p-4 rounded shadow">
     <h2 class="text-lg font-semibold mb-2">Sales Data</h2>
@@ -57,99 +101,149 @@
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      console.log("📊 Initializing Analytics page...");
-      const supabase = await ensureSupabaseClient();
+  document.addEventListener("DOMContentLoaded", async () => {
+    console.log("📊 Initializing Analytics page...");
+    const supabase = await ensureSupabaseClient();
 
-      // 🔒 Auth Guard
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    // 🔒 Auth Guard
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    // 🔑 Logout
+    const logoutBtn = document.getElementById("logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        await supabase.auth.signOut();
         window.location.href = "login.html";
-        return;
-      }
+      });
+    }
 
-      // 🔑 Logout
-      const logoutBtn = document.getElementById("logout-btn");
-      if (logoutBtn) {
-        logoutBtn.addEventListener("click", async () => {
-          await supabase.auth.signOut();
-          window.location.href = "login.html";
-        });
-      }
+    applyTranslations();
 
-      applyTranslations();
+    // 🔹 Load analytics
+    try {
+      const byDay = await analyticsSalesByDay();
+      const byProduct = await analyticsSalesByProduct();
 
-      // 🔹 Load analytics
-      try {
-        const byDay = await analyticsSalesByDay();
-        const byProduct = await analyticsSalesByProduct();
+      renderSalesByDayChart(byDay);
+      renderSalesByProductChart(byProduct);
+      loadSalesTable();
+      loadVendorsForReport(); // 🆕 for vendor purchase section
+    } catch (err) {
+      console.error("❌ Failed loading analytics", err);
+    }
+  });
 
-        // Render charts
-        renderSalesByDayChart(byDay);
-        renderSalesByProductChart(byProduct);
-
-        // Also load latest sales into table
-        loadSalesTable();
-      } catch (err) {
-        console.error("❌ Failed loading analytics", err);
+  function renderSalesByDayChart(data) {
+    const ctx = document.getElementById("salesByDayChart").getContext("2d");
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: data.map(d => d.day),
+        datasets: [{
+          label: "Total Sales",
+          data: data.map(d => d.total),
+          borderColor: "blue",
+          backgroundColor: "rgba(59, 130, 246, 0.2)"
+        }]
       }
     });
+  }
 
-    function renderSalesByDayChart(data) {
-      const ctx = document.getElementById("salesByDayChart").getContext("2d");
-      new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: data.map(d => d.day),
-          datasets: [{
-            label: "Total Sales",
-            data: data.map(d => d.total),
-            borderColor: "blue",
-            backgroundColor: "rgba(59, 130, 246, 0.2)"
-          }]
-        }
-      });
-    }
-
-    function renderSalesByProductChart(data) {
-      const ctx = document.getElementById("salesByProductChart").getContext("2d");
-      new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: data.map(d => d.product),
-          datasets: [{
-            label: "Total Sales",
-            data: data.map(d => d.total),
-            backgroundColor: "rgba(16, 185, 129, 0.6)"
-          }]
-        }
-      });
-    }
-
-    async function loadSalesTable() {
-      const supabase = await ensureSupabaseClient();
-      const { data, error } = await supabase
-        .from("customer_sales")
-        .select("id, customer_name, sale_date, total")
-        .order("sale_date", { ascending: false })
-        .limit(20);
-      if (error) {
-        console.error("❌ loadSalesTable failed", error);
-        return;
+  function renderSalesByProductChart(data) {
+    const ctx = document.getElementById("salesByProductChart").getContext("2d");
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: data.map(d => d.product),
+        datasets: [{
+          label: "Total Sales",
+          data: data.map(d => d.total),
+          backgroundColor: "rgba(16, 185, 129, 0.6)"
+        }]
       }
-      const tbody = document.querySelector("#analytics-table tbody");
+    });
+  }
+
+  async function loadSalesTable() {
+    const supabase = await ensureSupabaseClient();
+    const { data, error } = await supabase
+      .from("customer_sales")
+      .select("id, customer_name, sale_date, total")
+      .order("sale_date", { ascending: false })
+      .limit(20);
+    if (error) {
+      console.error("❌ loadSalesTable failed", error);
+      return;
+    }
+    const tbody = document.querySelector("#analytics-table tbody");
+    tbody.innerHTML = "";
+    (data || []).forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">#${row.id}</td>
+        <td class="border p-2">${row.customer_name || "-"}</td>
+        <td class="border p-2">${new Date(row.sale_date).toLocaleDateString("zh-TW")}</td>
+        <td class="border p-2">${Number(row.total).toFixed(2)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ---------------------- 🧩 NEW: Vendor Purchase Report ---------------------- */
+  async function loadVendorsForReport() {
+    const supabase = await ensureSupabaseClient();
+    const { data, error } = await supabase.from("vendors").select("id, name").order("name");
+    if (error) {
+      console.error("❌ loadVendorsForReport failed", error);
+      return;
+    }
+    const vendorSelect = document.getElementById("vendor-report-select");
+    vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+    (data || []).forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.name;
+      vendorSelect.appendChild(opt);
+    });
+  }
+
+  async function runVendorPurchaseReport() {
+    const vendorId = document.getElementById("vendor-report-select").value;
+    const from = document.getElementById("vendor-report-from").value;
+    const to = document.getElementById("vendor-report-to").value;
+
+    if (!vendorId) {
+      alert("Please select a vendor.");
+      return;
+    }
+
+    try {
+      const report = await analyticsVendorPurchases(vendorId, from || null, to || null);
+      const tbody = document.querySelector("#vendor-report-table tbody");
       tbody.innerHTML = "";
-      (data || []).forEach(row => {
+
+      (report.rows || []).forEach(r => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td class="border p-2">#${row.id}</td>
-          <td class="border p-2">${row.customer_name || "-"}</td>
-          <td class="border p-2">${new Date(row.sale_date).toLocaleDateString("zh-TW")}</td>
-          <td class="border p-2">${Number(row.total).toFixed(2)}</td>
+          <td class="border p-2">${r.product}</td>
+          <td class="border p-2">${r.batch}</td>
+          <td class="border p-2">${r.price}</td>
+          <td class="border p-2">${r.qty}</td>
+          <td class="border p-2">${r.subtotal}</td>
         `;
         tbody.appendChild(tr);
       });
+
+      document.getElementById("vendor-report-total").textContent = report.total.toFixed(2);
+    } catch (err) {
+      console.error("❌ runVendorPurchaseReport failed", err);
+      alert("Failed to load vendor purchase report.");
     }
-  </script>
+  }
+</script>
 </body>
 </html>
