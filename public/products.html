@@ -161,6 +161,24 @@
   <!-- 🔹 Load Products + Toggle Logic -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
+      const supabase = await ensureSupabaseClient();
+
+  // 🔒 Auth Guard
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const logoutBtn = document.getElementById("logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = "login.html";
+    });
+  }
+
+  console.log("✅ Authenticated, initializing Manage Products...");
       await loadVendors();
       const toggle = document.getElementById("toggle-zero-stock");
       toggle.checked = false; // Default: hide zero-stock items
