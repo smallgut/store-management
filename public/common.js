@@ -1367,7 +1367,7 @@ function printReceipt(order, items) {
     </head>
     <body>
       <!-- 🏪 Header -->
-      <div class="center bold">大姐</div>
+      <div class="center bold">LOUIS convenience store</div>
       <div class="center">TEL: 0123456789</div>
       <div class="line"></div>
 
