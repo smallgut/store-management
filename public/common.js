@@ -1469,72 +1469,76 @@ async function analyticsSalesByProduct() {
 }
 
 /* ---------------------- 📊 ANALYTICS: VENDOR PURCHASE REPORT ---------------------- */
+/* ---------------------- 📊 ANALYTICS: FIXED VENDOR PURCHASE REPORT ---------------------- */
 async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
   const supabase = await ensureSupabaseClient();
-
   console.log("📊 Generating Vendor Purchase Report for vendor:", vendorId, dateFrom, dateTo);
 
-  // Step 1️⃣ – Fetch vendor’s products (with batch + current stock)
-  let query = supabase
-    .from("products")
-    .select("id, name, batch_no, price, quantity, vendor")
-    .eq("vendor", vendorId);
+  // Step 1️⃣ — Fetch all batches for this vendor within the date range
+  let batchQuery = supabase
+    .from("product_batches")
+    .select("id, product_id, batch_number, buy_in_price, remaining_quantity, created_at")
+    .eq("vendor_id", vendorId);
 
-  if (dateFrom) query = query.gte("created_at", dateFrom);
-  if (dateTo) query = query.lte("created_at", dateTo);
+  if (dateFrom) batchQuery = batchQuery.gte("created_at", dateFrom);
+  if (dateTo) batchQuery = batchQuery.lte("created_at", dateTo);
 
-  const { data: products, error: errProd } = await query;
-  if (errProd) throw errProd;
-  if (!products?.length) return { rows: [], total: 0 };
-
-  const supa = await ensureSupabaseClient();
+  const { data: batches, error: batchErr } = await batchQuery;
+  if (batchErr) throw batchErr;
+  if (!batches?.length) return { rows: [], total: 0 };
 
   const resultRows = [];
   let grandTotal = 0;
 
-  // Step 2️⃣ – Loop through each product batch
-  for (const p of products) {
-    const productId = p.id;
-    const batchNo = p.batch_no;
+  // Step 2️⃣ — Loop through each batch to calculate sold + loaned + remaining
+  for (const b of batches) {
+    const batchId = b.id;
 
-    // 🧾 Get total sold for this batch
-    const { data: soldData, error: errSales } = await supa
+    // 🧾 Fetch product name
+    const { data: prod, error: prodErr } = await supabase
+      .from("products")
+      .select("name")
+      .eq("id", b.product_id)
+      .maybeSingle();
+    if (prodErr) console.warn("⚠️ Failed to load product for batch", batchId, prodErr);
+
+    const productName = prod?.name || "Unknown Product";
+
+    // 💰 Total sold quantity from customer_sales_items
+    const { data: soldItems, error: soldErr } = await supabase
       .from("customer_sales_items")
       .select("quantity")
-      .eq("product_id", productId)
-      .eq("batch_no", batchNo);
-    const soldQty = errSales ? 0 : soldData?.reduce((s, i) => s + Number(i.quantity || 0), 0);
+      .eq("batch_id", batchId);
+    const soldQty = soldErr ? 0 : soldItems.reduce((sum, i) => sum + Number(i.quantity || 0), 0);
 
-    // 🧾 Get total loaned for this batch
-    const { data: loanData, error: errLoan } = await supa
+    // 💰 Total loaned quantity from vendor_loans
+    const { data: loanItems, error: loanErr } = await supabase
       .from("vendor_loans")
       .select("quantity")
-      .eq("product_id", productId)
-      .eq("batch_no", batchNo);
-    const loanQty = errLoan ? 0 : loanData?.reduce((s, i) => s + Number(i.quantity || 0), 0);
+      .eq("batch_no", b.batch_number);
+    const loanQty = loanErr ? 0 : loanItems.reduce((sum, i) => sum + Number(i.quantity || 0), 0);
 
-    // 🧮 Compute reconstructed buy-in quantity
-    const remaining = Number(p.quantity || 0);
-    const buyInQty = remaining + soldQty + loanQty;
-    const subtotal = buyInQty * Number(p.price || 0);
+    const remainingQty = Number(b.remaining_quantity || 0);
+    const buyInQty = soldQty + loanQty + remainingQty;
+    const subtotal = buyInQty * Number(b.buy_in_price || 0);
+    grandTotal += subtotal;
 
     resultRows.push({
-      product: p.name,
-      batch: batchNo,
-      price: p.price,
-      remaining,
+      product: productName,
+      batch: b.batch_number,
+      price: Number(b.buy_in_price || 0).toFixed(2),
+      qty: buyInQty,
       sold: soldQty,
       loaned: loanQty,
-      qty: buyInQty,
-      subtotal: subtotal.toFixed(2)
+      remaining: remainingQty,
+      subtotal: subtotal.toFixed(2),
     });
-
-    grandTotal += subtotal;
   }
 
-  console.log("✅ Vendor Purchase Report:", resultRows);
+  console.log("✅ Vendor Purchase Report generated:", resultRows);
   return { rows: resultRows, total: grandTotal };
 }
+/* ---------------------- 📊 END FIXED VENDOR PURCHASE REPORT ---------------------- */
 
 /* ---------------------- 💰 ADD VENDOR LOAN RECORD (Corrected for vendor_id + products table) ---------------------- */
 async function addLoanRecord(event) {
