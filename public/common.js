@@ -1472,29 +1472,68 @@ async function analyticsSalesByProduct() {
 async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
   const supabase = await ensureSupabaseClient();
 
+  console.log("📊 Generating Vendor Purchase Report for vendor:", vendorId, dateFrom, dateTo);
+
+  // Step 1️⃣ – Fetch vendor’s products (with batch + current stock)
   let query = supabase
-    .from("product_batches")
-    .select("batch_number, buy_in_price, remaining_quantity, vendor_id, product_id, products(name)")
-    .eq("vendor_id", vendorId);
+    .from("products")
+    .select("id, name, batch_no, price, quantity, vendor")
+    .eq("vendor", vendorId);
 
   if (dateFrom) query = query.gte("created_at", dateFrom);
   if (dateTo) query = query.lte("created_at", dateTo);
 
-  const { data, error } = await query;
-  if (error) throw error;
+  const { data: products, error: errProd } = await query;
+  if (errProd) throw errProd;
+  if (!products?.length) return { rows: [], total: 0 };
 
-  const total = data.reduce((sum, r) => sum + (Number(r.buy_in_price) * Number(r.remaining_quantity)), 0);
+  const supa = await ensureSupabaseClient();
 
-  return {
-    total,
-    rows: data.map(r => ({
-      product: r.products?.name || "Unknown Product",
-      batch: r.batch_number,
-      price: r.buy_in_price,
-      qty: r.remaining_quantity,
-      subtotal: (Number(r.buy_in_price) * Number(r.remaining_quantity)).toFixed(2)
-    }))
-  };
+  const resultRows = [];
+  let grandTotal = 0;
+
+  // Step 2️⃣ – Loop through each product batch
+  for (const p of products) {
+    const productId = p.id;
+    const batchNo = p.batch_no;
+
+    // 🧾 Get total sold for this batch
+    const { data: soldData, error: errSales } = await supa
+      .from("customer_sales_items")
+      .select("quantity")
+      .eq("product_id", productId)
+      .eq("batch_no", batchNo);
+    const soldQty = errSales ? 0 : soldData?.reduce((s, i) => s + Number(i.quantity || 0), 0);
+
+    // 🧾 Get total loaned for this batch
+    const { data: loanData, error: errLoan } = await supa
+      .from("vendor_loans")
+      .select("quantity")
+      .eq("product_id", productId)
+      .eq("batch_no", batchNo);
+    const loanQty = errLoan ? 0 : loanData?.reduce((s, i) => s + Number(i.quantity || 0), 0);
+
+    // 🧮 Compute reconstructed buy-in quantity
+    const remaining = Number(p.quantity || 0);
+    const buyInQty = remaining + soldQty + loanQty;
+    const subtotal = buyInQty * Number(p.price || 0);
+
+    resultRows.push({
+      product: p.name,
+      batch: batchNo,
+      price: p.price,
+      remaining,
+      sold: soldQty,
+      loaned: loanQty,
+      qty: buyInQty,
+      subtotal: subtotal.toFixed(2)
+    });
+
+    grandTotal += subtotal;
+  }
+
+  console.log("✅ Vendor Purchase Report:", resultRows);
+  return { rows: resultRows, total: grandTotal };
 }
 
 /* ---------------------- 💰 ADD VENDOR LOAN RECORD (Corrected for vendor_id + products table) ---------------------- */
