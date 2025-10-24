@@ -256,6 +256,126 @@
       alert("Failed to load vendor purchase report.");
     }
   }
+
+/* ---------------------- 🧾 EXPORT VENDOR PURCHASE REPORT TO PDF ---------------------- */
+async function exportVendorReportPDF() {
+  const table = document.getElementById("vendor-report-table");
+  const vendorSelect = document.getElementById("vendor-report-select");
+  const vendorName = vendorSelect.options[vendorSelect.selectedIndex]?.text || "Unknown Vendor";
+  const from = document.getElementById("vendor-report-from").value || "(No Start Date)";
+  const to = document.getElementById("vendor-report-to").value || "(No End Date)";
+  const total = document.getElementById("vendor-report-total").textContent || "0.00";
+
+  // 🧾 Collect data from the table
+  const rows = Array.from(table.querySelectorAll("tbody tr")).map((tr) =>
+    Array.from(tr.children).map((td) => td.textContent.trim())
+  );
+
+  if (!rows.length || rows[0][0] === "No data yet.") {
+    alert("⚠️ No report data to export.");
+    return;
+  }
+
+  // ✅ Create a new window for printable PDF view
+  const win = window.open("", "_blank", "width=800,height=900");
+  win.document.write(`
+    <html>
+    <head>
+      <title>Vendor Purchase Report - ${vendorName}</title>
+      <style>
+        @page { size: A4; margin: 15mm; }
+        body {
+          font-family: 'Arial', sans-serif;
+          color: #222;
+          font-size: 12px;
+          margin: 0;
+          padding: 0;
+        }
+        h1, h2, h3 { text-align: center; margin: 0; }
+        h1 { font-size: 18px; margin-bottom: 4px; }
+        h3 { font-size: 13px; color: #555; margin-bottom: 20px; }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+        }
+        th, td {
+          border: 1px solid #444;
+          padding: 6px 8px;
+          text-align: center;
+        }
+        th {
+          background: #f0f0f0;
+          font-weight: bold;
+        }
+        .right { text-align: right; }
+        .summary {
+          margin-top: 20px;
+          text-align: right;
+          font-weight: bold;
+        }
+        .footer {
+          text-align: center;
+          font-size: 10px;
+          color: #888;
+          margin-top: 30px;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Vendor Purchase Report</h1>
+      <h3>${vendorName}<br>Period: ${from} → ${to}</h3>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Batch No.</th>
+            <th>Buy-In Price</th>
+            <th>Buy-In Qty</th>
+            <th>Sold</th>
+            <th>Loaned</th>
+            <th>Remaining</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (r) =>
+                `<tr>${r.map((c, i) =>
+                  i === 7 || i === 2 ? `<td class="right">${c}</td>` : `<td>${c}</td>`
+                ).join("")}</tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+
+      <div class="summary">Total Payable: $${total}</div>
+
+      <div class="footer">
+        Generated on ${new Date().toLocaleString("zh-TW")} — POS Analytics System
+      </div>
+    </body>
+    </html>
+  `);
+
+  win.document.close();
+
+  // 🖨️ Trigger print dialog after content is ready
+  win.onload = () => {
+    win.focus();
+    win.print();
+  };
+}
+
+// Attach export button event
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("export-vendor-report");
+  if (btn) btn.addEventListener("click", exportVendorReportPDF);
+});
+/* ---------------------- 🧾 END EXPORT VENDOR PURCHASE REPORT ---------------------- */
+    
 </script>
 </body>
 </html>
