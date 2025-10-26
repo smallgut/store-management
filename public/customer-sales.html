@@ -112,6 +112,8 @@
   </div>
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
+  console.log("🧾 Initializing Record Customer Sales page...");
+
   const supabase = await ensureSupabaseClient();
 
   // 🔒 Auth Guard
@@ -122,6 +124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  // 🔑 Logout handler
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
@@ -130,13 +133,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  console.log("✅ Authenticated, initializing Customer Sales...");
-
-  // ✅ Continue with your page logic
+  // 🌐 Load translations
   applyTranslations();
-  loadCustomerSales();
-  populateProductDropdown();
-  populateBatchDropdown();
+
+  // 🛒 Load dropdowns and sales
+  await populateProductDropdown(); // ✅ ensures only runs once
+  await populateBatchDropdown();   // ✅ added properly
+  await loadCustomerSales();       // ✅ load only once
+
+  // 🧾 Receipt modal + close on outside click
+  const receiptModal = document.getElementById("receipt-modal");
+  if (receiptModal) {
+    receiptModal.addEventListener("click", (e) => {
+      if (e.target === receiptModal) receiptModal.classList.add("hidden");
+    });
+  }
 });
 </script>
   
