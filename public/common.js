@@ -1435,23 +1435,43 @@ function printReceipt(order, items) {
 // -----------------------------
 // Analytics helpers (simple)
 // -----------------------------
-async function analyticsSalesByDay(dateFrom, dateTo) {
+// 📊 Corrected: analyticsSalesByDay()
+async function analyticsSalesByDay() {
   const supabase = await ensureSupabaseClient();
-  let q = supabase
+  const { data, error } = await supabase
     .from("customer_sales")
-    .select("sale_date, total");
-  if (dateFrom) q = q.gte("sale_date", dateFrom);
-  if (dateTo) q = q.lte("sale_date", dateTo);
-  const { data, error } = await q;
-  if (error) throw error;
-  const map = {};
-  (data || []).forEach(r => {
-    const d = new Date(r.sale_date);
-    const day = d.toLocaleDateString("zh-TW");
-    map[day] = (map[day] || 0) + Number(r.total || 0);
+    .select("sale_date,total");
+
+  if (error) {
+    console.error("❌ analyticsSalesByDay failed", error);
+    return [];
+  }
+
+  // 🧮 Aggregate totals per day
+  const dailyTotals = {};
+  (data || []).forEach((row) => {
+    const d = new Date(row.sale_date);
+    const day = d.toISOString().split("T")[0]; // YYYY-MM-DD key
+    dailyTotals[day] = (dailyTotals[day] || 0) + Number(row.total || 0);
   });
-  return Object.keys(map).sort().map(k => ({ day: k, total: map[k] }));
+
+  // 📅 Sort by actual date
+  const sortedDays = Object.keys(dailyTotals).sort(
+    (a, b) => new Date(a) - new Date(b)
+  );
+
+  // 🧾 Format for chart.js
+  return sortedDays.map((day) => ({
+    day: new Date(day).toLocaleDateString("zh-TW", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }),
+    total: dailyTotals[day],
+  }));
 }
+
 
 async function analyticsSalesByProduct() {
   const supabase = await ensureSupabaseClient();
