@@ -31,8 +31,20 @@
   <!-- 🔹 Charts -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
     <div class="bg-white p-4 rounded shadow">
-      <h2 class="text-lg font-semibold mb-2">Total Sales by Day</h2>
-      <canvas id="salesByDayChart" height="150"></canvas>
+      <h2 class="text-lg font-semibold mb-2 flex items-center justify-between">
+  <span>Total Sales by Day</span>
+  <div class="flex items-center space-x-2 text-sm">
+    <label>From:</label>
+    <input type="date" id="sales-day-from" class="border rounded p-1">
+    <label>To:</label>
+    <input type="date" id="sales-day-to" class="border rounded p-1">
+    <button id="filter-sales-day"
+      class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
+      Filter
+    </button>
+  </div>
+</h2>
+<canvas id="salesByDayChart" height="150"></canvas>
     </div>
     <div class="bg-white p-4 rounded shadow">
       <h2 class="text-lg font-semibold mb-2">Total Sales by Product</h2>
