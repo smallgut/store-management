@@ -110,154 +110,201 @@
   </div>
 
   <script>
-  document.addEventListener("DOMContentLoaded", async () => {
-    console.log("📊 Initializing Analytics page...");
-    const supabase = await ensureSupabaseClient();
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("📊 Initializing Analytics page...");
+  const supabase = await ensureSupabaseClient();
 
-    // 🔒 Auth Guard
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+  // 🔒 Auth Guard
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  // 🔑 Logout button
+  const logoutBtn = document.getElementById("logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await supabase.auth.signOut();
       window.location.href = "login.html";
-      return;
-    }
+    });
+  }
 
-    // 🔑 Logout
-    const logoutBtn = document.getElementById("logout-btn");
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        window.location.href = "login.html";
-      });
-    }
+  applyTranslations();
 
-    applyTranslations();
+  try {
+    await loadAnalyticsCharts();
+    await loadSalesTable();
+    await loadVendorsForReport();
+  } catch (err) {
+    console.error("❌ Failed loading analytics", err);
+  }
 
-    // 🔹 Load analytics
-    try {
-      const byDay = await analyticsSalesByDay();
-      const byProduct = await analyticsSalesByProduct();
+  // 🗓️ Filter button for "Total Sales by Day"
+  const filterBtn = document.getElementById("filter-sales-day");
+  if (filterBtn) {
+    filterBtn.addEventListener("click", async () => {
+      await loadAnalyticsCharts();
+    });
+  }
 
-      renderSalesByDayChart(byDay);
-      renderSalesByProductChart(byProduct);
-      loadSalesTable();
-      loadVendorsForReport(); // 🆕 for vendor purchase section
-    } catch (err) {
-      console.error("❌ Failed loading analytics", err);
+  // 📄 PDF Export button
+  const exportBtn = document.getElementById("export-vendor-report");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", exportVendorReportPDF);
+  }
+});
+
+/* ---------------------- 📊 MAIN ANALYTICS ---------------------- */
+async function loadAnalyticsCharts() {
+  const from = document.getElementById("sales-day-from")?.value || null;
+  const to = document.getElementById("sales-day-to")?.value || null;
+
+  const byDay = await analyticsSalesByDay(from, to);
+  const byProduct = await analyticsSalesByProduct();
+
+  renderSalesByDayChart(byDay);
+  renderSalesByProductChart(byProduct);
+}
+
+// 📈 Chart.js renderers
+let salesByDayChart;
+let salesByProductChart;
+
+function renderSalesByDayChart(data) {
+  const ctx = document.getElementById("salesByDayChart").getContext("2d");
+  if (salesByDayChart) salesByDayChart.destroy();
+
+  salesByDayChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: data.map(d => d.day),
+      datasets: [{
+        label: "Total Sales",
+        data: data.map(d => d.total),
+        borderColor: "blue",
+        backgroundColor: "rgba(59, 130, 246, 0.2)",
+        tension: 0.2
+      }]
+    },
+    options: {
+      scales: {
+        x: { title: { display: true, text: "Date" } },
+        y: { title: { display: true, text: "Total ($)" } }
+      }
     }
   });
+}
 
-  function renderSalesByDayChart(data) {
-    const ctx = document.getElementById("salesByDayChart").getContext("2d");
-    new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: data.map(d => d.day),
-        datasets: [{
-          label: "Total Sales",
-          data: data.map(d => d.total),
-          borderColor: "blue",
-          backgroundColor: "rgba(59, 130, 246, 0.2)"
-        }]
+function renderSalesByProductChart(data) {
+  const ctx = document.getElementById("salesByProductChart").getContext("2d");
+  if (salesByProductChart) salesByProductChart.destroy();
+
+  salesByProductChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.map(d => d.product),
+      datasets: [{
+        label: "Total Sales",
+        data: data.map(d => d.total),
+        backgroundColor: "rgba(16, 185, 129, 0.6)"
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      scales: {
+        x: { title: { display: true, text: "Total ($)" } },
+        y: { title: { display: true, text: "Product" } }
       }
-    });
-  }
-
-  function renderSalesByProductChart(data) {
-    const ctx = document.getElementById("salesByProductChart").getContext("2d");
-    new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels: data.map(d => d.product),
-        datasets: [{
-          label: "Total Sales",
-          data: data.map(d => d.total),
-          backgroundColor: "rgba(16, 185, 129, 0.6)"
-        }]
-      }
-    });
-  }
-
-  async function loadSalesTable() {
-    const supabase = await ensureSupabaseClient();
-    const { data, error } = await supabase
-      .from("customer_sales")
-      .select("id, customer_name, sale_date, total")
-      .order("sale_date", { ascending: false })
-      .limit(20);
-    if (error) {
-      console.error("❌ loadSalesTable failed", error);
-      return;
     }
-    const tbody = document.querySelector("#analytics-table tbody");
+  });
+}
+
+/* ---------------------- 💰 SALES TABLE ---------------------- */
+async function loadSalesTable() {
+  const supabase = await ensureSupabaseClient();
+  const { data, error } = await supabase
+    .from("customer_sales")
+    .select("id, customer_name, sale_date, total")
+    .order("sale_date", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error("❌ loadSalesTable failed", error);
+    return;
+  }
+
+  const tbody = document.querySelector("#analytics-table tbody");
+  tbody.innerHTML = "";
+  (data || []).forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="border p-2">#${row.id}</td>
+      <td class="border p-2">${row.customer_name || "-"}</td>
+      <td class="border p-2">${new Date(row.sale_date).toLocaleDateString("zh-TW")}</td>
+      <td class="border p-2">${Number(row.total).toFixed(2)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------------------- 🧩 VENDOR PURCHASE REPORT ---------------------- */
+async function loadVendorsForReport() {
+  const supabase = await ensureSupabaseClient();
+  const { data, error } = await supabase.from("vendors").select("id, name").order("name");
+  if (error) {
+    console.error("❌ loadVendorsForReport failed", error);
+    return;
+  }
+
+  const vendorSelect = document.getElementById("vendor-report-select");
+  vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+  (data || []).forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v.id;
+    opt.textContent = v.name;
+    vendorSelect.appendChild(opt);
+  });
+}
+
+async function runVendorPurchaseReport() {
+  const vendorId = document.getElementById("vendor-report-select").value;
+  const from = document.getElementById("vendor-report-from").value;
+  const to = document.getElementById("vendor-report-to").value;
+
+  if (!vendorId) {
+    alert("Please select a vendor.");
+    return;
+  }
+
+  try {
+    const report = await analyticsVendorPurchases(vendorId, from || null, to || null);
+    const tbody = document.querySelector("#vendor-report-table tbody");
     tbody.innerHTML = "";
-    (data || []).forEach(row => {
+
+    (report.rows || []).forEach(r => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="border p-2">#${row.id}</td>
-        <td class="border p-2">${row.customer_name || "-"}</td>
-        <td class="border p-2">${new Date(row.sale_date).toLocaleDateString("zh-TW")}</td>
-        <td class="border p-2">${Number(row.total).toFixed(2)}</td>
+        <td class="border p-2">${r.product}</td>
+        <td class="border p-2">${r.batch}</td>
+        <td class="border p-2">${r.price}</td>
+        <td class="border p-2">${r.qty}</td>
+        <td class="border p-2">${r.sold}</td>
+        <td class="border p-2">${r.loaned}</td>
+        <td class="border p-2">${r.remaining}</td>
+        <td class="border p-2">${r.subtotal}</td>
       `;
       tbody.appendChild(tr);
     });
+
+    document.getElementById("vendor-report-total").textContent = report.total.toFixed(2);
+  } catch (err) {
+    console.error("❌ runVendorPurchaseReport failed", err);
+    alert("Failed to load vendor purchase report.");
   }
+}
 
-  /* ---------------------- 🧩 NEW: Vendor Purchase Report ---------------------- */
-  async function loadVendorsForReport() {
-    const supabase = await ensureSupabaseClient();
-    const { data, error } = await supabase.from("vendors").select("id, name").order("name");
-    if (error) {
-      console.error("❌ loadVendorsForReport failed", error);
-      return;
-    }
-    const vendorSelect = document.getElementById("vendor-report-select");
-    vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-    (data || []).forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.id;
-      opt.textContent = v.name;
-      vendorSelect.appendChild(opt);
-    });
-  }
-
-  async function runVendorPurchaseReport() {
-    const vendorId = document.getElementById("vendor-report-select").value;
-    const from = document.getElementById("vendor-report-from").value;
-    const to = document.getElementById("vendor-report-to").value;
-
-    if (!vendorId) {
-      alert("Please select a vendor.");
-      return;
-    }
-
-    try {
-      const report = await analyticsVendorPurchases(vendorId, from || null, to || null);
-      const tbody = document.querySelector("#vendor-report-table tbody");
-      tbody.innerHTML = "";
-
-      (report.rows || []).forEach(r => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-           <td class="border p-2">${r.product}</td>
-  <td class="border p-2">${r.batch}</td>
-  <td class="border p-2">${r.price}</td>
-  <td class="border p-2">${r.qty}</td>
-  <td class="border p-2">${r.sold}</td>
-  <td class="border p-2">${r.loaned}</td>
-  <td class="border p-2">${r.remaining}</td>
-  <td class="border p-2">${r.subtotal}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById("vendor-report-total").textContent = report.total.toFixed(2);
-    } catch (err) {
-      console.error("❌ runVendorPurchaseReport failed", err);
-      alert("Failed to load vendor purchase report.");
-    }
-  }
-
-/* ---------------------- 🧾 EXPORT VENDOR PURCHASE REPORT TO PDF ---------------------- */
+/* ---------------------- 🧾 EXPORT TO PDF ---------------------- */
 async function exportVendorReportPDF() {
   const table = document.getElementById("vendor-report-table");
   const vendorSelect = document.getElementById("vendor-report-select");
@@ -266,9 +313,8 @@ async function exportVendorReportPDF() {
   const to = document.getElementById("vendor-report-to").value || "(No End Date)";
   const total = document.getElementById("vendor-report-total").textContent || "0.00";
 
-  // 🧾 Collect data from the table
-  const rows = Array.from(table.querySelectorAll("tbody tr")).map((tr) =>
-    Array.from(tr.children).map((td) => td.textContent.trim())
+  const rows = Array.from(table.querySelectorAll("tbody tr")).map(tr =>
+    Array.from(tr.children).map(td => td.textContent.trim())
   );
 
   if (!rows.length || rows[0][0] === "No data yet.") {
@@ -276,7 +322,6 @@ async function exportVendorReportPDF() {
     return;
   }
 
-  // ✅ Create a new window for printable PDF view
   const win = window.open("", "_blank", "width=800,height=900");
   win.document.write(`
     <html>
@@ -284,98 +329,41 @@ async function exportVendorReportPDF() {
       <title>Vendor Purchase Report - ${vendorName}</title>
       <style>
         @page { size: A4; margin: 15mm; }
-        body {
-          font-family: 'Arial', sans-serif;
-          color: #222;
-          font-size: 12px;
-          margin: 0;
-          padding: 0;
-        }
-        h1, h2, h3 { text-align: center; margin: 0; }
-        h1 { font-size: 18px; margin-bottom: 4px; }
-        h3 { font-size: 13px; color: #555; margin-bottom: 20px; }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 10px;
-        }
-        th, td {
-          border: 1px solid #444;
-          padding: 6px 8px;
-          text-align: center;
-        }
-        th {
-          background: #f0f0f0;
-          font-weight: bold;
-        }
+        body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #444; padding: 6px 8px; text-align: center; }
+        th { background: #f0f0f0; font-weight: bold; }
         .right { text-align: right; }
-        .summary {
-          margin-top: 20px;
-          text-align: right;
-          font-weight: bold;
-        }
-        .footer {
-          text-align: center;
-          font-size: 10px;
-          color: #888;
-          margin-top: 30px;
-        }
+        .summary { margin-top: 20px; text-align: right; font-weight: bold; }
+        .footer { text-align: center; font-size: 10px; color: #888; margin-top: 30px; }
       </style>
     </head>
     <body>
-      <h1>Vendor Purchase Report</h1>
-      <h3>${vendorName}<br>Period: ${from} → ${to}</h3>
-
+      <h1 style="text-align:center;">Vendor Purchase Report</h1>
+      <h3 style="text-align:center;">${vendorName}<br>Period: ${from} → ${to}</h3>
       <table>
         <thead>
           <tr>
-            <th>Product</th>
-            <th>Batch No.</th>
-            <th>Buy-In Price</th>
-            <th>Buy-In Qty</th>
-            <th>Sold</th>
-            <th>Loaned</th>
-            <th>Remaining</th>
-            <th>Subtotal</th>
+            <th>Product</th><th>Batch No.</th><th>Buy-In Price</th><th>Buy-In Qty</th>
+            <th>Sold</th><th>Loaned</th><th>Remaining</th><th>Subtotal</th>
           </tr>
         </thead>
         <tbody>
-          ${rows
-            .map(
-              (r) =>
-                `<tr>${r.map((c, i) =>
-                  i === 7 || i === 2 ? `<td class="right">${c}</td>` : `<td>${c}</td>`
-                ).join("")}</tr>`
-            )
-            .join("")}
+          ${rows.map(r =>
+            `<tr>${r.map((c, i) =>
+              i === 7 || i === 2 ? `<td class="right">${c}</td>` : `<td>${c}</td>`
+            ).join("")}</tr>`
+          ).join("")}
         </tbody>
       </table>
-
       <div class="summary">Total Payable: $${total}</div>
-
-      <div class="footer">
-        Generated on ${new Date().toLocaleString("zh-TW")} — POS Analytics System
-      </div>
+      <div class="footer">Generated on ${new Date().toLocaleString("zh-TW")} — POS Analytics System</div>
     </body>
     </html>
   `);
-
   win.document.close();
-
-  // 🖨️ Trigger print dialog after content is ready
-  win.onload = () => {
-    win.focus();
-    win.print();
-  };
+  win.onload = () => { win.focus(); win.print(); };
 }
-
-// Attach export button event
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("export-vendor-report");
-  if (btn) btn.addEventListener("click", exportVendorReportPDF);
-});
-/* ---------------------- 🧾 END EXPORT VENDOR PURCHASE REPORT ---------------------- */
-    
 </script>
 </body>
 </html>
