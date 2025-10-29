@@ -1477,12 +1477,14 @@ async function analyticsSalesByDay(fromDate = null, toDate = null) {
 }
 
 
+// ✅ Fixed analyticsSalesByProduct()
 async function analyticsSalesByProduct(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
+
+  // Using the correct column name "sub_total" instead of "subtotal"
   let query = supabase
     .from("customer_sales_items")
-    .select("product_id, products(name), subtotal, sale_date")
-    .eq("deleted", false)
+    .select("product_id, products(name), sub_total, sale_date")
     .order("product_id");
 
   if (from) query = query.gte("sale_date", from);
@@ -1494,11 +1496,11 @@ async function analyticsSalesByProduct(from = null, to = null) {
     return [];
   }
 
-  // Group by product
+  // Group totals per product
   const totals = {};
   for (const row of data) {
     const name = row.products?.name || "(Unknown Product)";
-    totals[name] = (totals[name] || 0) + Number(row.subtotal || 0);
+    totals[name] = (totals[name] || 0) + Number(row.sub_total || 0);
   }
 
   return Object.entries(totals).map(([product, total]) => ({ product, total }));
