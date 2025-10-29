@@ -46,12 +46,22 @@
 </h2>
 <canvas id="salesByDayChart" height="150"></canvas>
     </div>
-    <div class="bg-white p-4 rounded shadow">
-      <h2 class="text-lg font-semibold mb-2">Total Sales by Product</h2>
-      <canvas id="salesByProductChart" height="150"></canvas>
+<div class="bg-white p-4 rounded shadow">
+  <h2 class="text-lg font-semibold mb-2 flex items-center justify-between">
+    <span>Total Sales by Product</span>
+    <div class="flex items-center space-x-2 text-sm">
+      <label>From:</label>
+      <input type="date" id="sales-product-from" class="border rounded p-1">
+      <label>To:</label>
+      <input type="date" id="sales-product-to" class="border rounded p-1">
+      <button id="filter-sales-product"
+        class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded">
+        Filter
+      </button>
     </div>
-  </div>
-
+  </h2>
+  <canvas id="salesByProductChart" height="150"></canvas>
+</div>
 <!-- 🔹 Vendor Purchase Report -->
 <div class="bg-white p-4 rounded shadow mt-8">
   <h2 class="text-lg font-semibold mb-4">Vendor Purchase Report</h2>
@@ -126,21 +136,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("📊 Initializing Analytics page...");
   const supabase = await ensureSupabaseClient();
 
-  // 🔒 Auth Guard
+  // 🔒 Auth guard
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
     window.location.href = "login.html";
     return;
   }
 
-  // 🔑 Logout button
-  const logoutBtn = document.getElementById("logout-btn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", async () => {
-      await supabase.auth.signOut();
-      window.location.href = "login.html";
-    });
-  }
+  // 🔑 Logout
+  document.getElementById("logout-btn")?.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    window.location.href = "login.html";
+  });
 
   applyTranslations();
 
@@ -152,41 +159,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("❌ Failed loading analytics", err);
   }
 
-  // 🗓️ Filter button for "Total Sales by Day"
-  const filterBtn = document.getElementById("filter-sales-day");
-  if (filterBtn) {
-    filterBtn.addEventListener("click", async () => {
-      await loadAnalyticsCharts();
-    });
-  }
+  // 🗓 Filters
+  document.getElementById("filter-sales-day")?.addEventListener("click", loadAnalyticsCharts);
+  document.getElementById("filter-sales-product")?.addEventListener("click", loadAnalyticsCharts);
 
-  // 📄 PDF Export button
-  const exportBtn = document.getElementById("export-vendor-report");
-  if (exportBtn) {
-    exportBtn.addEventListener("click", exportVendorReportPDF);
-  }
+  // 📄 PDF export
+  document.getElementById("export-vendor-report")?.addEventListener("click", exportVendorReportPDF);
 });
 
 /* ---------------------- 📊 MAIN ANALYTICS ---------------------- */
 async function loadAnalyticsCharts() {
-  const from = document.getElementById("sales-day-from")?.value || null;
-  const to = document.getElementById("sales-day-to")?.value || null;
+  const fromDay = document.getElementById("sales-day-from")?.value || null;
+  const toDay   = document.getElementById("sales-day-to")?.value || null;
+  const fromProd = document.getElementById("sales-product-from")?.value || null;
+  const toProd   = document.getElementById("sales-product-to")?.value || null;
 
-  const byDay = await analyticsSalesByDay(from, to);
-  const byProduct = await analyticsSalesByProduct();
+  const byDay = await analyticsSalesByDay(fromDay, toDay);
+  const byProduct = await analyticsSalesByProduct(fromProd, toProd);
 
   renderSalesByDayChart(byDay);
   renderSalesByProductChart(byProduct);
 }
 
-// 📈 Chart.js renderers
-let salesByDayChart;
-let salesByProductChart;
+let salesByDayChart, salesByProductChart;
 
 function renderSalesByDayChart(data) {
   const ctx = document.getElementById("salesByDayChart").getContext("2d");
   if (salesByDayChart) salesByDayChart.destroy();
-
   salesByDayChart = new Chart(ctx, {
     type: "line",
     data: {
@@ -195,7 +194,7 @@ function renderSalesByDayChart(data) {
         label: "Total Sales",
         data: data.map(d => d.total),
         borderColor: "blue",
-        backgroundColor: "rgba(59, 130, 246, 0.2)",
+        backgroundColor: "rgba(59,130,246,0.2)",
         tension: 0.2
       }]
     },
@@ -211,7 +210,6 @@ function renderSalesByDayChart(data) {
 function renderSalesByProductChart(data) {
   const ctx = document.getElementById("salesByProductChart").getContext("2d");
   if (salesByProductChart) salesByProductChart.destroy();
-
   salesByProductChart = new Chart(ctx, {
     type: "bar",
     data: {
@@ -219,7 +217,7 @@ function renderSalesByProductChart(data) {
       datasets: [{
         label: "Total Sales",
         data: data.map(d => d.total),
-        backgroundColor: "rgba(16, 185, 129, 0.6)"
+        backgroundColor: "rgba(16,185,129,0.6)"
       }]
     },
     options: {
