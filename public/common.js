@@ -1477,19 +1477,31 @@ async function analyticsSalesByDay(fromDate = null, toDate = null) {
 }
 
 
-async function analyticsSalesByProduct() {
+async function analyticsSalesByProduct(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("customer_sales_items")
-    .select("product_id, quantity, selling_price, products(name)")
+    .select("product_id, products(name), subtotal, sale_date")
+    .eq("deleted", false)
     .order("product_id");
-  if (error) throw error;
-  const map = {};
-  (data || []).forEach(r => {
-    const name = r.products?.name || ("Product " + r.product_id);
-    map[name] = (map[name] || 0) + (Number(r.quantity || 0) * Number(r.selling_price || 0));
-  });
-  return Object.keys(map).map(k => ({ product: k, total: map[k] }));
+
+  if (from) query = query.gte("sale_date", from);
+  if (to) query = query.lte("sale_date", to);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("❌ analyticsSalesByProduct failed", error);
+    return [];
+  }
+
+  // Group by product
+  const totals = {};
+  for (const row of data) {
+    const name = row.products?.name || "(Unknown Product)";
+    totals[name] = (totals[name] || 0) + Number(row.subtotal || 0);
+  }
+
+  return Object.entries(totals).map(([product, total]) => ({ product, total }));
 }
 
 /* ---------------------- 📊 ANALYTICS: VENDOR PURCHASE REPORT ---------------------- */
