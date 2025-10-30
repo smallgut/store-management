@@ -265,6 +265,51 @@ async function loadVendorsForReport() {
     vendorSelect.appendChild(opt);
   });
 }
+
+    /* ---------------------- 🧩 Vendor Purchase Report ---------------------- */
+async function runVendorPurchaseReport() {
+  const vendorId = document.getElementById("vendor-report-select").value;
+  const from = document.getElementById("vendor-report-from").value || null;
+  const to = document.getElementById("vendor-report-to").value || null;
+
+  if (!vendorId) {
+    alert("Please select a vendor first.");
+    return;
+  }
+
+  try {
+    const report = await analyticsVendorPurchases(vendorId, from, to);
+    const tbody = document.querySelector("#vendor-report-table tbody");
+    tbody.innerHTML = "";
+
+    if (!report?.rows?.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">No data found.</td></tr>`;
+      document.getElementById("vendor-report-total").textContent = "0.00";
+      return;
+    }
+
+    for (const r of report.rows) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${r.product}</td>
+        <td class="border p-2">${r.batch}</td>
+        <td class="border p-2">${r.price}</td>
+        <td class="border p-2">${r.qty}</td>
+        <td class="border p-2">${r.sold}</td>
+        <td class="border p-2">${r.loaned}</td>
+        <td class="border p-2">${r.remaining}</td>
+        <td class="border p-2">${r.subtotal}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    document.getElementById("vendor-report-total").textContent =
+      report.total.toFixed(2);
+  } catch (err) {
+    console.error("❌ runVendorPurchaseReport failed", err);
+    alert("Failed to load vendor purchase report.");
+  }
+}
   </script>
 </body>
 </html>
