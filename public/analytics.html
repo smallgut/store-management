@@ -28,95 +28,89 @@
 
   <h1 data-lang-key="analytics" class="text-2xl font-bold mt-4 mb-6">Analytics</h1>
 
-  <!-- 🔹 Charts -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-    <div class="bg-white p-4 rounded shadow">
-      <h2 class="text-lg font-semibold mb-2 flex items-center justify-between">
-  <span>Total Sales by Day</span>
-  <div class="flex items-center space-x-2 text-sm">
-    <label>From:</label>
-    <input type="date" id="sales-day-from" class="border rounded p-1">
-    <label>To:</label>
-    <input type="date" id="sales-day-to" class="border rounded p-1">
-    <button id="filter-sales-day"
-      class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
-      Filter
-    </button>
+  <!-- 🔹 Unified Sales Overview -->
+  <div class="bg-white p-4 rounded shadow mb-6">
+    <h2 class="text-lg font-semibold mb-2 flex items-center justify-between">
+      <span>Sales Overview</span>
+      <div class="flex items-center space-x-2 text-sm">
+        <label>From:</label>
+        <input type="date" id="analytics-from" class="border rounded p-1">
+        <label>To:</label>
+        <input type="date" id="analytics-to" class="border rounded p-1">
+        <button id="filter-analytics"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
+          Apply Filter
+        </button>
+      </div>
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+      <div>
+        <h3 class="text-md font-semibold mb-1">Total Sales by Day</h3>
+        <canvas id="salesByDayChart" height="150"></canvas>
+      </div>
+      <div>
+        <h3 class="text-md font-semibold mb-1">Total Sales by Product</h3>
+        <canvas id="salesByProductChart" height="150"></canvas>
+      </div>
+    </div>
   </div>
-</h2>
-<canvas id="salesByDayChart" height="150"></canvas>
+
+  <!-- 🔹 Vendor Purchase Report -->
+  <div class="bg-white p-4 rounded shadow mt-8">
+    <h2 class="text-lg font-semibold mb-4">Vendor Purchase Report</h2>
+    <div class="flex flex-wrap gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">Vendor</label>
+        <select id="vendor-report-select" class="border rounded p-2 min-w-[200px]"></select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">From</label>
+        <input type="date" id="vendor-report-from" class="border rounded p-2" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">To</label>
+        <input type="date" id="vendor-report-to" class="border rounded p-2" />
+      </div>
+      <div class="flex items-end">
+        <button onclick="runVendorPurchaseReport()"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+          🔍 Run Report
+        </button>
+      </div>
     </div>
-<div class="bg-white p-4 rounded shadow">
-  <h2 class="text-lg font-semibold mb-2 flex items-center justify-between">
-    <span>Total Sales by Product</span>
-    <div class="flex items-center space-x-2 text-sm">
-      <label>From:</label>
-      <input type="date" id="sales-product-from" class="border rounded p-1">
-      <label>To:</label>
-      <input type="date" id="sales-product-to" class="border rounded p-1">
-      <button id="filter-sales-product"
-        class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded">
-        Filter
-      </button>
-    </div>
-  </h2>
-  <canvas id="salesByProductChart" height="150"></canvas>
-</div>
-<!-- 🔹 Vendor Purchase Report -->
-<div class="bg-white p-4 rounded shadow mt-8">
-  <h2 class="text-lg font-semibold mb-4">Vendor Purchase Report</h2>
-  <div class="flex flex-wrap gap-4 mb-4">
-    <div>
-      <label class="block text-sm font-medium mb-1">Vendor</label>
-      <select id="vendor-report-select" class="border rounded p-2 min-w-[200px]"></select>
-    </div>
-    <div>
-      <label class="block text-sm font-medium mb-1">From</label>
-      <input type="date" id="vendor-report-from" class="border rounded p-2" />
-    </div>
-    <div>
-      <label class="block text-sm font-medium mb-1">To</label>
-      <input type="date" id="vendor-report-to" class="border rounded p-2" />
-    </div>
-    <div class="flex items-end">
-      <button onclick="runVendorPurchaseReport()"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-        🔍 Run Report
+
+    <table id="vendor-report-table" class="w-full border-collapse border border-gray-300">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="border p-2">Product</th>
+          <th class="border p-2">Batch No.</th>
+          <th class="border p-2">Buy-In Price</th>
+          <th class="border p-2">Buy-In Qty</th>
+          <th class="border p-2">Sold</th>
+          <th class="border p-2">Loaned</th>
+          <th class="border p-2">Remaining</th>
+          <th class="border p-2">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="8" class="p-4 text-center text-gray-500">No data yet.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="flex justify-between items-center mt-4">
+      <div class="font-semibold">
+        Total Payable: $<span id="vendor-report-total">0.00</span>
+      </div>
+      <button id="export-vendor-report"
+        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
+        📄 Export PDF
       </button>
     </div>
   </div>
 
-  <table id="vendor-report-table" class="w-full border-collapse border border-gray-300">
-    <thead class="bg-gray-200">
-      <tr>
-       <th class="border p-2">Product</th>
-    <th class="border p-2">Batch No.</th>
-    <th class="border p-2">Buy-In Price</th>
-    <th class="border p-2">Buy-In Qty</th>
-    <th class="border p-2">Sold</th>
-    <th class="border p-2">Loaned</th>
-    <th class="border p-2">Remaining</th>
-    <th class="border p-2">Subtotal</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td colspan="5" class="p-4 text-center text-gray-500">No data yet.</td></tr>
-    </tbody>
-  </table>
-
-  <div class="flex justify-between items-center mt-4">
-  <div class="font-semibold">
-    Total Payable: $<span id="vendor-report-total">0.00</span>
-  </div>
-  <button id="export-vendor-report"
-    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
-    📄 Export PDF
-  </button>
-</div>
-</div>
-  
-  <!-- 🔹 Existing Table -->
-  <div class="bg-white p-4 rounded shadow">
+  <!-- 🔹 Existing Sales Data Table -->
+  <div class="bg-white p-4 rounded shadow mt-6">
     <h2 class="text-lg font-semibold mb-2">Sales Data</h2>
     <table id="analytics-table" class="w-full border-collapse border border-gray-300">
       <thead>
@@ -159,23 +153,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("❌ Failed loading analytics", err);
   }
 
-  // 🗓 Filters
-  document.getElementById("filter-sales-day")?.addEventListener("click", loadAnalyticsCharts);
-  document.getElementById("filter-sales-product")?.addEventListener("click", loadAnalyticsCharts);
-
-  // 📄 PDF export
-  document.getElementById("export-vendor-report")?.addEventListener("click", exportVendorReportPDF);
+  // 🗓 Unified date filter
+  document.getElementById("filter-analytics")?.addEventListener("click", loadAnalyticsCharts);
 });
 
 /* ---------------------- 📊 MAIN ANALYTICS ---------------------- */
 async function loadAnalyticsCharts() {
-  const fromDay = document.getElementById("sales-day-from")?.value || null;
-  const toDay   = document.getElementById("sales-day-to")?.value || null;
-  const fromProd = document.getElementById("sales-product-from")?.value || null;
-  const toProd   = document.getElementById("sales-product-to")?.value || null;
+  const from = document.getElementById("analytics-from")?.value || null;
+  const to   = document.getElementById("analytics-to")?.value || null;
 
-  const byDay = await analyticsSalesByDay(fromDay, toDay);
-  const byProduct = await analyticsSalesByProduct(fromProd, toProd);
+  const byDay = await analyticsSalesByDay(from, to);
+  const byProduct = await analyticsSalesByProduct(from, to);
 
   renderSalesByDayChart(byDay);
   renderSalesByProductChart(byProduct);
@@ -257,123 +245,6 @@ async function loadSalesTable() {
     tbody.appendChild(tr);
   });
 }
-
-/* ---------------------- 🧩 VENDOR PURCHASE REPORT ---------------------- */
-async function loadVendorsForReport() {
-  const supabase = await ensureSupabaseClient();
-  const { data, error } = await supabase.from("vendors").select("id, name").order("name");
-  if (error) {
-    console.error("❌ loadVendorsForReport failed", error);
-    return;
-  }
-
-  const vendorSelect = document.getElementById("vendor-report-select");
-  vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-  (data || []).forEach(v => {
-    const opt = document.createElement("option");
-    opt.value = v.id;
-    opt.textContent = v.name;
-    vendorSelect.appendChild(opt);
-  });
-}
-
-async function runVendorPurchaseReport() {
-  const vendorId = document.getElementById("vendor-report-select").value;
-  const from = document.getElementById("vendor-report-from").value;
-  const to = document.getElementById("vendor-report-to").value;
-
-  if (!vendorId) {
-    alert("Please select a vendor.");
-    return;
-  }
-
-  try {
-    const report = await analyticsVendorPurchases(vendorId, from || null, to || null);
-    const tbody = document.querySelector("#vendor-report-table tbody");
-    tbody.innerHTML = "";
-
-    (report.rows || []).forEach(r => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${r.product}</td>
-        <td class="border p-2">${r.batch}</td>
-        <td class="border p-2">${r.price}</td>
-        <td class="border p-2">${r.qty}</td>
-        <td class="border p-2">${r.sold}</td>
-        <td class="border p-2">${r.loaned}</td>
-        <td class="border p-2">${r.remaining}</td>
-        <td class="border p-2">${r.subtotal}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    document.getElementById("vendor-report-total").textContent = report.total.toFixed(2);
-  } catch (err) {
-    console.error("❌ runVendorPurchaseReport failed", err);
-    alert("Failed to load vendor purchase report.");
-  }
-}
-
-/* ---------------------- 🧾 EXPORT TO PDF ---------------------- */
-async function exportVendorReportPDF() {
-  const table = document.getElementById("vendor-report-table");
-  const vendorSelect = document.getElementById("vendor-report-select");
-  const vendorName = vendorSelect.options[vendorSelect.selectedIndex]?.text || "Unknown Vendor";
-  const from = document.getElementById("vendor-report-from").value || "(No Start Date)";
-  const to = document.getElementById("vendor-report-to").value || "(No End Date)";
-  const total = document.getElementById("vendor-report-total").textContent || "0.00";
-
-  const rows = Array.from(table.querySelectorAll("tbody tr")).map(tr =>
-    Array.from(tr.children).map(td => td.textContent.trim())
-  );
-
-  if (!rows.length || rows[0][0] === "No data yet.") {
-    alert("⚠️ No report data to export.");
-    return;
-  }
-
-  const win = window.open("", "_blank", "width=800,height=900");
-  win.document.write(`
-    <html>
-    <head>
-      <title>Vendor Purchase Report - ${vendorName}</title>
-      <style>
-        @page { size: A4; margin: 15mm; }
-        body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #444; padding: 6px 8px; text-align: center; }
-        th { background: #f0f0f0; font-weight: bold; }
-        .right { text-align: right; }
-        .summary { margin-top: 20px; text-align: right; font-weight: bold; }
-        .footer { text-align: center; font-size: 10px; color: #888; margin-top: 30px; }
-      </style>
-    </head>
-    <body>
-      <h1 style="text-align:center;">Vendor Purchase Report</h1>
-      <h3 style="text-align:center;">${vendorName}<br>Period: ${from} → ${to}</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Product</th><th>Batch No.</th><th>Buy-In Price</th><th>Buy-In Qty</th>
-            <th>Sold</th><th>Loaned</th><th>Remaining</th><th>Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r =>
-            `<tr>${r.map((c, i) =>
-              i === 7 || i === 2 ? `<td class="right">${c}</td>` : `<td>${c}</td>`
-            ).join("")}</tr>`
-          ).join("")}
-        </tbody>
-      </table>
-      <div class="summary">Total Payable: $${total}</div>
-      <div class="footer">Generated on ${new Date().toLocaleString("zh-TW")} — POS Analytics System</div>
-    </body>
-    </html>
-  `);
-  win.document.close();
-  win.onload = () => { win.focus(); win.print(); };
-}
-</script>
+  </script>
 </body>
 </html>
