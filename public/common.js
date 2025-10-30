@@ -1437,13 +1437,16 @@ function printReceipt(order, items) {
 // -----------------------------
 // 📊 Corrected: analyticsSalesByDay()
 // 📊 Enhanced: analyticsSalesByDay(fromDate, toDate)
-async function analyticsSalesByDay(fromDate = null, toDate = null) {
+/* ---------------------- 📈 Analytics Queries ---------------------- */
+async function analyticsSalesByDay(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
+  let query = supabase
+    .from("customer_sales")
+    .select("sale_date,total")
+    .order("sale_date", { ascending: true });
 
-  let query = supabase.from("customer_sales").select("sale_date,total");
-
-  if (fromDate) query = query.gte("sale_date", `${fromDate}T00:00:00`);
-  if (toDate) query = query.lte("sale_date", `${toDate}T23:59:59`);
+  if (from) query = query.gte("sale_date", from);
+  if (to) query = query.lte("sale_date", to);
 
   const { data, error } = await query;
   if (error) {
@@ -1451,29 +1454,13 @@ async function analyticsSalesByDay(fromDate = null, toDate = null) {
     return [];
   }
 
-  // 🧮 Aggregate totals per day
-  const dailyTotals = {};
-  (data || []).forEach((row) => {
-    const d = new Date(row.sale_date);
-    const day = d.toISOString().split("T")[0];
-    dailyTotals[day] = (dailyTotals[day] || 0) + Number(row.total || 0);
-  });
+  const grouped = {};
+  for (const row of data) {
+    const day = new Date(row.sale_date).toISOString().slice(0, 10);
+    grouped[day] = (grouped[day] || 0) + (Number(row.total) || 0);
+  }
 
-  // 📅 Sort chronologically
-  const sortedDays = Object.keys(dailyTotals).sort(
-    (a, b) => new Date(a) - new Date(b)
-  );
-
-  // 🧾 Prepare formatted results
-  return sortedDays.map((day) => ({
-    day: new Date(day).toLocaleDateString("zh-TW", {
-      timeZone: "Asia/Taipei",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }),
-    total: dailyTotals[day],
-  }));
+  return Object.entries(grouped).map(([day, total]) => ({ day, total }));
 }
 
 
@@ -1481,11 +1468,9 @@ async function analyticsSalesByDay(fromDate = null, toDate = null) {
 async function analyticsSalesByProduct(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
 
-  // Using the correct column name "sub_total" instead of "subtotal"
   let query = supabase
     .from("customer_sales_items")
-    .select("product_id, products(name), sub_total, sale_date")
-    .order("product_id");
+    .select("product_id, sub_total, sale_date");
 
   if (from) query = query.gte("sale_date", from);
   if (to) query = query.lte("sale_date", to);
@@ -1496,16 +1481,26 @@ async function analyticsSalesByProduct(from = null, to = null) {
     return [];
   }
 
-  // Group totals per product
-  const totals = {};
-  for (const row of data) {
-    const name = row.products?.name || "(Unknown Product)";
-    totals[name] = (totals[name] || 0) + Number(row.sub_total || 0);
+  // Fetch product names separately to avoid join error
+  const productIds = [...new Set(data.map(d => d.product_id))];
+  let names = {};
+  if (productIds.length) {
+    const { data: prods } = await supabase
+      .from("products")
+      .select("id,name")
+      .in("id", productIds);
+    prods?.forEach(p => names[p.id] = p.name);
   }
 
-  return Object.entries(totals).map(([product, total]) => ({ product, total }));
-}
+  const grouped = {};
+  for (const row of data) {
+    const pid = row.product_id;
+    const name = names[pid] || "Unknown";
+    grouped[name] = (grouped[name] || 0) + (Number(row.sub_total) || 0);
+  }
 
+  return Object.entries(grouped).map(([product, total]) => ({ product, total }));
+}
 /* ---------------------- 📊 ANALYTICS: VENDOR PURCHASE REPORT ---------------------- */
 /* ---------------------- 📊 ANALYTICS: FIXED VENDOR PURCHASE REPORT ---------------------- */
 async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
