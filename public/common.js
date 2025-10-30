@@ -1465,38 +1465,51 @@ async function analyticsSalesByDay(from = null, to = null) {
 
 
 // ✅ Fixed analyticsSalesByProduct()
+/* ---------------------- 📊 FIXED: Analytics by Product ---------------------- */
 async function analyticsSalesByProduct(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
 
-  let query = supabase
-    .from("customer_sales_items")
-    .select("product_id, sub_total, sale_date");
+  // Step 1: Load all sales within date range
+  let salesQuery = supabase.from("customer_sales").select("id, sale_date");
+  if (from) salesQuery = salesQuery.gte("sale_date", from);
+  if (to) salesQuery = salesQuery.lte("sale_date", to);
 
-  if (from) query = query.gte("sale_date", from);
-  if (to) query = query.lte("sale_date", to);
-
-  const { data, error } = await query;
-  if (error) {
-    console.error("❌ analyticsSalesByProduct failed", error);
+  const { data: sales, error: salesErr } = await salesQuery;
+  if (salesErr) {
+    console.error("❌ analyticsSalesByProduct (sales) failed", salesErr);
     return [];
   }
 
-  // Fetch product names separately to avoid join error
-  const productIds = [...new Set(data.map(d => d.product_id))];
-  let names = {};
-  if (productIds.length) {
-    const { data: prods } = await supabase
-      .from("products")
-      .select("id,name")
-      .in("id", productIds);
-    prods?.forEach(p => names[p.id] = p.name);
+  const saleIds = sales.map(s => s.id);
+  if (!saleIds.length) return [];
+
+  // Step 2: Load sale items for those sales
+  const { data: items, error: itemsErr } = await supabase
+    .from("customer_sales_items")
+    .select("product_id, sub_total, sale_id")
+    .in("sale_id", saleIds);
+
+  if (itemsErr) {
+    console.error("❌ analyticsSalesByProduct (items) failed", itemsErr);
+    return [];
   }
 
+  // Step 3: Load product names
+  const productIds = [...new Set(items.map(i => i.product_id))];
+  let names = {};
+  if (productIds.length) {
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, name")
+      .in("id", productIds);
+    products?.forEach(p => names[p.id] = p.name);
+  }
+
+  // Step 4: Group by product
   const grouped = {};
-  for (const row of data) {
-    const pid = row.product_id;
-    const name = names[pid] || "Unknown";
-    grouped[name] = (grouped[name] || 0) + (Number(row.sub_total) || 0);
+  for (const item of items) {
+    const name = names[item.product_id] || "Unknown Product";
+    grouped[name] = (grouped[name] || 0) + (Number(item.sub_total) || 0);
   }
 
   return Object.entries(grouped).map(([product, total]) => ({ product, total }));
