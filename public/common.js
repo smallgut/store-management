@@ -1466,13 +1466,12 @@ async function analyticsSalesByDay(from = null, to = null) {
 
 // ✅ Fixed analyticsSalesByProduct()
 /* ---------------------- 📊 FIXED: Analytics by Product ---------------------- */
-/* ---------------------- 📊 FIXED: Analytics by Product ---------------------- */
 /* ---------------------- 📊 FIXED: Analytics Sales by Product ---------------------- */
 async function analyticsSalesByProduct(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
 
   try {
-    // 1️⃣ Load all sale IDs in the date range
+    // 1️⃣ Load all sales in range
     let salesQuery = supabase.from("customer_sales").select("id, sale_date");
     if (from) salesQuery = salesQuery.gte("sale_date", from);
     if (to) salesQuery = salesQuery.lte("sale_date", to);
@@ -1483,24 +1482,24 @@ async function analyticsSalesByProduct(from = null, to = null) {
 
     const saleIds = sales.map(s => s.id);
 
-    // 2️⃣ Load items and join with products(name)
+    // 2️⃣ Load sale items joined to products
     const { data: items, error: itemsErr } = await supabase
       .from("customer_sales_items")
       .select("product_id, sub_total, products(name)")
-      .in("sale_id", saleIds); // ✅ use actual foreign key column name
+      .in("order_id", saleIds); // ✅ <-- changed from sale_id to order_id
 
     if (itemsErr) throw itemsErr;
 
-    // 3️⃣ Group totals by product name
+    // 3️⃣ Aggregate totals by product name
     const grouped = {};
     for (const item of items) {
-      const name =
-        item.products?.name ||
-        `Unknown Product (${item.product_id || "-"})`;
-      grouped[name] = (grouped[name] || 0) + (Number(item.sub_total) || 0);
+      const productName =
+        item.products?.name || `Unknown Product (${item.product_id})`;
+      grouped[productName] =
+        (grouped[productName] || 0) + (Number(item.sub_total) || 0);
     }
 
-    // 4️⃣ Convert to chart format
+    // 4️⃣ Prepare for chart
     return Object.entries(grouped).map(([product, total]) => ({ product, total }));
   } catch (err) {
     console.error("❌ analyticsSalesByProduct failed", err);
