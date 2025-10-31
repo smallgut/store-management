@@ -1470,7 +1470,7 @@ async function analyticsSalesByDay(from = null, to = null) {
 async function analyticsSalesByProduct(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
 
-  // Step 1️⃣ – Load all sales within date range
+  // 1️⃣ Load all sale IDs in range
   let salesQuery = supabase.from("customer_sales").select("id, sale_date");
   if (from) salesQuery = salesQuery.gte("sale_date", from);
   if (to) salesQuery = salesQuery.lte("sale_date", to);
@@ -1480,14 +1480,13 @@ async function analyticsSalesByProduct(from = null, to = null) {
     console.error("❌ analyticsSalesByProduct (sales) failed", salesErr);
     return [];
   }
-
   const saleIds = sales.map(s => s.id);
   if (!saleIds.length) return [];
 
-  // 🔧 Step 2️⃣ – Load sale items (your foreign key is probably order_id)
+  // 2️⃣ Load sale items — check for product_id or product_id foreign key field
   const { data: items, error: itemsErr } = await supabase
     .from("customer_sales_items")
-    .select("product_id, sub_total, order_id") // 👈 replace with correct foreign key
+    .select("id, product_id, sub_total, order_id, product_name")
     .in("order_id", saleIds);
 
   if (itemsErr) {
@@ -1495,27 +1494,31 @@ async function analyticsSalesByProduct(from = null, to = null) {
     return [];
   }
 
-  // Step 3️⃣ – Load product names
-  const productIds = [...new Set(items.map(i => i.product_id))];
+  // 3️⃣ Resolve product names
+  const productIds = [...new Set(items.map(i => i.product_id).filter(Boolean))];
   const names = {};
   if (productIds.length) {
-    const { data: products } = await supabase
+    const { data: products, error: prodErr } = await supabase
       .from("products")
       .select("id, name")
       .in("id", productIds);
+
+    if (prodErr) console.warn("⚠️ analyticsSalesByProduct (product names) warning", prodErr);
     products?.forEach(p => (names[p.id] = p.name));
   }
 
-  // Step 4️⃣ – Group totals by product
+  // 4️⃣ Group totals by product name
   const grouped = {};
   for (const item of items) {
-    const name = names[item.product_id] || "Unknown Product";
-    grouped[name] = (grouped[name] || 0) + (Number(item.sub_total) || 0);
+    const productName =
+      names[item.product_id] ||
+      item.product_name ||
+      `Unknown Product (${item.product_id || "-"})`;
+    grouped[productName] = (grouped[productName] || 0) + (Number(item.sub_total) || 0);
   }
 
   return Object.entries(grouped).map(([product, total]) => ({ product, total }));
 }
-
 
 /* ---------------------- 📊 ANALYTICS: VENDOR PURCHASE REPORT ---------------------- */
 /* ---------------------- 📊 ANALYTICS: FIXED VENDOR PURCHASE REPORT ---------------------- */
