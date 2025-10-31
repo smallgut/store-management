@@ -1470,54 +1470,41 @@ async function analyticsSalesByDay(from = null, to = null) {
 async function analyticsSalesByProduct(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
 
-  // 1️⃣ Load all sale IDs in range
-  let salesQuery = supabase.from("customer_sales").select("id, sale_date");
-  if (from) salesQuery = salesQuery.gte("sale_date", from);
-  if (to) salesQuery = salesQuery.lte("sale_date", to);
+  try {
+    // 1️⃣ Load all sale IDs in the date range
+    let salesQuery = supabase.from("customer_sales").select("id, sale_date");
+    if (from) salesQuery = salesQuery.gte("sale_date", from);
+    if (to) salesQuery = salesQuery.lte("sale_date", to);
 
-  const { data: sales, error: salesErr } = await salesQuery;
-  if (salesErr) {
-    console.error("❌ analyticsSalesByProduct (sales) failed", salesErr);
+    const { data: sales, error: salesErr } = await salesQuery;
+    if (salesErr) throw salesErr;
+    if (!sales?.length) return [];
+
+    const saleIds = sales.map(s => s.id);
+
+    // 2️⃣ Load items and join with products(name)
+    const { data: items, error: itemsErr } = await supabase
+      .from("customer_sales_items")
+      .select("product_id, sub_total, products(name)")
+      .in("sale_id", saleIds); // ✅ use actual foreign key column name
+
+    if (itemsErr) throw itemsErr;
+
+    // 3️⃣ Group totals by product name
+    const grouped = {};
+    for (const item of items) {
+      const name =
+        item.products?.name ||
+        `Unknown Product (${item.product_id || "-"})`;
+      grouped[name] = (grouped[name] || 0) + (Number(item.sub_total) || 0);
+    }
+
+    // 4️⃣ Convert to chart format
+    return Object.entries(grouped).map(([product, total]) => ({ product, total }));
+  } catch (err) {
+    console.error("❌ analyticsSalesByProduct failed", err);
     return [];
   }
-  const saleIds = sales.map(s => s.id);
-  if (!saleIds.length) return [];
-
-  // 2️⃣ Load sale items — check for product_id or product_id foreign key field
-  const { data: items, error: itemsErr } = await supabase
-    .from("customer_sales_items")
-    .select("id, product_id, sub_total, order_id, product_name")
-    .in("order_id", saleIds);
-
-  if (itemsErr) {
-    console.error("❌ analyticsSalesByProduct (items) failed", itemsErr);
-    return [];
-  }
-
-  // 3️⃣ Resolve product names
-  const productIds = [...new Set(items.map(i => i.product_id).filter(Boolean))];
-  const names = {};
-  if (productIds.length) {
-    const { data: products, error: prodErr } = await supabase
-      .from("products")
-      .select("id, name")
-      .in("id", productIds);
-
-    if (prodErr) console.warn("⚠️ analyticsSalesByProduct (product names) warning", prodErr);
-    products?.forEach(p => (names[p.id] = p.name));
-  }
-
-  // 4️⃣ Group totals by product name
-  const grouped = {};
-  for (const item of items) {
-    const productName =
-      names[item.product_id] ||
-      item.product_name ||
-      `Unknown Product (${item.product_id || "-"})`;
-    grouped[productName] = (grouped[productName] || 0) + (Number(item.sub_total) || 0);
-  }
-
-  return Object.entries(grouped).map(([product, total]) => ({ product, total }));
 }
 
 /* ---------------------- 📊 ANALYTICS: VENDOR PURCHASE REPORT ---------------------- */
