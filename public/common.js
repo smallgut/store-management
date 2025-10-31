@@ -1467,6 +1467,7 @@ async function analyticsSalesByDay(from = null, to = null) {
 // ✅ Fixed analyticsSalesByProduct()
 /* ---------------------- 📊 FIXED: Analytics by Product ---------------------- */
 /* ---------------------- 📊 FIXED: Analytics by Product ---------------------- */
+/* ---------------------- 📊 FIXED: Analytics Sales by Product ---------------------- */
 async function analyticsSalesByProduct(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
 
