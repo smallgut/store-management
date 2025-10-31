@@ -1466,10 +1466,11 @@ async function analyticsSalesByDay(from = null, to = null) {
 
 // ✅ Fixed analyticsSalesByProduct()
 /* ---------------------- 📊 FIXED: Analytics by Product ---------------------- */
+/* ---------------------- 📊 FIXED: Analytics by Product ---------------------- */
 async function analyticsSalesByProduct(from = null, to = null) {
   const supabase = await ensureSupabaseClient();
 
-  // Step 1: Load all sales within date range
+  // Step 1️⃣ – Load all sales within date range
   let salesQuery = supabase.from("customer_sales").select("id, sale_date");
   if (from) salesQuery = salesQuery.gte("sale_date", from);
   if (to) salesQuery = salesQuery.lte("sale_date", to);
@@ -1483,29 +1484,29 @@ async function analyticsSalesByProduct(from = null, to = null) {
   const saleIds = sales.map(s => s.id);
   if (!saleIds.length) return [];
 
-  // Step 2: Load sale items for those sales
+  // 🔧 Step 2️⃣ – Load sale items (your foreign key is probably order_id)
   const { data: items, error: itemsErr } = await supabase
     .from("customer_sales_items")
-    .select("product_id, sub_total, sale_id")
-    .in("sale_id", saleIds);
+    .select("product_id, sub_total, order_id") // 👈 replace with correct foreign key
+    .in("order_id", saleIds);
 
   if (itemsErr) {
     console.error("❌ analyticsSalesByProduct (items) failed", itemsErr);
     return [];
   }
 
-  // Step 3: Load product names
+  // Step 3️⃣ – Load product names
   const productIds = [...new Set(items.map(i => i.product_id))];
-  let names = {};
+  const names = {};
   if (productIds.length) {
     const { data: products } = await supabase
       .from("products")
       .select("id, name")
       .in("id", productIds);
-    products?.forEach(p => names[p.id] = p.name);
+    products?.forEach(p => (names[p.id] = p.name));
   }
 
-  // Step 4: Group by product
+  // Step 4️⃣ – Group totals by product
   const grouped = {};
   for (const item of items) {
     const name = names[item.product_id] || "Unknown Product";
@@ -1514,6 +1515,8 @@ async function analyticsSalesByProduct(from = null, to = null) {
 
   return Object.entries(grouped).map(([product, total]) => ({ product, total }));
 }
+
+
 /* ---------------------- 📊 ANALYTICS: VENDOR PURCHASE REPORT ---------------------- */
 /* ---------------------- 📊 ANALYTICS: FIXED VENDOR PURCHASE REPORT ---------------------- */
 async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
