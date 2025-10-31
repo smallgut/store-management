@@ -384,6 +384,7 @@ function exportVendorReportPDF() {
   win.focus();
   setTimeout(() => win.print(), 500);
 }
+    document.getElementById("export-vendor-report")?.addEventListener("click", exportVendorReportPDF);
   </script>
 </body>
 </html>
