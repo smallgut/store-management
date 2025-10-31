@@ -310,6 +310,80 @@ async function runVendorPurchaseReport() {
     alert("Failed to load vendor purchase report.");
   }
 }
+
+    /* ---------------------- 🧾 FIXED: Export Vendor Report to PDF ---------------------- */
+function exportVendorReportPDF() {
+  const table = document.getElementById("vendor-report-table");
+  const vendorSelect = document.getElementById("vendor-report-select");
+  const vendorName = vendorSelect.options[vendorSelect.selectedIndex]?.text || "Unknown Vendor";
+  const from = document.getElementById("vendor-report-from").value || "(No Start Date)";
+  const to = document.getElementById("vendor-report-to").value || "(No End Date)";
+  const total = document.getElementById("vendor-report-total").textContent || "0.00";
+
+  const rows = Array.from(table.querySelectorAll("tbody tr")).map(tr =>
+    Array.from(tr.children).map(td => td.textContent.trim())
+  );
+
+  if (!rows.length || rows[0][0] === "No data yet.") {
+    alert("⚠️ No report data to export.");
+    return;
+  }
+
+  const html = `
+    <html>
+    <head>
+      <title>Vendor Purchase Report - ${vendorName}</title>
+      <style>
+        @page { size: A4; margin: 15mm; }
+        body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #444; padding: 6px 8px; text-align: center; }
+        th { background: #f0f0f0; font-weight: bold; }
+        .right { text-align: right; }
+        .summary { margin-top: 20px; text-align: right; font-weight: bold; }
+        .footer { text-align: center; font-size: 10px; color: #888; margin-top: 30px; }
+      </style>
+    </head>
+    <body>
+      <h1 style="text-align:center;">Vendor Purchase Report</h1>
+      <h3 style="text-align:center;">${vendorName}<br>Period: ${from} → ${to}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th><th>Batch No.</th><th>Buy-In Price</th><th>Buy-In Qty</th>
+            <th>Sold</th><th>Loaned</th><th>Remaining</th><th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(r =>
+              `<tr>${r
+                .map((c, i) =>
+                  i === 7 || i === 2 ? `<td class="right">${c}</td>` : `<td>${c}</td>`
+                )
+                .join("")}</tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+      <div class="summary">Total Payable: $${total}</div>
+      <div class="footer">Generated on ${new Date().toLocaleString("zh-TW")} — POS Analytics System</div>
+    </body>
+    </html>
+  `;
+
+  // 🪟 Open synchronously to avoid popup blockers
+  const win = window.open("", "_blank");
+  if (!win) {
+    alert("⚠️ Please allow popups for this site to export PDF.");
+    return;
+  }
+
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
   </script>
 </body>
 </html>
