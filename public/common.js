@@ -1467,40 +1467,51 @@ async function analyticsSalesByDay(from = null, to = null) {
 // ✅ Fixed analyticsSalesByProduct()
 /* ---------------------- 📊 FIXED: Analytics by Product ---------------------- */
 /* ---------------------- 📊 FIXED: Analytics Sales by Product ---------------------- */
-async function analyticsSalesByProduct(from = null, to = null) {
+// ✅ Fixed analyticsSalesByProduct() to use explicit join path
+async function analyticsSalesByProduct(from, to) {
   const supabase = await ensureSupabaseClient();
 
   try {
-    // 1️⃣ Load all sales in range
-    let salesQuery = supabase.from("customer_sales").select("id, sale_date");
+    // Step 1: Get sales within date range
+    let salesQuery = supabase
+      .from("customer_sales")
+      .select("id")
+      .order("sale_date", { ascending: true });
+
     if (from) salesQuery = salesQuery.gte("sale_date", from);
     if (to) salesQuery = salesQuery.lte("sale_date", to);
 
-    const { data: sales, error: salesErr } = await salesQuery;
-    if (salesErr) throw salesErr;
+    const { data: sales, error: salesError } = await salesQuery;
+    if (salesError) throw salesError;
     if (!sales?.length) return [];
 
-    const saleIds = sales.map(s => s.id);
+    const saleIds = sales.map((s) => s.id);
 
-    // 2️⃣ Load sale items joined to products
-    const { data: items, error: itemsErr } = await supabase
+    // Step 2: Get item totals by product
+    const { data: items, error: itemsError } = await supabase
       .from("customer_sales_items")
-      .select("product_id, sub_total, products(name)")
-      .in("order_id", saleIds); // ✅ <-- changed from sale_id to order_id
+      .select(`
+        product_id,
+        sub_total,
+        products!fk_customer_sales_items_product ( name )
+      `)
+      .in("order_id", saleIds);
 
-    if (itemsErr) throw itemsErr;
+    if (itemsError) throw itemsError;
 
-    // 3️⃣ Aggregate totals by product name
-    const grouped = {};
-    for (const item of items) {
-      const productName =
-        item.products?.name || `Unknown Product (${item.product_id})`;
-      grouped[productName] =
-        (grouped[productName] || 0) + (Number(item.sub_total) || 0);
-    }
+    // Step 3: Aggregate totals by product
+    const totals = {};
+    (items || []).forEach((item) => {
+      const name =
+        item.products?.name || `Unknown Product (${item.product_id || "null"})`;
+      totals[name] = (totals[name] || 0) + Number(item.sub_total || 0);
+    });
 
-    // 4️⃣ Prepare for chart
-    return Object.entries(grouped).map(([product, total]) => ({ product, total }));
+    // Step 4: Format for chart.js
+    return Object.entries(totals).map(([product, total]) => ({
+      product,
+      total,
+    }));
   } catch (err) {
     console.error("❌ analyticsSalesByProduct failed", err);
     return [];
