@@ -44,16 +44,16 @@
       </div>
     </h2>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-      <div>
-        <h3 class="text-md font-semibold mb-1">Total Sales by Day</h3>
-        <canvas id="salesByDayChart" height="150"></canvas>
-      </div>
-      <div>
-        <h3 class="text-md font-semibold mb-1">Total Sales by Product</h3>
-        <canvas id="salesByProductChart" height="150"></canvas>
-      </div>
-    </div>
+    <div id="charts-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+  <div>
+    <h3 class="text-md font-semibold mb-1">Total Sales by Day</h3>
+    <canvas id="salesByDayChart" height="150"></canvas>
+  </div>
+  <div>
+    <h3 class="text-md font-semibold mb-1">Total Sales by Product</h3>
+    <canvas id="salesByProductChart" height="150"></canvas>
+  </div>
+</div>
   </div>
 
  <!-- 🔹 Existing Sales Data Table -->
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     await loadAnalyticsCharts();
-    await loadSalesTable(); // initial load
+    await loadSalesTable();
     await loadVendorsForReport();
   } catch (err) {
     console.error("❌ Failed loading analytics", err);
@@ -157,10 +157,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // 🗓 Unified date filter
   document.getElementById("filter-analytics")?.addEventListener("click", async () => {
+    fadeOutSection("#charts-container");
+    fadeOutSection("#analytics-table");
     await loadAnalyticsCharts();
-    await loadSalesTable(); // reapply filter to table too
+    await loadSalesTable();
+    fadeInSection("#charts-container");
+    fadeInSection("#analytics-table");
   });
 });
+
+/* ---------------------- ✨ Fade Helpers ---------------------- */
+function fadeOutSection(selector) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.style.transition = "opacity 0.4s ease";
+  el.style.opacity = 0.2;
+}
+
+function fadeInSection(selector) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.style.transition = "opacity 0.6s ease";
+  el.style.opacity = 1;
+}
 
 /* ---------------------- 📊 MAIN ANALYTICS ---------------------- */
 async function loadAnalyticsCharts() {
@@ -234,7 +253,6 @@ async function loadSalesTable() {
     .select("id, customer_name, sale_date, total")
     .order("sale_date", { ascending: false });
 
-  // ✅ Apply date filter if provided
   if (from) query = query.gte("sale_date", from);
   if (to) query = query.lte("sale_date", to);
 
