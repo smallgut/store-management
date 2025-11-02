@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="common.js"></script>
 </head>
+
 <body class="bg-gray-100 p-4">
   <!-- 🔹 Navigation -->
   <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
@@ -45,19 +46,19 @@
     </h2>
 
     <div id="charts-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-  <div>
-    <h3 class="text-md font-semibold mb-1">Total Sales by Day</h3>
-    <canvas id="salesByDayChart" height="150"></canvas>
-  </div>
-  <div>
-    <h3 class="text-md font-semibold mb-1">Total Sales by Product</h3>
-    <canvas id="salesByProductChart" height="150"></canvas>
-  </div>
-</div>
+      <div>
+        <h3 class="text-md font-semibold mb-1">Total Sales by Day</h3>
+        <canvas id="salesByDayChart" height="150"></canvas>
+      </div>
+      <div>
+        <h3 class="text-md font-semibold mb-1">Total Sales by Product</h3>
+        <canvas id="salesByProductChart" height="150"></canvas>
+      </div>
+    </div>
   </div>
 
- <!-- 🔹 Existing Sales Data Table -->
-  <div class="bg-white p-4 rounded shadow mt-6">
+  <!-- 🔹 Sales Data Table -->
+  <div id="sales-data-section" class="bg-white p-4 rounded shadow mt-6">
     <h2 class="text-lg font-semibold mb-2">Sales Data</h2>
     <table id="analytics-table" class="w-full border-collapse border border-gray-300">
       <thead>
@@ -71,9 +72,9 @@
       <tbody></tbody>
     </table>
   </div>
-  
+
   <!-- 🔹 Vendor Purchase Report -->
-  <div class="bg-white p-4 rounded shadow mt-8">
+  <div id="vendor-report-section" class="bg-white p-4 rounded shadow mt-8">
     <h2 class="text-lg font-semibold mb-4">Vendor Purchase Report</h2>
     <div class="flex flex-wrap gap-4 mb-4">
       <div>
@@ -125,21 +126,18 @@
     </div>
   </div>
 
- 
-
   <script>
+/* ---------------------- 🌐 Initialization ---------------------- */
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("📊 Initializing Analytics page...");
   const supabase = await ensureSupabaseClient();
 
-  // 🔒 Auth guard
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
     window.location.href = "login.html";
     return;
   }
 
-  // 🔑 Logout
   document.getElementById("logout-btn")?.addEventListener("click", async () => {
     await supabase.auth.signOut();
     window.location.href = "login.html";
@@ -155,14 +153,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("❌ Failed loading analytics", err);
   }
 
-  // 🗓 Unified date filter
   document.getElementById("filter-analytics")?.addEventListener("click", async () => {
     fadeOutSection("#charts-container");
-    fadeOutSection("#analytics-table");
+    fadeOutSection("#sales-data-section");
     await loadAnalyticsCharts();
     await loadSalesTable();
-    fadeInSection("#charts-container");
-    fadeInSection("#analytics-table");
+    setTimeout(() => {
+      fadeInSection("#charts-container");
+      fadeInSection("#sales-data-section");
+    }, 200);
   });
 });
 
@@ -173,7 +172,6 @@ function fadeOutSection(selector) {
   el.style.transition = "opacity 0.4s ease";
   el.style.opacity = 0.2;
 }
-
 function fadeInSection(selector) {
   const el = document.querySelector(selector);
   if (!el) return;
@@ -181,7 +179,7 @@ function fadeInSection(selector) {
   el.style.opacity = 1;
 }
 
-/* ---------------------- 📊 MAIN ANALYTICS ---------------------- */
+/* ---------------------- 📊 Main Analytics ---------------------- */
 async function loadAnalyticsCharts() {
   const from = document.getElementById("analytics-from")?.value || null;
   const to   = document.getElementById("analytics-to")?.value || null;
@@ -242,7 +240,7 @@ function renderSalesByProductChart(data) {
   });
 }
 
-/* ---------------------- 💰 SALES TABLE ---------------------- */
+/* ---------------------- 💰 Sales Table ---------------------- */
 async function loadSalesTable() {
   const supabase = await ensureSupabaseClient();
   const from = document.getElementById("analytics-from")?.value || null;
@@ -257,16 +255,17 @@ async function loadSalesTable() {
   if (to) query = query.lte("sale_date", to);
 
   query = query.limit(50);
-
   const { data, error } = await query;
-
-  if (error) {
-    console.error("❌ loadSalesTable failed", error);
-    return;
-  }
 
   const tbody = document.querySelector("#analytics-table tbody");
   tbody.innerHTML = "";
+
+  if (error) {
+    console.error("❌ loadSalesTable failed", error);
+    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">Error loading sales data.</td></tr>`;
+    return;
+  }
+
   if (!data?.length) {
     tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">No sales data found.</td></tr>`;
     return;
@@ -284,17 +283,13 @@ async function loadSalesTable() {
   });
 }
 
-/* ---------------------- 🧩 Load Vendors for Vendor Report ---------------------- */
+/* ---------------------- 🧩 Load Vendors ---------------------- */
 async function loadVendorsForReport() {
   const supabase = await ensureSupabaseClient();
   const { data, error } = await supabase.from("vendors").select("id,name").order("name");
-  if (error) {
-    console.error("❌ loadVendorsForReport failed", error);
-    return;
-  }
-
   const vendorSelect = document.getElementById("vendor-report-select");
-  if (!vendorSelect) return;
+  if (error || !vendorSelect) return;
+
   vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
   (data || []).forEach(v => {
     const opt = document.createElement("option");
@@ -310,10 +305,8 @@ async function runVendorPurchaseReport() {
   const from = document.getElementById("vendor-report-from").value || null;
   const to = document.getElementById("vendor-report-to").value || null;
 
-  if (!vendorId) {
-    alert("Please select a vendor first.");
-    return;
-  }
+  if (!vendorId) return alert("Please select a vendor first.");
+  fadeOutSection("#vendor-report-section");
 
   try {
     const report = await analyticsVendorPurchases(vendorId, from, to);
@@ -323,6 +316,7 @@ async function runVendorPurchaseReport() {
     if (!report?.rows?.length) {
       tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">No data found.</td></tr>`;
       document.getElementById("vendor-report-total").textContent = "0.00";
+      fadeInSection("#vendor-report-section");
       return;
     }
 
@@ -341,11 +335,12 @@ async function runVendorPurchaseReport() {
       tbody.appendChild(tr);
     }
 
-    document.getElementById("vendor-report-total").textContent =
-      report.total.toFixed(2);
+    document.getElementById("vendor-report-total").textContent = report.total.toFixed(2);
   } catch (err) {
     console.error("❌ runVendorPurchaseReport failed", err);
     alert("Failed to load vendor purchase report.");
+  } finally {
+    fadeInSection("#vendor-report-section");
   }
 }
 
@@ -362,66 +357,48 @@ function exportVendorReportPDF() {
     Array.from(tr.children).map(td => td.textContent.trim())
   );
 
-  if (!rows.length || rows[0][0] === "No data yet.") {
-    alert("⚠️ No report data to export.");
-    return;
-  }
+  if (!rows.length || rows[0][0] === "No data yet.") return alert("⚠️ No report data to export.");
 
   const html = `
-    <html>
-    <head>
-      <title>Vendor Purchase Report - ${vendorName}</title>
-      <style>
-        @page { size: A4; margin: 15mm; }
-        body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #444; padding: 6px 8px; text-align: center; }
-        th { background: #f0f0f0; font-weight: bold; }
-        .right { text-align: right; }
-        .summary { margin-top: 20px; text-align: right; font-weight: bold; }
-        .footer { text-align: center; font-size: 10px; color: #888; margin-top: 30px; }
-      </style>
-    </head>
+    <html><head><title>Vendor Purchase Report - ${vendorName}</title>
+    <style>
+      @page { size: A4; margin: 15mm; }
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { border: 1px solid #444; padding: 6px 8px; text-align: center; }
+      th { background: #f0f0f0; font-weight: bold; }
+      .summary { margin-top: 20px; text-align: right; font-weight: bold; }
+      .footer { text-align: center; font-size: 10px; color: #888; margin-top: 30px; }
+    </style></head>
     <body>
       <h1 style="text-align:center;">Vendor Purchase Report</h1>
       <h3 style="text-align:center;">${vendorName}<br>Period: ${from} → ${to}</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Product</th><th>Batch No.</th><th>Buy-In Price</th><th>Buy-In Qty</th>
-            <th>Sold</th><th>Loaned</th><th>Remaining</th><th>Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows
-            .map(r =>
-              `<tr>${r
-                .map((c, i) =>
-                  i === 7 || i === 2 ? `<td class="right">${c}</td>` : `<td>${c}</td>`
-                )
-                .join("")}</tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
+      <table><thead><tr>
+        <th>Product</th><th>Batch No.</th><th>Buy-In Price</th><th>Buy-In Qty</th>
+        <th>Sold</th><th>Loaned</th><th>Remaining</th><th>Subtotal</th>
+      </tr></thead><tbody>
+      ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
+      </tbody></table>
       <div class="summary">Total Payable: $${total}</div>
       <div class="footer">Generated on ${new Date().toLocaleString("zh-TW")} — POS Analytics System</div>
-    </body>
-    </html>
-  `;
+    </body></html>`;
 
   const win = window.open("", "_blank");
-  if (!win) {
-    alert("⚠️ Please allow popups for this site to export PDF.");
-    return;
-  }
-
+  if (!win) return alert("⚠️ Please allow popups for this site to export PDF.");
   win.document.write(html);
   win.document.close();
   win.focus();
   setTimeout(() => win.print(), 500);
 }
+
 document.getElementById("export-vendor-report")?.addEventListener("click", exportVendorReportPDF);
-</script>
+
+/* ---------------------- 🎬 Page Fade-in on Load ---------------------- */
+window.addEventListener("load", () => {
+  document.body.style.opacity = 0;
+  document.body.style.transition = "opacity 0.8s ease";
+  setTimeout(() => (document.body.style.opacity = 1), 100);
+});
+  </script>
 </body>
 </html>
