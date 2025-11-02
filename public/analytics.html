@@ -147,14 +147,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     await loadAnalyticsCharts();
-    await loadSalesTable();
+    await loadSalesTable(); // initial load
     await loadVendorsForReport();
   } catch (err) {
     console.error("❌ Failed loading analytics", err);
   }
 
   // 🗓 Unified date filter
-  document.getElementById("filter-analytics")?.addEventListener("click", loadAnalyticsCharts);
+  document.getElementById("filter-analytics")?.addEventListener("click", async () => {
+    await loadAnalyticsCharts();
+    await loadSalesTable(); // reapply filter to table too
+  });
 });
 
 /* ---------------------- 📊 MAIN ANALYTICS ---------------------- */
@@ -221,11 +224,21 @@ function renderSalesByProductChart(data) {
 /* ---------------------- 💰 SALES TABLE ---------------------- */
 async function loadSalesTable() {
   const supabase = await ensureSupabaseClient();
-  const { data, error } = await supabase
+  const from = document.getElementById("analytics-from")?.value || null;
+  const to = document.getElementById("analytics-to")?.value || null;
+
+  let query = supabase
     .from("customer_sales")
     .select("id, customer_name, sale_date, total")
-    .order("sale_date", { ascending: false })
-    .limit(20);
+    .order("sale_date", { ascending: false });
+
+  // ✅ Apply date filter if provided
+  if (from) query = query.gte("sale_date", from);
+  if (to) query = query.lte("sale_date", to);
+
+  query = query.limit(50);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("❌ loadSalesTable failed", error);
@@ -234,19 +247,24 @@ async function loadSalesTable() {
 
   const tbody = document.querySelector("#analytics-table tbody");
   tbody.innerHTML = "";
-  (data || []).forEach(row => {
+  if (!data?.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">No sales data found.</td></tr>`;
+    return;
+  }
+
+  data.forEach(row => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="border p-2">#${row.id}</td>
       <td class="border p-2">${row.customer_name || "-"}</td>
       <td class="border p-2">${new Date(row.sale_date).toLocaleDateString("zh-TW")}</td>
-      <td class="border p-2">${Number(row.total).toFixed(2)}</td>
+      <td class="border p-2 text-right">${Number(row.total).toFixed(2)}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-    /* ---------------------- 🧩 Load Vendors for Vendor Report ---------------------- */
+/* ---------------------- 🧩 Load Vendors for Vendor Report ---------------------- */
 async function loadVendorsForReport() {
   const supabase = await ensureSupabaseClient();
   const { data, error } = await supabase.from("vendors").select("id,name").order("name");
@@ -266,7 +284,7 @@ async function loadVendorsForReport() {
   });
 }
 
-    /* ---------------------- 🧩 Vendor Purchase Report ---------------------- */
+/* ---------------------- 🧩 Vendor Purchase Report ---------------------- */
 async function runVendorPurchaseReport() {
   const vendorId = document.getElementById("vendor-report-select").value;
   const from = document.getElementById("vendor-report-from").value || null;
@@ -311,7 +329,7 @@ async function runVendorPurchaseReport() {
   }
 }
 
-    /* ---------------------- 🧾 FIXED: Export Vendor Report to PDF ---------------------- */
+/* ---------------------- 🧾 Export Vendor Report to PDF ---------------------- */
 function exportVendorReportPDF() {
   const table = document.getElementById("vendor-report-table");
   const vendorSelect = document.getElementById("vendor-report-select");
@@ -372,7 +390,6 @@ function exportVendorReportPDF() {
     </html>
   `;
 
-  // 🪟 Open synchronously to avoid popup blockers
   const win = window.open("", "_blank");
   if (!win) {
     alert("⚠️ Please allow popups for this site to export PDF.");
@@ -384,7 +401,7 @@ function exportVendorReportPDF() {
   win.focus();
   setTimeout(() => win.print(), 500);
 }
-    document.getElementById("export-vendor-report")?.addEventListener("click", exportVendorReportPDF);
-  </script>
+document.getElementById("export-vendor-report")?.addEventListener("click", exportVendorReportPDF);
+</script>
 </body>
 </html>
