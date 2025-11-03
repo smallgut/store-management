@@ -29,7 +29,7 @@
 
   <h1 data-lang-key="analytics" class="text-2xl font-bold mt-4 mb-6">Analytics</h1>
 
-  <!-- 🔹 Unified Sales Overview -->
+  <!-- 🔹 Sales Overview -->
   <div class="bg-white p-4 rounded shadow mb-6">
     <h2 class="text-lg font-semibold mb-2 flex items-center justify-between">
       <span>Sales Overview</span>
@@ -38,8 +38,7 @@
         <input type="date" id="analytics-from" class="border rounded p-1">
         <label>To:</label>
         <input type="date" id="analytics-to" class="border rounded p-1">
-        <button id="filter-analytics"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
+        <button id="filter-analytics" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
           Apply Filter
         </button>
       </div>
@@ -90,8 +89,7 @@
         <input type="date" id="vendor-report-to" class="border rounded p-2" />
       </div>
       <div class="flex items-end">
-        <button onclick="runVendorPurchaseReport()"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+        <button onclick="runVendorPurchaseReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
           🔍 Run Report
         </button>
       </div>
@@ -116,77 +114,67 @@
     </table>
 
     <div class="flex justify-between items-center mt-4">
-      <div class="font-semibold">
-        Total Payable: $<span id="vendor-report-total">0.00</span>
-      </div>
-      <button id="export-vendor-report"
-        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
+      <div class="font-semibold">Total Payable: $<span id="vendor-report-total">0.00</span></div>
+      <button id="export-vendor-report" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
         📄 Export PDF
       </button>
     </div>
   </div>
 
-<!-- 🔹 Vendor Loan Report -->
-<div id="vendor-loan-report-section" class="bg-white p-4 rounded shadow mt-8">
-  <h2 class="text-lg font-semibold mb-4">Vendor Loan Report</h2>
-  <div class="flex flex-wrap gap-4 mb-4">
-    <div>
-      <label class="block text-sm font-medium mb-1">Vendor</label>
-      <select id="vendor-loan-select" class="border rounded p-2 min-w-[200px]"></select>
+  <!-- 🔹 Vendor Loan Report -->
+  <div id="vendor-loan-report-section" class="bg-white p-4 rounded shadow mt-8">
+    <h2 class="text-lg font-semibold mb-4">Vendor Loan Report</h2>
+    <div class="flex flex-wrap gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">Vendor</label>
+        <select id="vendor-loan-select" class="border rounded p-2 min-w-[200px]"></select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">From</label>
+        <input type="date" id="vendor-loan-from" class="border rounded p-2" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">To</label>
+        <input type="date" id="vendor-loan-to" class="border rounded p-2" />
+      </div>
+      <div class="flex items-end">
+        <button onclick="runVendorLoanReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+          🔍 Run Report
+        </button>
+      </div>
     </div>
-    <div>
-      <label class="block text-sm font-medium mb-1">From</label>
-      <input type="date" id="vendor-loan-from" class="border rounded p-2" />
-    </div>
-    <div>
-      <label class="block text-sm font-medium mb-1">To</label>
-      <input type="date" id="vendor-loan-to" class="border rounded p-2" />
-    </div>
-    <div class="flex items-end">
-      <button onclick="runVendorLoanReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-        🔍 Run Report
+
+    <table id="vendor-loan-report-table" class="w-full border-collapse border border-gray-300">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="border p-2">Product</th>
+          <th class="border p-2">Batch No.</th>
+          <th class="border p-2">Quantity</th>
+          <th class="border p-2">Selling Price</th>
+          <th class="border p-2">Total</th>
+          <th class="border p-2">Loan Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="6" class="p-4 text-center text-gray-500">No data yet.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="flex justify-between items-center mt-4">
+      <div class="font-semibold">Total Loan Amount: $<span id="vendor-loan-total">0.00</span></div>
+      <button id="export-vendor-loan-report" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
+        📄 Export PDF
       </button>
     </div>
   </div>
 
-  <table id="vendor-loan-report-table" class="w-full border-collapse border border-gray-300">
-    <thead class="bg-gray-200">
-      <tr>
-        <th class="border p-2">Product</th>
-        <th class="border p-2">Batch No.</th>
-        <th class="border p-2">Quantity</th>
-        <th class="border p-2">Selling Price</th>
-        <th class="border p-2">Total</th>
-        <th class="border p-2">Loan Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td colspan="6" class="p-4 text-center text-gray-500">No data yet.</td></tr>
-    </tbody>
-  </table>
-
-  <div class="flex justify-between items-center mt-4">
-    <div class="font-semibold">
-      Total Loan Amount: $<span id="vendor-loan-total">0.00</span>
-    </div>
-    <button id="export-vendor-loan-report"
-      class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
-      📄 Export PDF
-    </button>
-  </div>
-</div>
-  
   <script>
 /* ---------------------- 🌐 Initialization ---------------------- */
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("📊 Initializing Analytics page...");
   const supabase = await ensureSupabaseClient();
-
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    window.location.href = "login.html";
-    return;
-  }
+  if (!session) return (window.location.href = "login.html");
 
   document.getElementById("logout-btn")?.addEventListener("click", async () => {
     await supabase.auth.signOut();
@@ -195,241 +183,89 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   applyTranslations();
 
-  try {
-    await loadAnalyticsCharts();
-    await loadSalesTable();
-    await loadVendorsForReport();
-  } catch (err) {
-    console.error("❌ Failed loading analytics", err);
-  }
+  await loadAnalyticsCharts();
+  await loadSalesTable();
+  await loadVendorsForReport();
 
   document.getElementById("filter-analytics")?.addEventListener("click", async () => {
-    fadeOutSection("#charts-container");
-    fadeOutSection("#sales-data-section");
-    await loadAnalyticsCharts();
-    await loadSalesTable();
-    setTimeout(() => {
-      fadeInSection("#charts-container");
-      fadeInSection("#sales-data-section");
-    }, 200);
+    fadeOutSection("#charts-container"); fadeOutSection("#sales-data-section");
+    await loadAnalyticsCharts(); await loadSalesTable();
+    setTimeout(() => { fadeInSection("#charts-container"); fadeInSection("#sales-data-section"); }, 200);
   });
 });
 
-/* ---------------------- ✨ Fade Helpers ---------------------- */
-function fadeOutSection(selector) {
-  const el = document.querySelector(selector);
-  if (!el) return;
-  el.style.transition = "opacity 0.4s ease";
-  el.style.opacity = 0.2;
-}
-function fadeInSection(selector) {
-  const el = document.querySelector(selector);
-  if (!el) return;
-  el.style.transition = "opacity 0.6s ease";
-  el.style.opacity = 1;
-}
-
-/* ---------------------- 📊 Main Analytics ---------------------- */
-async function loadAnalyticsCharts() {
-  const from = document.getElementById("analytics-from")?.value || null;
-  const to   = document.getElementById("analytics-to")?.value || null;
-
-  const byDay = await analyticsSalesByDay(from, to);
-  const byProduct = await analyticsSalesByProduct(from, to);
-
-  renderSalesByDayChart(byDay);
-  renderSalesByProductChart(byProduct);
-}
-
-let salesByDayChart, salesByProductChart;
-
-function renderSalesByDayChart(data) {
-  const ctx = document.getElementById("salesByDayChart").getContext("2d");
-  if (salesByDayChart) salesByDayChart.destroy();
-  salesByDayChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: data.map(d => d.day),
-      datasets: [{
-        label: "Total Sales",
-        data: data.map(d => d.total),
-        borderColor: "blue",
-        backgroundColor: "rgba(59,130,246,0.2)",
-        tension: 0.2
-      }]
-    },
-    options: {
-      scales: {
-        x: { title: { display: true, text: "Date" } },
-        y: { title: { display: true, text: "Total ($)" } }
-      }
-    }
-  });
-}
-
-function renderSalesByProductChart(data) {
-  const ctx = document.getElementById("salesByProductChart").getContext("2d");
-  if (salesByProductChart) salesByProductChart.destroy();
-  salesByProductChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: data.map(d => d.product),
-      datasets: [{
-        label: "Total Sales",
-        data: data.map(d => d.total),
-        backgroundColor: "rgba(16,185,129,0.6)"
-      }]
-    },
-    options: {
-      indexAxis: "y",
-      scales: {
-        x: { title: { display: true, text: "Total ($)" } },
-        y: { title: { display: true, text: "Product" } }
-      }
-    }
-  });
-}
-
-/* ---------------------- 💰 Sales Table ---------------------- */
-async function loadSalesTable() {
+/* ---------------------- 🧩 Vendor Loan Report ---------------------- */
+async function runVendorLoanReport() {
   const supabase = await ensureSupabaseClient();
-  const from = document.getElementById("analytics-from")?.value || null;
-  const to = document.getElementById("analytics-to")?.value || null;
+  const vendorId = document.getElementById("vendor-loan-select").value;
+  const from = document.getElementById("vendor-loan-from").value;
+  const to = document.getElementById("vendor-loan-to").value;
 
-  let query = supabase
-    .from("customer_sales")
-    .select("id, customer_name, sale_date, total")
-    .order("sale_date", { ascending: false });
+  if (!vendorId) return alert("Please select a vendor first.");
+  fadeOutSection("#vendor-loan-report-section");
 
-  if (from) query = query.gte("sale_date", from);
-  if (to) query = query.lte("sale_date", to);
+  let query = supabase.from("vendor_loans").select(`
+    id, date, quantity, selling_price, batch_no,
+    products(name)
+  `).eq("vendor_id", vendorId).order("date", { ascending: false });
 
-  query = query.limit(50);
+  if (from) query = query.gte("date", from);
+  if (to) query = query.lte("date", to);
+
   const { data, error } = await query;
-
-  const tbody = document.querySelector("#analytics-table tbody");
+  const tbody = document.querySelector("#vendor-loan-report-table tbody");
   tbody.innerHTML = "";
 
   if (error) {
-    console.error("❌ loadSalesTable failed", error);
-    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">Error loading sales data.</td></tr>`;
-    return;
+    console.error("❌ runVendorLoanReport failed", error);
+    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">Error loading loan data.</td></tr>`;
+    return fadeInSection("#vendor-loan-report-section");
   }
 
   if (!data?.length) {
-    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">No sales data found.</td></tr>`;
-    return;
+    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No loan data found.</td></tr>`;
+    document.getElementById("vendor-loan-total").textContent = "0.00";
+    return fadeInSection("#vendor-loan-report-section");
   }
 
+  let totalLoan = 0;
   data.forEach(row => {
+    const subtotal = Number(row.selling_price) * Number(row.quantity);
+    totalLoan += subtotal;
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="border p-2">#${row.id}</td>
-      <td class="border p-2">${row.customer_name || "-"}</td>
-      <td class="border p-2">${new Date(row.sale_date).toLocaleDateString("zh-TW")}</td>
-      <td class="border p-2 text-right">${Number(row.total).toFixed(2)}</td>
+      <td class="border p-2">${row.products?.name || "Unknown Product"}</td>
+      <td class="border p-2">${row.batch_no || "-"}</td>
+      <td class="border p-2 text-right">${row.quantity}</td>
+      <td class="border p-2 text-right">${Number(row.selling_price).toFixed(2)}</td>
+      <td class="border p-2 text-right">${subtotal.toFixed(2)}</td>
+      <td class="border p-2">${new Date(row.date).toLocaleDateString("zh-TW")}</td>
     `;
     tbody.appendChild(tr);
   });
+
+  document.getElementById("vendor-loan-total").textContent = totalLoan.toFixed(2);
+  fadeInSection("#vendor-loan-report-section");
 }
 
-/* ---------------------- 🧩 Load Vendors ---------------------- */
-async function loadVendorsForReport() {
-  const supabase = await ensureSupabaseClient();
-  const { data, error } = await supabase.from("vendors").select("id,name").order("name");
-  const vendorSelect = document.getElementById("vendor-report-select");
-  const vendorLoanSelect = document.getElementById("vendor-loan-select");
-
-  if (error) {
-    console.error("❌ Failed to load vendors:", error);
-    return;
-  }
-
-  // Populate Vendor Purchase Report dropdown
-  if (vendorSelect) {
-    vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-    (data || []).forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.id;
-      opt.textContent = v.name;
-      vendorSelect.appendChild(opt);
-    });
-  }
-
-  // Populate Vendor Loan Report dropdown
-  if (vendorLoanSelect) {
-    vendorLoanSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-    (data || []).forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.id;
-      opt.textContent = v.name;
-      vendorLoanSelect.appendChild(opt);
-    });
-  }
-}
-
-/* ---------------------- 🧩 Vendor Purchase Report ---------------------- */
-async function runVendorPurchaseReport() {
-  const vendorId = document.getElementById("vendor-report-select").value;
-  const from = document.getElementById("vendor-report-from").value || null;
-  const to = document.getElementById("vendor-report-to").value || null;
-
-  if (!vendorId) return alert("Please select a vendor first.");
-  fadeOutSection("#vendor-report-section");
-
-  try {
-    const report = await analyticsVendorPurchases(vendorId, from, to);
-    const tbody = document.querySelector("#vendor-report-table tbody");
-    tbody.innerHTML = "";
-
-    if (!report?.rows?.length) {
-      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">No data found.</td></tr>`;
-      document.getElementById("vendor-report-total").textContent = "0.00";
-      fadeInSection("#vendor-report-section");
-      return;
-    }
-
-    for (const r of report.rows) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${r.product}</td>
-        <td class="border p-2">${r.batch}</td>
-        <td class="border p-2">${r.price}</td>
-        <td class="border p-2">${r.qty}</td>
-        <td class="border p-2">${r.sold}</td>
-        <td class="border p-2">${r.loaned}</td>
-        <td class="border p-2">${r.remaining}</td>
-        <td class="border p-2">${r.subtotal}</td>
-      `;
-      tbody.appendChild(tr);
-    }
-
-    document.getElementById("vendor-report-total").textContent = report.total.toFixed(2);
-  } catch (err) {
-    console.error("❌ runVendorPurchaseReport failed", err);
-    alert("Failed to load vendor purchase report.");
-  } finally {
-    fadeInSection("#vendor-report-section");
-  }
-}
-
-/* ---------------------- 🧾 Export Vendor Report to PDF ---------------------- */
-function exportVendorReportPDF() {
-  const table = document.getElementById("vendor-report-table");
-  const vendorSelect = document.getElementById("vendor-report-select");
+/* ---------------------- 🧾 Export Vendor Loan Report PDF ---------------------- */
+function exportVendorLoanReportPDF() {
+  const table = document.getElementById("vendor-loan-report-table");
+  const vendorSelect = document.getElementById("vendor-loan-select");
   const vendorName = vendorSelect.options[vendorSelect.selectedIndex]?.text || "Unknown Vendor";
-  const from = document.getElementById("vendor-report-from").value || "(No Start Date)";
-  const to = document.getElementById("vendor-report-to").value || "(No End Date)";
-  const total = document.getElementById("vendor-report-total").textContent || "0.00";
+  const from = document.getElementById("vendor-loan-from").value || "(No Start Date)";
+  const to = document.getElementById("vendor-loan-to").value || "(No End Date)";
+  const total = document.getElementById("vendor-loan-total").textContent || "0.00";
 
   const rows = Array.from(table.querySelectorAll("tbody tr")).map(tr =>
     Array.from(tr.children).map(td => td.textContent.trim())
   );
 
-  if (!rows.length || rows[0][0] === "No data yet.") return alert("⚠️ No report data to export.");
+  if (!rows.length || rows[0][0] === "No data yet." || rows[0][0] === "No loan data found.") 
+    return alert("⚠️ No report data to export.");
 
   const html = `
-    <html><head><title>Vendor Purchase Report - ${vendorName}</title>
+    <html><head><title>Vendor Loan Report - ${vendorName}</title>
     <style>
       @page { size: A4; margin: 15mm; }
       body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
@@ -440,15 +276,14 @@ function exportVendorReportPDF() {
       .footer { text-align: center; font-size: 10px; color: #888; margin-top: 30px; }
     </style></head>
     <body>
-      <h1 style="text-align:center;">Vendor Purchase Report</h1>
+      <h1 style="text-align:center;">Vendor Loan Report</h1>
       <h3 style="text-align:center;">${vendorName}<br>Period: ${from} → ${to}</h3>
       <table><thead><tr>
-        <th>Product</th><th>Batch No.</th><th>Buy-In Price</th><th>Buy-In Qty</th>
-        <th>Sold</th><th>Loaned</th><th>Remaining</th><th>Subtotal</th>
+        <th>Product</th><th>Batch No.</th><th>Quantity</th><th>Selling Price</th><th>Total</th><th>Loan Date</th>
       </tr></thead><tbody>
       ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
       </tbody></table>
-      <div class="summary">Total Payable: $${total}</div>
+      <div class="summary">Total Loan Amount: $${total}</div>
       <div class="footer">Generated on ${new Date().toLocaleString("zh-TW")} — POS Analytics System</div>
     </body></html>`;
 
@@ -459,15 +294,13 @@ function exportVendorReportPDF() {
   win.focus();
   setTimeout(() => win.print(), 500);
 }
+document.getElementById("export-vendor-loan-report")?.addEventListener("click", exportVendorLoanReportPDF);
 
-document.getElementById("export-vendor-report")?.addEventListener("click", exportVendorReportPDF);
+/* ---------------------- ✨ Fade helpers ---------------------- */
+function fadeOutSection(s){const e=document.querySelector(s);if(!e)return;e.style.transition="opacity 0.4s ease";e.style.opacity=0.2;}
+function fadeInSection(s){const e=document.querySelector(s);if(!e)return;e.style.transition="opacity 0.6s ease";e.style.opacity=1;}
 
-/* ---------------------- 🎬 Page Fade-in on Load ---------------------- */
-window.addEventListener("load", () => {
-  document.body.style.opacity = 0;
-  document.body.style.transition = "opacity 0.8s ease";
-  setTimeout(() => (document.body.style.opacity = 1), 100);
-});
+window.addEventListener("load",()=>{document.body.style.opacity=0;document.body.style.transition="opacity 0.8s ease";setTimeout(()=>document.body.style.opacity=1,100);});
   </script>
 </body>
 </html>
