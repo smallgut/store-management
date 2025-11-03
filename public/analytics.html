@@ -126,6 +126,56 @@
     </div>
   </div>
 
+<!-- 🔹 Vendor Loan Report -->
+<div id="vendor-loan-report-section" class="bg-white p-4 rounded shadow mt-8">
+  <h2 class="text-lg font-semibold mb-4">Vendor Loan Report</h2>
+  <div class="flex flex-wrap gap-4 mb-4">
+    <div>
+      <label class="block text-sm font-medium mb-1">Vendor</label>
+      <select id="vendor-loan-select" class="border rounded p-2 min-w-[200px]"></select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">From</label>
+      <input type="date" id="vendor-loan-from" class="border rounded p-2" />
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">To</label>
+      <input type="date" id="vendor-loan-to" class="border rounded p-2" />
+    </div>
+    <div class="flex items-end">
+      <button onclick="runVendorLoanReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+        🔍 Run Report
+      </button>
+    </div>
+  </div>
+
+  <table id="vendor-loan-report-table" class="w-full border-collapse border border-gray-300">
+    <thead class="bg-gray-200">
+      <tr>
+        <th class="border p-2">Product</th>
+        <th class="border p-2">Batch No.</th>
+        <th class="border p-2">Quantity</th>
+        <th class="border p-2">Selling Price</th>
+        <th class="border p-2">Total</th>
+        <th class="border p-2">Loan Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="6" class="p-4 text-center text-gray-500">No data yet.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="flex justify-between items-center mt-4">
+    <div class="font-semibold">
+      Total Loan Amount: $<span id="vendor-loan-total">0.00</span>
+    </div>
+    <button id="export-vendor-loan-report"
+      class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
+      📄 Export PDF
+    </button>
+  </div>
+</div>
+  
   <script>
 /* ---------------------- 🌐 Initialization ---------------------- */
 document.addEventListener("DOMContentLoaded", async () => {
