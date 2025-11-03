@@ -338,15 +338,34 @@ async function loadVendorsForReport() {
   const supabase = await ensureSupabaseClient();
   const { data, error } = await supabase.from("vendors").select("id,name").order("name");
   const vendorSelect = document.getElementById("vendor-report-select");
-  if (error || !vendorSelect) return;
+  const vendorLoanSelect = document.getElementById("vendor-loan-select");
 
-  vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
-  (data || []).forEach(v => {
-    const opt = document.createElement("option");
-    opt.value = v.id;
-    opt.textContent = v.name;
-    vendorSelect.appendChild(opt);
-  });
+  if (error) {
+    console.error("❌ Failed to load vendors:", error);
+    return;
+  }
+
+  // Populate Vendor Purchase Report dropdown
+  if (vendorSelect) {
+    vendorSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+    (data || []).forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.name;
+      vendorSelect.appendChild(opt);
+    });
+  }
+
+  // Populate Vendor Loan Report dropdown
+  if (vendorLoanSelect) {
+    vendorLoanSelect.innerHTML = `<option value="">-- Select Vendor --</option>`;
+    (data || []).forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.name;
+      vendorLoanSelect.appendChild(opt);
+    });
+  }
 }
 
 /* ---------------------- 🧩 Vendor Purchase Report ---------------------- */
