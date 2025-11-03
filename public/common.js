@@ -1615,10 +1615,21 @@ async function addLoanRecord(event) {
     const sellingPrice = parseFloat(priceInput.value);
     const loanDate = dateInput.value;
 
-    if (!vendorId || !productId || !batchNo || !quantity || !sellingPrice || !loanDate) {
-      errorEl.textContent = "⚠️ Please fill in all required fields.";
-      return;
-    }
+    if (
+  !vendorId ||
+  !productId ||
+  !batchNo ||
+  quantity === "" ||
+  isNaN(quantity) ||
+  quantity <= 0 ||
+  sellingPrice === "" ||
+  isNaN(sellingPrice) ||
+  sellingPrice < 0 ||
+  !loanDate
+) {
+  errorEl.textContent = "⚠️ Please fill in all required fields correctly.";
+  return;
+}
 
     const newLoan = {
       vendor_id: vendorId,
