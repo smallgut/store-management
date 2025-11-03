@@ -1590,6 +1590,114 @@ async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
 }
 /* ---------------------- 📊 END FIXED VENDOR PURCHASE REPORT ---------------------- */
 
+/* ---------------------- 🧩 Vendor Loan Report ---------------------- */
+async function runVendorLoanReport() {
+  const supabase = await ensureSupabaseClient();
+  const vendorId = document.getElementById("vendor-loan-select").value;
+  const from = document.getElementById("vendor-loan-from").value || null;
+  const to = document.getElementById("vendor-loan-to").value || null;
+
+  if (!vendorId) return alert("Please select a vendor first.");
+  fadeOutSection("#vendor-loan-report-section");
+
+  try {
+    let query = supabase
+      .from("vendor_loans")
+      .select("id, batch_no, quantity, selling_price, date, products(name)")
+      .eq("vendor_id", vendorId)
+      .order("date", { ascending: true });
+
+    if (from) query = query.gte("date", from);
+    if (to) query = query.lte("date", to);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const tbody = document.querySelector("#vendor-loan-report-table tbody");
+    tbody.innerHTML = "";
+
+    if (!data?.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No loan data found.</td></tr>`;
+      document.getElementById("vendor-loan-total").textContent = "0.00";
+      fadeInSection("#vendor-loan-report-section");
+      return;
+    }
+
+    let totalLoan = 0;
+    data.forEach(row => {
+      const subtotal = (row.quantity || 0) * (row.selling_price || 0);
+      totalLoan += subtotal;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${row.products?.name || "-"}</td>
+        <td class="border p-2">${row.batch_no || "-"}</td>
+        <td class="border p-2 text-right">${row.quantity}</td>
+        <td class="border p-2 text-right">${row.selling_price.toFixed(2)}</td>
+        <td class="border p-2 text-right">${subtotal.toFixed(2)}</td>
+        <td class="border p-2">${new Date(row.date).toLocaleDateString("zh-TW")}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("vendor-loan-total").textContent = totalLoan.toFixed(2);
+  } catch (err) {
+    console.error("❌ runVendorLoanReport failed:", err);
+    alert("Failed to load vendor loan report.");
+  } finally {
+    fadeInSection("#vendor-loan-report-section");
+  }
+}
+
+/* ---------------------- 🧾 Export Vendor Loan Report to PDF ---------------------- */
+function exportVendorLoanReportPDF() {
+  const table = document.getElementById("vendor-loan-report-table");
+  const vendorSelect = document.getElementById("vendor-loan-select");
+  const vendorName = vendorSelect.options[vendorSelect.selectedIndex]?.text || "Unknown Vendor";
+  const from = document.getElementById("vendor-loan-from").value || "(No Start Date)";
+  const to = document.getElementById("vendor-loan-to").value || "(No End Date)";
+  const total = document.getElementById("vendor-loan-total").textContent || "0.00";
+
+  const rows = Array.from(table.querySelectorAll("tbody tr")).map(tr =>
+    Array.from(tr.children).map(td => td.textContent.trim())
+  );
+
+  if (!rows.length || rows[0][0] === "No data yet.") return alert("⚠️ No report data to export.");
+
+  const html = `
+    <html><head><title>Vendor Loan Report - ${vendorName}</title>
+    <style>
+      @page { size: A4; margin: 15mm; }
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { border: 1px solid #444; padding: 6px 8px; text-align: center; }
+      th { background: #f0f0f0; font-weight: bold; }
+      .summary { margin-top: 20px; text-align: right; font-weight: bold; }
+      .footer { text-align: center; font-size: 10px; color: #888; margin-top: 30px; }
+    </style></head>
+    <body>
+      <h1 style="text-align:center;">Vendor Loan Report</h1>
+      <h3 style="text-align:center;">${vendorName}<br>Period: ${from} → ${to}</h3>
+      <table><thead><tr>
+        <th>Product</th><th>Batch No.</th><th>Quantity</th><th>Selling Price</th><th>Total</th><th>Loan Date</th>
+      </tr></thead><tbody>
+      ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
+      </tbody></table>
+      <div class="summary">Total Loan Amount: $${total}</div>
+      <div class="footer">Generated on ${new Date().toLocaleString("zh-TW")} — POS Analytics System</div>
+    </body></html>`;
+
+  const win = window.open("", "_blank");
+  if (!win) return alert("⚠️ Please allow popups for this site to export PDF.");
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+
+document.getElementById("export-vendor-loan-report")?.addEventListener("click", exportVendorLoanReportPDF);
+
+
 /* ---------------------- 💰 ADD VENDOR LOAN RECORD (Corrected for vendor_id + products table) ---------------------- */
 async function addLoanRecord(event) {
   event.preventDefault();
