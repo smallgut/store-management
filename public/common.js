@@ -2011,4 +2011,61 @@ if (addBtn) {
 
   // ✅ Load sales table if applicable
   loadCustomerSales();
+
+/* ---------------------- 🌐 Language Toggle (English <-> Traditional Chinese) ---------------------- */
+const translations = {
+  "nav-home": { en: "Home", zh: "首頁" },
+  "nav-login": { en: "Login", zh: "登入" },
+  "nav-analytics": { en: "Analytics", zh: "分析" },
+  "nav-manage-products": { en: "Manage Products", zh: "管理產品" },
+  "nav-manage-vendors": { en: "Manage Vendors", zh: "管理供應商" },
+  "nav-record-customer-sales": { en: "Record Customer Sales", zh: "記錄客戶銷售" },
+  "nav-vendor-loan-record": { en: "Vendor Loan Record", zh: "供應商借貸紀錄" },
+  "nav-product-catalog": { en: "Product Catalog", zh: "產品目錄" },
+  "toggle-language": { en: "Toggle Language", zh: "切換語言" },
+  "analytics": { en: "Analytics", zh: "分析" },
+  "vendor-purchase-report": { en: "Vendor Purchase Report", zh: "供應商進貨報表" },
+  "vendor-loan-report": { en: "Vendor Loan Report", zh: "供應商借貸報表" },
+  "sales-overview": { en: "Sales Overview", zh: "銷售概覽" },
+  "sales-data": { en: "Sales Data", zh: "銷售資料" },
+  "from": { en: "From", zh: "起始" },
+  "to": { en: "To", zh: "結束" },
+  "apply-filter": { en: "Apply Filter", zh: "套用篩選" },
+  "logout": { en: "Logout", zh: "登出" },
+  "vendor": { en: "Vendor", zh: "供應商" },
+  "total-payable": { en: "Total Payable", zh: "應付總額" },
+  "total-loan": { en: "Total Loan Amount", zh: "借貸總額" },
+  "export-pdf": { en: "Export PDF", zh: "匯出 PDF" },
+  // Add more as needed...
+};
+
+let currentLang = localStorage.getItem("pos-lang") || "en";
+
+function applyTranslations() {
+  document.documentElement.lang = currentLang;
+  document.body.classList.toggle("lang-zh", currentLang === "zh");
+  document.body.classList.toggle("lang-en", currentLang === "en");
+
+  document.querySelectorAll("[data-lang-key]").forEach(el => {
+    const key = el.getAttribute("data-lang-key");
+    if (translations[key]) {
+      el.textContent = translations[key][currentLang];
+    }
+  });
+  console.log(`🌐 Language applied: ${currentLang}`);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const toggleLangBtn = document.getElementById("toggle-language");
+  if (toggleLangBtn) {
+    toggleLangBtn.addEventListener("click", () => {
+      currentLang = currentLang === "en" ? "zh" : "en";
+      localStorage.setItem("pos-lang", currentLang);
+      applyTranslations();
+    });
+  }
+  applyTranslations();
+});
+/* ---------------------- 🌐 END Language Toggle ---------------------- */
+  
 });
