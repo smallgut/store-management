@@ -29,6 +29,36 @@ function ensureSupabaseClient() {
 
 
 
+// -----------------------------
+// Lightweight i18n toggle (ZH/TW)
+// -----------------------------
+let CURRENT_LANG = localStorage.getItem("lang") || "en";
+function toggleLanguage() {
+  CURRENT_LANG = CURRENT_LANG === "en" ? "zh" : "en";
+  localStorage.setItem("lang", CURRENT_LANG);
+  applyTranslations();
+}
+function applyTranslations() {
+  // simple translator stub — you can extend this map
+  const map = {
+    "nav-home": { en: "Home", zh: "首頁" },
+    "nav-login": { en: "Login", zh: "登入" },
+    "nav-analytics": { en: "Analytics", zh: "分析" },
+    "nav-manage-products": { en: "Manage Products", zh: "管理產品" },
+    "nav-manage-vendors": { en: "Manage Vendors", zh: "管理供應商" },
+    "nav-record-customer-sales": { en: "Record Customer Sales", zh: "記錄銷售" },
+    "toggle-language": { en: "Toggle Language", zh: "切換語言" },
+    "checkout": { en: "Checkout", zh: "結帳" },
+    "add-item": { en: "Add Item", zh: "加入" }
+  };
+  document.querySelectorAll("[data-lang-key]").forEach(el => {
+    const key = el.getAttribute("data-lang-key");
+    if (!key) return;
+    const txt = (map[key] && map[key][CURRENT_LANG]) || el.textContent;
+    el.textContent = txt;
+  });
+  document.documentElement.lang = CURRENT_LANG === "zh" ? "zh-TW" : "en";
+}
 
 
 // ---------------------------------------------------------
@@ -1981,75 +2011,4 @@ if (addBtn) {
 
   // ✅ Load sales table if applicable
   loadCustomerSales();
-
-// -----------------------------
-// 🌐 Lightweight i18n toggle (EN/ZH)
-// -----------------------------
-let CURRENT_LANG = localStorage.getItem("lang") || "en";
-
-function toggleLanguage() {
-  CURRENT_LANG = CURRENT_LANG === "en" ? "zh" : "en";
-  localStorage.setItem("lang", CURRENT_LANG);
-  applyTranslations();
-}
-
-function applyTranslations() {
-  try {
-    const map = {
-      // 🔹 Navigation
-      "nav-home": { en: "Home", zh: "首頁" },
-      "nav-login": { en: "Login", zh: "登入" },
-      "nav-analytics": { en: "Analytics", zh: "分析" },
-      "nav-manage-products": { en: "Manage Products", zh: "管理產品" },
-      "nav-manage-vendors": { en: "Manage Vendors", zh: "管理供應商" },
-      "nav-record-customer-sales": { en: "Record Customer Sales", zh: "記錄銷售" },
-      "nav-vendor-loan-record": { en: "Vendor Loan Record", zh: "供應商借貸紀錄" },
-      "nav-product-catalog": { en: "Product Catalog", zh: "產品目錄" },
-      "toggle-language": { en: "Toggle Language", zh: "切換語言" },
-      "logout": { en: "Logout", zh: "登出" },
-
-      // 🔹 Analytics Page
-      "analytics": { en: "Analytics", zh: "分析" },
-      "sales-overview": { en: "Sales Overview", zh: "銷售概覽" },
-      "sales-data": { en: "Sales Data", zh: "銷售資料" },
-      "from": { en: "From", zh: "起始日期" },
-      "to": { en: "To", zh: "結束日期" },
-      "apply-filter": { en: "Apply Filter", zh: "套用篩選" },
-      "vendor-purchase-report": { en: "Vendor Purchase Report", zh: "供應商進貨報表" },
-      "vendor-loan-report": { en: "Vendor Loan Report", zh: "供應商借貸報表" },
-      "export-pdf": { en: "Export PDF", zh: "匯出 PDF" },
-      "total-payable": { en: "Total Payable", zh: "應付總額" },
-      "total-loan": { en: "Total Loan Amount", zh: "借貸總額" },
-
-      // 🔹 Common labels
-      "vendor-name": { en: "Vendor Name", zh: "供應商名稱" },
-      "product-name": { en: "Product Name", zh: "產品名稱" },
-      "batch-no": { en: "Batch No.", zh: "批次號" },
-      "quantity": { en: "Quantity", zh: "數量" },
-      "selling-price": { en: "Selling Price", zh: "售價" },
-      "loan-date": { en: "Loan Date", zh: "借出日期" },
-      "add-loan": { en: "Add Loan", zh: "新增借貸" },
-      "actions": { en: "Actions", zh: "操作" },
-      "checkout": { en: "Checkout", zh: "結帳" },
-      "add-item": { en: "Add Item", zh: "加入" },
-    };
-
-    document.querySelectorAll("[data-lang-key]").forEach(el => {
-      const key = el.getAttribute("data-lang-key");
-      if (!key) return;
-      const txt = (map[key] && map[key][CURRENT_LANG]) || el.textContent;
-      el.textContent = txt;
-    });
-
-    document.documentElement.lang = CURRENT_LANG === "zh" ? "zh-TW" : "en";
-    console.log("🌐 Language applied:", CURRENT_LANG);
-  } catch (err) {
-    console.error("❌ applyTranslations() error:", err);
-  }
-}
-// Apply language once DOM is ready
-document.addEventListener("DOMContentLoaded", () => {
-  applyTranslations();
-});
-  
 });
