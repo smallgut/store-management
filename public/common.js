@@ -2012,86 +2012,48 @@ if (addBtn) {
   // ✅ Load sales table if applicable
   loadCustomerSales();
 
-/* ---------------------- 🌐 Language Toggle (English ↔ Traditional Chinese) ---------------------- */
-// Declare globals first so other functions can safely call applyTranslations()
-let currentLang = localStorage.getItem("pos-lang") || "en";
+// -----------------------------
+// 🌐 Lightweight i18n toggle (EN/ZH)
+// -----------------------------
+let CURRENT_LANG = localStorage.getItem("lang") || "en";
 
-const translations = {
-  // 🔹 Navigation
-  "nav-home": { en: "Home", zh: "首頁" },
-  "nav-login": { en: "Login", zh: "登入" },
-  "nav-analytics": { en: "Analytics", zh: "分析" },
-  "nav-manage-products": { en: "Manage Products", zh: "管理產品" },
-  "nav-manage-vendors": { en: "Manage Vendors", zh: "管理供應商" },
-  "nav-record-customer-sales": { en: "Record Customer Sales", zh: "記錄客戶銷售" },
-  "nav-vendor-loan-record": { en: "Vendor Loan Record", zh: "供應商借貸紀錄" },
-  "nav-product-catalog": { en: "Product Catalog", zh: "產品目錄" },
-  "toggle-language": { en: "Toggle Language", zh: "切換語言" },
-  "logout": { en: "Logout", zh: "登出" },
+function toggleLanguage() {
+  CURRENT_LANG = CURRENT_LANG === "en" ? "zh" : "en";
+  localStorage.setItem("lang", CURRENT_LANG);
+  applyTranslations();
+}
 
-  // 🔹 Common Page Titles / Labels
-  "analytics": { en: "Analytics", zh: "分析" },
-  "sales-overview": { en: "Sales Overview", zh: "銷售概覽" },
-  "sales-data": { en: "Sales Data", zh: "銷售資料" },
-  "vendor-loan-record": { en: "Vendor Loan Record", zh: "供應商借貸紀錄" },
-  "vendor-purchase-report": { en: "Vendor Purchase Report", zh: "供應商進貨報表" },
-  "vendor-loan-report": { en: "Vendor Loan Report", zh: "供應商借貸報表" },
-  "vendor-name": { en: "Vendor Name", zh: "供應商名稱" },
-  "product-name": { en: "Product Name", zh: "產品名稱" },
-  "product-barcode": { en: "Product Barcode", zh: "產品條碼" },
-  "batch-no": { en: "Batch No.", zh: "批次號" },
-  "quantity": { en: "Quantity", zh: "數量" },
-  "selling-price": { en: "Selling Price", zh: "售價" },
-  "loan-date": { en: "Loan Date", zh: "借出日期" },
-  "add-loan": { en: "Add Loan", zh: "新增借貸" },
-  "actions": { en: "Actions", zh: "操作" },
-  "from": { en: "From", zh: "起始日期" },
-  "to": { en: "To", zh: "結束日期" },
-  "apply-filter": { en: "Apply Filter", zh: "套用篩選" },
-  "export-pdf": { en: "Export PDF", zh: "匯出 PDF" },
-  "total-payable": { en: "Total Payable", zh: "應付總額" },
-  "total-loan": { en: "Total Loan Amount", zh: "借貸總額" },
-};
-
-/**
- * Apply translations to all elements with [data-lang-key].
- */
 function applyTranslations() {
   try {
-    document.documentElement.lang = currentLang;
-    document.body.classList.toggle("lang-zh", currentLang === "zh");
-    document.body.classList.toggle("lang-en", currentLang === "en");
+    const map = {
+      "nav-home": { en: "Home", zh: "首頁" },
+      "nav-login": { en: "Login", zh: "登入" },
+      "nav-analytics": { en: "Analytics", zh: "分析" },
+      "nav-manage-products": { en: "Manage Products", zh: "管理產品" },
+      "nav-manage-vendors": { en: "Manage Vendors", zh: "管理供應商" },
+      "nav-record-customer-sales": { en: "Record Customer Sales", zh: "記錄銷售" },
+      "toggle-language": { en: "Toggle Language", zh: "切換語言" },
+      "checkout": { en: "Checkout", zh: "結帳" },
+      "add-item": { en: "Add Item", zh: "加入" },
+    };
 
     document.querySelectorAll("[data-lang-key]").forEach(el => {
       const key = el.getAttribute("data-lang-key");
-      if (translations[key]) {
-        el.textContent = translations[key][currentLang];
-      }
+      if (!key) return;
+      const txt = (map[key] && map[key][CURRENT_LANG]) || el.textContent;
+      el.textContent = txt;
     });
 
-    console.log(`🌐 Language applied: ${currentLang}`);
+    document.documentElement.lang = CURRENT_LANG === "zh" ? "zh-TW" : "en";
+    console.log("🌐 Language applied:", CURRENT_LANG);
   } catch (err) {
     console.error("❌ applyTranslations() error:", err);
   }
 }
 
-/**
- * Toggle the language and reapply translations.
- */
-function toggleLanguage() {
-  currentLang = currentLang === "en" ? "zh" : "en";
-  localStorage.setItem("pos-lang", currentLang);
-  applyTranslations();
-}
-
-// Ensure everything is ready before applying
-window.addEventListener("DOMContentLoaded", () => {
-  const toggleLangBtn = document.getElementById("toggle-language");
-  if (toggleLangBtn) {
-    toggleLangBtn.addEventListener("click", toggleLanguage);
-  }
+// Apply language once DOM is ready
+document.addEventListener("DOMContentLoaded", () => {
   applyTranslations();
 });
-/* ---------------------- 🌐 END Language Toggle ---------------------- */
   
 });
