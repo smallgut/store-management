@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" id="lang-body" class="lang-zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>分析報表</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="common.js"></script>
+</head>
+
+<body class="bg-gray-100 p-4">
+  <!-- 🔹 導航列 -->
+  <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
+    <ul class="flex space-x-4">
+      <li><a href="index_zh.html">首頁</a></li>
+      <li><a href="login_zh.html">登入</a></li>
+      <li><a href="analytics_zh.html">分析報表</a></li>
+      <li><a href="products_zh.html">管理產品</a></li>
+      <li><a href="vendors_zh.html">管理供應商</a></li>
+      <li><a href="customer-sales_zh.html">記錄客戶銷售</a></li>
+      <li><a href="vendor-loan-record_zh.html">供應商借貸紀錄</a></li>
+      <li><a href="product-catalog_zh.html">產品目錄</a></li>
+      <li><a href="analytics.html" class="underline text-yellow-200">English</a></li>
+    </ul>
+    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">登出</button>
+  </nav>
+
+  <h1 class="text-2xl font-bold mt-4 mb-6">分析報表</h1>
+
+  <!-- 🔹 銷售概覽 -->
+  <div class="bg-white p-4 rounded shadow mb-6">
+    <h2 class="text-lg font-semibold mb-2 flex items-center justify-between">
+      <span>銷售概覽</span>
+      <div class="flex items-center space-x-2 text-sm">
+        <label>從：</label>
+        <input type="date" id="analytics-from" class="border rounded p-1">
+        <label>至：</label>
+        <input type="date" id="analytics-to" class="border rounded p-1">
+        <button id="filter-analytics"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
+          套用篩選
+        </button>
+      </div>
+    </h2>
+
+    <div id="charts-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+      <div>
+        <h3 class="text-md font-semibold mb-1">每日銷售總額</h3>
+        <canvas id="salesByDayChart" height="150"></canvas>
+      </div>
+      <div>
+        <h3 class="text-md font-semibold mb-1">各產品銷售總額</h3>
+        <canvas id="salesByProductChart" height="150"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔹 銷售資料表 -->
+  <div id="sales-data-section" class="bg-white p-4 rounded shadow mt-6">
+    <h2 class="text-lg font-semibold mb-2">銷售資料</h2>
+    <table id="analytics-table" class="w-full border-collapse border border-gray-300">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">訂單編號</th>
+          <th class="border p-2">客戶名稱</th>
+          <th class="border p-2">銷售日期</th>
+          <th class="border p-2">總額</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- 🔹 供應商進貨報表 -->
+  <div id="vendor-report-section" class="bg-white p-4 rounded shadow mt-8">
+    <h2 class="text-lg font-semibold mb-4">供應商進貨報表</h2>
+    <div class="flex flex-wrap gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">供應商</label>
+        <select id="vendor-report-select" class="border rounded p-2 min-w-[200px]"></select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">從</label>
+        <input type="date" id="vendor-report-from" class="border rounded p-2" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">至</label>
+        <input type="date" id="vendor-report-to" class="border rounded p-2" />
+      </div>
+      <div class="flex items-end">
+        <button onclick="runVendorPurchaseReport()"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+          🔍 生成報表
+        </button>
+      </div>
+    </div>
+
+    <table id="vendor-report-table" class="w-full border-collapse border border-gray-300">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="border p-2">產品</th>
+          <th class="border p-2">批次號</th>
+          <th class="border p-2">進貨價</th>
+          <th class="border p-2">進貨數量</th>
+          <th class="border p-2">已售出</th>
+          <th class="border p-2">已借出</th>
+          <th class="border p-2">剩餘</th>
+          <th class="border p-2">小計</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="8" class="p-4 text-center text-gray-500">暫無資料</td></tr>
+      </tbody>
+    </table>
+
+    <div class="flex justify-between items-center mt-4">
+      <div class="font-semibold">
+        應付總額：$<span id="vendor-report-total">0.00</span>
+      </div>
+      <button id="export-vendor-report"
+        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
+        📄 匯出 PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- 🔹 供應商借貸報表 -->
+  <div id="vendor-loan-report-section" class="bg-white p-4 rounded shadow mt-8">
+    <h2 class="text-lg font-semibold mb-4">供應商借貸報表</h2>
+    <div class="flex flex-wrap gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">供應商</label>
+        <select id="vendor-loan-select" class="border rounded p-2 min-w-[200px]"></select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">從</label>
+        <input type="date" id="vendor-loan-from" class="border rounded p-2" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">至</label>
+        <input type="date" id="vendor-loan-to" class="border rounded p-2" />
+      </div>
+      <div class="flex items-end">
+        <button onclick="runVendorLoanReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+          🔍 生成報表
+        </button>
+      </div>
+    </div>
+
+    <table id="vendor-loan-report-table" class="w-full border-collapse border border-gray-300">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="border p-2">產品</th>
+          <th class="border p-2">批次號</th>
+          <th class="border p-2">數量</th>
+          <th class="border p-2">售價</th>
+          <th class="border p-2">總額</th>
+          <th class="border p-2">借出日期</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="6" class="p-4 text-center text-gray-500">暫無資料</td></tr>
+      </tbody>
+    </table>
+
+    <div class="flex justify-between items-center mt-4">
+      <div class="font-semibold">
+        借貸總額：$<span id="vendor-loan-total">0.00</span>
+      </div>
+      <button id="export-vendor-loan-report"
+        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
+        📄 匯出 PDF
+      </button>
+    </div>
+  </div>
+
+  <script>
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("📊 初始化分析報表頁面...");
+  const supabase = await ensureSupabaseClient();
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    window.location.href = "login_zh.html";
+    return;
+  }
+
+  document.getElementById("logout-btn")?.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    window.location.href = "login_zh.html";
+  });
+
+  try {
+    await loadAnalyticsCharts();
+    await loadSalesTable();
+    await loadVendorsForReport();
+  } catch (err) {
+    console.error("❌ 載入分析報表失敗", err);
+  }
+
+  document.getElementById("filter-analytics")?.addEventListener("click", async () => {
+    fadeOutSection("#charts-container");
+    fadeOutSection("#sales-data-section");
+    await loadAnalyticsCharts();
+    await loadSalesTable();
+    setTimeout(() => {
+      fadeInSection("#charts-container");
+      fadeInSection("#sales-data-section");
+    }, 200);
+  });
+});
+
+function fadeOutSection(selector) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.style.transition = "opacity 0.4s ease";
+  el.style.opacity = 0.2;
+}
+function fadeInSection(selector) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.style.transition = "opacity 0.6s ease";
+  el.style.opacity = 1;
+}
+
+async function loadAnalyticsCharts() {
+  const from = document.getElementById("analytics-from")?.value || null;
+  const to   = document.getElementById("analytics-to")?.value || null;
+  const byDay = await analyticsSalesByDay(from, to);
+  const byProduct = await analyticsSalesByProduct(from, to);
+  renderSalesByDayChart(byDay);
+  renderSalesByProductChart(byProduct);
+}
+
+let salesByDayChart, salesByProductChart;
+
+function renderSalesByDayChart(data) {
+  const ctx = document.getElementById("salesByDayChart").getContext("2d");
+  if (salesByDayChart) salesByDayChart.destroy();
+  salesByDayChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: data.map(d => d.day),
+      datasets: [{
+        label: "每日銷售總額",
+        data: data.map(d => d.total),
+        borderColor: "blue",
+        backgroundColor: "rgba(59,130,246,0.2)",
+        tension: 0.2
+      }]
+    },
+    options: {
+      scales: {
+        x: { title: { display: true, text: "日期" } },
+        y: { title: { display: true, text: "總額 ($)" } }
+      }
+    }
+  });
+}
+
+function renderSalesByProductChart(data) {
+  const ctx = document.getElementById("salesByProductChart").getContext("2d");
+  if (salesByProductChart) salesByProductChart.destroy();
+  salesByProductChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.map(d => d.product),
+      datasets: [{
+        label: "產品銷售總額",
+        data: data.map(d => d.total),
+        backgroundColor: "rgba(16,185,129,0.6)"
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      scales: {
+        x: { title: { display: true, text: "總額 ($)" } },
+        y: { title: { display: true, text: "產品" } }
+      }
+    }
+  });
+}
+
+async function loadSalesTable() {
+  const supabase = await ensureSupabaseClient();
+  const from = document.getElementById("analytics-from")?.value || null;
+  const to = document.getElementById("analytics-to")?.value || null;
+
+  let query = supabase
+    .from("customer_sales")
+    .select("id, customer_name, sale_date, total")
+    .order("sale_date", { ascending: false });
+
+  if (from) query = query.gte("sale_date", from);
+  if (to) query = query.lte("sale_date", to);
+  query = query.limit(50);
+  const { data, error } = await query;
+
+  const tbody = document.querySelector("#analytics-table tbody");
+  tbody.innerHTML = "";
+
+  if (error) {
+    console.error("❌ 載入銷售資料失敗", error);
+    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">載入失敗。</td></tr>`;
+    return;
+  }
+
+  if (!data?.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">無銷售資料。</td></tr>`;
+    return;
+  }
+
+  data.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="border p-2">#${row.id}</td>
+      <td class="border p-2">${row.customer_name || "-"}</td>
+      <td class="border p-2">${new Date(row.sale_date).toLocaleDateString("zh-TW")}</td>
+      <td class="border p-2 text-right">${Number(row.total).toFixed(2)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function runVendorPurchaseReport() {
+  const vendorId = document.getElementById("vendor-report-select").value;
+  if (!vendorId) return alert("⚠️ 請先選擇供應商。");
+  fadeOutSection("#vendor-report-section");
+  try {
+    const report = await analyticsVendorPurchases(vendorId);
+    const tbody = document.querySelector("#vendor-report-table tbody");
+    tbody.innerHTML = "";
+    if (!report?.rows?.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">無資料。</td></tr>`;
+      document.getElementById("vendor-report-total").textContent = "0.00";
+      fadeInSection("#vendor-report-section");
+      return;
+    }
+    for (const r of report.rows) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="border p-2">${r.product}</td>
+        <td class="border p-2">${r.batch}</td>
+        <td class="border p-2">${r.price}</td>
+        <td class="border p-2">${r.qty}</td>
+        <td class="border p-2">${r.sold}</td>
+        <td class="border p-2">${r.loaned}</td>
+        <td class="border p-2">${r.remaining}</td>
+        <td class="border p-2">${r.subtotal}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+    document.getElementById("vendor-report-total").textContent = report.total.toFixed(2);
+  } catch (err) {
+    console.error("❌ 無法生成進貨報表", err);
+    alert("無法載入進貨報表。");
+  } finally {
+    fadeInSection("#vendor-report-section");
+  }
+}
+
+function exportVendorReportPDF() {
+  const table = document.getElementById("vendor-report-table");
+  const vendorSelect = document.getElementById("vendor-report-select");
+  const vendorName = vendorSelect.options[vendorSelect.selectedIndex]?.text || "未知供應商";
+  const total = document.getElementById("vendor-report-total").textContent || "0.00";
+  const rows = Array.from(table.querySelectorAll("tbody tr")).map(tr =>
+    Array.from(tr.children).map(td => td.textContent.trim())
+  );
+  if (!rows.length || rows[0][0] === "暫無資料") return alert("⚠️ 沒有可匯出的報表資料。");
+  const html = `
+    <html><head><title>${vendorName} - 進貨報表</title>
+    <style>
+      @page { size: A4; margin: 15mm; }
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { border: 1px solid #444; padding: 6px 8px; text-align: center; }
+      th { background: #f0f0f0; font-weight: bold; }
+      .summary { margin-top: 20px; text-align: right; font-weight: bold; }
+      .footer { text-align: center; font-size: 10px; color: #888; margin-top: 30px; }
+    </style></head>
+    <body>
+      <h1 style="text-align:center;">供應商進貨報表</h1>
+      <h3 style="text-align:center;">${vendorName}</h3>
+      <table><thead><tr>
+        <th>產品</th><th>批次號</th><th>進貨價</th><th>進貨數量</th>
+        <th>已售出</th><th>已借出</th><th>剩餘</th><th>小計</th>
+      </tr></thead><tbody>
+      ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
+      </tbody></table>
+      <div class="summary">應付總額：$${total}</div>
+      <div class="footer">生成時間：${new Date().toLocaleString("zh-TW")} — POS 系統</div>
+    </body></html>`;
+  const win = window.open("", "_blank");
+  if (!win) return alert("⚠️ 請允許此網站開啟新視窗以匯出 PDF。");
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+document.getElementById("export-vendor-report")?.addEventListener("click", exportVendorReportPDF);
+
+function exportVendorLoanReportPDF() {
+  const table = document.getElementById("vendor-loan-report-table");
+  const vendorSelect = document.getElementById("vendor-loan-select");
+  const vendorName = vendorSelect.options[vendorSelect.selectedIndex]?.text || "未知供應商";
+  const total = document.getElementById("vendor-loan-total").textContent || "0.00";
+  const rows = Array.from(table.querySelectorAll("tbody tr")).map(tr =>
+    Array.from(tr.children).map(td => td.textContent.trim())
+  );
+  if (!rows.length || rows[0][0] === "暫無資料") return alert("⚠️ 沒有可匯出的報表資料。");
+  const html = `
+    <html><head><title>${vendorName} - 借貸報表</title>
+    <style>
+      @page { size: A4; margin: 15mm; }
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { border: 1px solid #444; padding: 6px 8px; text-align: center; }
+      th { background: #f0f0f0; font-weight: bold; }
+      .summary { margin-top: 20px; text-align: right; font-weight: bold; }
+      .footer { text-align: center; font-size: 10px; color: #888; margin-top: 30px; }
+    </style></head>
+    <body>
+      <h1 style="text-align:center;">供應商借貸報表</h1>
+      <h3 style="text-align:center;">${vendorName}</h3>
+      <table><thead><tr>
+        <th>產品</th><th>批次號</th><th>數量</th><th>售價</th><th>總額</th><th>借出日期</th>
+      </tr></thead><tbody>
+      ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
+      </tbody></table>
+      <div class="summary">借貸總額：$${total}</div>
+      <div class="footer">生成時間：${new Date().toLocaleString("zh-TW")} — POS 系統</div>
+    </body></html>`;
+  const win = window.open("", "_blank");
+  if (!win) return alert("⚠️ 請允許此網站開啟新視窗以匯出 PDF。");
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+document.getElementById("export-vendor-loan-report")?.addEventListener("click", exportVendorLoanReportPDF);
+
+window.addEventListener("load", () => {
+  document.body.style.opacity = 0;
+  document.body.style.transition = "opacity 0.8s ease";
+  setTimeout(() => (document.body.style.opacity = 1), 100);
+});
+  </script>
+</body>
+</html>
