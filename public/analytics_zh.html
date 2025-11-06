@@ -324,6 +324,38 @@ async function loadSalesTable() {
   });
 }
 
+    async function loadVendorsForReport() {
+  const supabase = await ensureSupabaseClient();
+  const { data, error } = await supabase.from("vendors").select("id, name").order("name");
+
+  const vendorSelect = document.getElementById("vendor-report-select");
+  const vendorLoanSelect = document.getElementById("vendor-loan-select");
+
+  if (error) {
+    console.error("❌ 無法載入供應商清單:", error);
+    return;
+  }
+
+  if (vendorSelect) {
+    vendorSelect.innerHTML = `<option value="">-- 請選擇供應商 --</option>`;
+    (data || []).forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.name;
+      vendorSelect.appendChild(opt);
+    });
+  }
+
+  if (vendorLoanSelect) {
+    vendorLoanSelect.innerHTML = `<option value="">-- 請選擇供應商 --</option>`;
+    (data || []).forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.name;
+      vendorLoanSelect.appendChild(opt);
+    });
+  }
+}
 async function runVendorPurchaseReport() {
   const vendorId = document.getElementById("vendor-report-select").value;
   if (!vendorId) return alert("⚠️ 請先選擇供應商。");
