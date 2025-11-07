@@ -1746,18 +1746,21 @@ async function addLoanRecord(event) {
     if (insertErr) throw insertErr;
 
     // 2️⃣ Update stock in product_batches
-    const { data: batch, error: batchErr } = await supabase
-      .from("product_batches")
-      .select("id, remaining_quantity")
-      .eq("batch_number", batchNo)
-      .single();
+// Extract actual batch number before any stock info
+let batchNoRaw = batchSelect.options[batchSelect.selectedIndex]?.text?.trim() || "";
+const batchNo = batchNoRaw.split(" ")[0]; // "B-2C77FI (Stock: 8)" → "B-2C77FI"
 
-    if (batchErr || !batch) throw new Error("Batch not found for update");
+const { data: batch, error: batchErr } = await supabase
+  .from("product_batches")
+  .select("id, remaining_quantity")
+  .eq("batch_number", batchNo)
+  .single();
 
-    const newQty = Math.max(0, (batch.remaining_quantity || 0) - quantity);
-    await supabase.from("product_batches").update({ remaining_quantity: newQty }).eq("id", batch.id);
-    console.log(`✅ Updated batch ${batchNo} remaining_quantity: ${batch.remaining_quantity} → ${newQty}`);
+if (batchErr || !batch) throw new Error("Batch not found for update");
 
+const newQty = Math.max(0, (batch.remaining_quantity || 0) - quantity);
+await supabase.from("product_batches").update({ remaining_quantity: newQty }).eq("id", batch.id);
+console.log(`✅ Updated batch ${batchNo} remaining_quantity: ${batch.remaining_quantity} → ${newQty}`);
     // 3️⃣ Reset form and reload table
     const successMsg = (document.documentElement.lang === "zh-TW")
       ? "✅ 借貨紀錄已成功新增，庫存已更新！"
