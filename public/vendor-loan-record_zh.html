@@ -123,15 +123,15 @@
 
     // ➕ 新增借貸紀錄事件
     document.getElementById("add-loan-record-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await addLoanRecord();
-        alert("✅ 借貸紀錄已成功新增！");
-      } catch (err) {
-        console.error("❌ 新增失敗：", err);
-        alert("新增借貸紀錄時發生錯誤，請稍後再試。");
-      }
-    });
+  e.preventDefault();
+  try {
+    await addLoanRecord(e); // ✅ Pass event object to common.js function
+    alert("✅ 借貸紀錄已成功新增！");
+  } catch (err) {
+    console.error("❌ 新增失敗：", err);
+    alert("新增借貸紀錄時發生錯誤，請稍後再試。");
+  }
+});
 
     // 🚫 輸入驗證：僅允許數字與小數點
     const quantityInput = document.getElementById("quantity");
