@@ -118,32 +118,41 @@ function showError(err) {
 // Populate product dropdown (only show products having batches with remaining_quantity > 0)
 async function populateProductDropdown() {
   const supabase = await ensureSupabaseClient();
-  const productSelect = document.getElementById("product-select");
+  try {
+    // Get all products
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("id, name, barcode, units, price")
+      .order("name", { ascending: true });
 
-  if (!productSelect) return;
-  
-  // ✅ Clear previous options before reloading
-  productSelect.innerHTML = `<option value="">-- Select a Product --</option>`;
+    if (error) throw error;
 
-  const { data: products, error } = await supabase
-    .from("products")
-    .select("id, name, barcode, stock")
-    .gt("stock", 0)
-    .order("name", { ascending: true });
+    const out = [];
+    for (const p of products || []) {
+      // only include if there is at least one batch with stock > 0
+      const { data: batches, error: batchErr } = await supabase
+        .from("product_batches")
+        .select("id, remaining_quantity")
+        .eq("product_id", p.id)
+        .gt("remaining_quantity", 0)  // only batches with stock > 0
+        .limit(1);
 
-  if (error) {
-    console.error("❌ Error loading products:", error);
-    return;
+      if (batchErr) throw batchErr;
+
+      if (batches && batches.length > 0) {
+        out.push(p);
+      }
+    }
+
+    const sel = document.getElementById("product-select");
+    if (!sel) return;
+    sel.innerHTML = `<option value="">-- Select a Product --</option>` +
+      out.map(p => `<option value="${p.id}">${p.name} ${p.barcode ? "(" + p.barcode + ")" : ""}</option>`).join("");
+
+    debugLog("📦 Products for dropdown (filtered by stock > 0):", out);
+  } catch (err) {
+    console.error("populateProductDropdown error:", err);
   }
-
-  console.log("📦 Products for dropdown (filtered by stock > 0):", products);
-
-  products.forEach(product => {
-    const option = document.createElement("option");
-    option.value = product.id;
-    option.textContent = `${product.name} (${product.barcode || "No barcode"})`;
-    productSelect.appendChild(option);
-  });
 }
 
 // ---------------------------------------------------------
