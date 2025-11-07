@@ -41,10 +41,40 @@
   </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log('DOM fully loaded and parsed', new Date().toISOString());
-      applyTranslations();
-      document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
+    document.addEventListener('DOMContentLoaded', async () => {
+      console.log("🏠 初始化首頁...");
+
+      const supabase = await ensureSupabaseClient();
+
+      // 🔒 登入驗證
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert("請先登入系統。");
+        window.location.href = "login_zh.html";
+        return;
+      }
+
+      // 🔑 登出按鈕
+      const logoutBtn = document.getElementById("logout-btn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+          await supabase.auth.signOut();
+          alert("您已成功登出系統。");
+          window.location.href = "login_zh.html";
+        });
+      }
+
+      // ✅ 顯示今日日期
+      const today = new Date().toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "long"
+      });
+      document.getElementById("today-date").textContent = today;
+
+      // ✨ 頁面淡入效果
+      setTimeout(() => document.body.style.opacity = 1, 100);
     });
   </script>
 </body>
