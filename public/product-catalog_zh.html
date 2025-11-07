@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>產品目錄管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="common.js"></script>
+</head>
+
+<body class="bg-gray-100 p-4 transition-opacity duration-700 ease-in-out opacity-0">
+  <!-- 🔹 導航列 -->
+  <nav class="bg-blue-500 p-4 text-white flex justify-between items-center">
+    <ul class="flex space-x-4">
+      <li><a href="index_zh.html">首頁</a></li>
+      <li><a href="analytics_zh.html">分析</a></li>
+      <li><a href="products_zh.html">管理產品</a></li>
+      <li><a href="vendors_zh.html">管理供應商</a></li>
+      <li><a href="customer-sales_zh.html">記錄顧客銷售</a></li>
+      <li><a href="vendor-loan-record_zh.html">供應商借貨記錄</a></li>
+      <li><a href="product-catalog_zh.html">產品目錄</a></li>
+      <li><a href="product-catalog.html" class="underline">English</a></li>
+    </ul>
+    <li><a href="product-catalog.html">English</a></li>
+    <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">登出</button>
+  </nav>
+
+  <div class="container mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-4">產品目錄管理</h1>
+
+    <div id="message" class="text-green-500 mb-2"></div>
+    <div id="error" class="text-red-500 mb-2"></div>
+
+    <!-- ✅ 新增產品表單 -->
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold mb-2">新增產品</h2>
+      <form id="add-catalog-form" class="space-y-4">
+        <div>
+          <label for="catalog-barcode">產品條碼</label>
+          <input id="catalog-barcode" type="text" class="border p-2 w-full" required placeholder="請輸入產品條碼">
+        </div>
+        <div>
+          <label for="catalog-name">產品名稱</label>
+          <input id="catalog-name" type="text" class="border p-2 w-full" required placeholder="請輸入產品名稱">
+        </div>
+        <button type="submit"
+          class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+          ➕ 新增產品
+        </button>
+      </form>
+    </div>
+
+    <!-- ✅ 產品目錄表格 -->
+    <h2 class="text-xl font-semibold mb-2">產品清單</h2>
+    <table id="catalog-table" class="w-full border-collapse border">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border p-2">產品條碼</th>
+          <th class="border p-2">產品名稱</th>
+          <th class="border p-2">建立日期</th>
+          <th class="border p-2">操作</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", async () => {
+    console.log("📘 初始化產品目錄頁面...");
+    const supabase = await ensureSupabaseClient();
+    const catalogTable = document.querySelector("#catalog-table tbody");
+    const form = document.getElementById("add-catalog-form");
+
+    // 🔒 登入驗證
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      alert("請先登入系統。");
+      window.location.href = "login_zh.html";
+      return;
+    }
+
+    // 🔑 登出按鈕
+    const logoutBtn = document.getElementById("logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        await supabase.auth.signOut();
+        alert("您已成功登出系統。");
+        window.location.href = "login_zh.html";
+      });
+    }
+
+    // ✅ 載入產品目錄
+    async function loadCatalog() {
+      const { data, error } = await supabase
+        .from("product_catalog")
+        .select("id, barcode, name, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("❌ 載入產品目錄時發生錯誤：", error);
+        document.getElementById("error").textContent = "載入資料時發生錯誤，請稍後再試。";
+        return;
+      }
+
+      catalogTable.innerHTML = "";
+      data.forEach((item) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td class="border p-2">${item.barcode}</td>
+          <td class="border p-2">${item.name}</td>
+          <td class="border p-2">${new Date(item.created_at).toLocaleString("zh-TW")}</td>
+          <td class="border p-2 text-center">
+            <button class="bg-red-500 text-white px-2 py-1 rounded delete-btn hover:bg-red-600"
+              data-id="${item.id}">刪除</button>
+          </td>
+        `;
+        catalogTable.appendChild(row);
+      });
+
+      // ✅ 綁定刪除按鈕
+      document.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = btn.dataset.id;
+          if (confirm("確定要刪除此產品嗎？")) {
+            const { error } = await supabase.from("product_catalog").delete().eq("id", id);
+            if (error) {
+              console.error("❌ 刪除時發生錯誤：", error);
+              alert("刪除失敗，請稍後再試。");
+            } else {
+              alert("✅ 產品已成功刪除。");
+              loadCatalog();
+            }
+          }
+        });
+      });
+    }
+
+    // ✅ 處理新增產品
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const barcode = document.getElementById("catalog-barcode").value.trim();
+      const name = document.getElementById("catalog-name").value.trim();
+
+      if (!barcode || !name) {
+        alert("請填寫所有欄位。");
+        return;
+      }
+
+      const { error } = await supabase.from("product_catalog").insert([{ barcode, name }]);
+      if (error) {
+        console.error("❌ 新增產品時發生錯誤：", error);
+        alert("新增失敗，請稍後再試。");
+      } else {
+        alert("✅ 產品已成功新增。");
+        form.reset();
+        loadCatalog();
+      }
+    });
+
+    // 初始載入
+    loadCatalog();
+
+    // ✨ 頁面淡入效果
+    setTimeout(() => document.body.style.opacity = 1, 100);
+  });
+  </script>
+</body>
+</html>
