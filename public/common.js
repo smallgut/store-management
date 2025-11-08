@@ -116,16 +116,9 @@ function showError(err) {
 
 
 // Populate product dropdown (only show products having batches with remaining_quantity > 0)
-/* ---------------------- 📦 POPULATE PRODUCT DROPDOWN ---------------------- */
 async function populateProductDropdown() {
   const supabase = await ensureSupabaseClient();
   try {
-    const sel = document.getElementById("product-select");
-    if (!sel) return;
-
-    // ✅ Clear previous options before reloading to prevent duplicates
-    sel.innerHTML = `<option value="">-- Select a Product --</option>`;
-
     // Get all products
     const { data: products, error } = await supabase
       .from("products")
@@ -141,7 +134,7 @@ async function populateProductDropdown() {
         .from("product_batches")
         .select("id, remaining_quantity")
         .eq("product_id", p.id)
-        .gt("remaining_quantity", 0) // only batches with stock > 0
+        .gt("remaining_quantity", 0)  // only batches with stock > 0
         .limit(1);
 
       if (batchErr) throw batchErr;
@@ -151,19 +144,17 @@ async function populateProductDropdown() {
       }
     }
 
-    // ✅ Add the filtered products
-    out.forEach(p => {
-      const option = document.createElement("option");
-      option.value = p.id;
-      option.textContent = `${p.name} ${p.barcode ? "(" + p.barcode + ")" : ""}`;
-      sel.appendChild(option);
-    });
+    const sel = document.getElementById("product-select");
+    if (!sel) return;
+    sel.innerHTML = `<option value="">-- Select a Product --</option>` +
+      out.map(p => `<option value="${p.id}">${p.name} ${p.barcode ? "(" + p.barcode + ")" : ""}</option>`).join("");
 
     debugLog("📦 Products for dropdown (filtered by stock > 0):", out);
   } catch (err) {
     console.error("populateProductDropdown error:", err);
   }
 }
+
 // ---------------------------------------------------------
 // 🔍 Barcode Lookup
 // ---------------------------------------------------------
