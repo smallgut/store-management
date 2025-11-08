@@ -116,9 +116,16 @@ function showError(err) {
 
 
 // Populate product dropdown (only show products having batches with remaining_quantity > 0)
+/* ---------------------- 📦 POPULATE PRODUCT DROPDOWN ---------------------- */
 async function populateProductDropdown() {
   const supabase = await ensureSupabaseClient();
   try {
+    const sel = document.getElementById("product-select");
+    if (!sel) return;
+
+    // ✅ Clear previous options before reloading to prevent duplicates
+    sel.innerHTML = `<option value="">-- Select a Product --</option>`;
+
     // Get all products
     const { data: products, error } = await supabase
       .from("products")
@@ -134,7 +141,7 @@ async function populateProductDropdown() {
         .from("product_batches")
         .select("id, remaining_quantity")
         .eq("product_id", p.id)
-        .gt("remaining_quantity", 0)  // only batches with stock > 0
+        .gt("remaining_quantity", 0) // only batches with stock > 0
         .limit(1);
 
       if (batchErr) throw batchErr;
@@ -144,17 +151,19 @@ async function populateProductDropdown() {
       }
     }
 
-    const sel = document.getElementById("product-select");
-    if (!sel) return;
-    sel.innerHTML = `<option value="">-- Select a Product --</option>` +
-      out.map(p => `<option value="${p.id}">${p.name} ${p.barcode ? "(" + p.barcode + ")" : ""}</option>`).join("");
+    // ✅ Add the filtered products
+    out.forEach(p => {
+      const option = document.createElement("option");
+      option.value = p.id;
+      option.textContent = `${p.name} ${p.barcode ? "(" + p.barcode + ")" : ""}`;
+      sel.appendChild(option);
+    });
 
     debugLog("📦 Products for dropdown (filtered by stock > 0):", out);
   } catch (err) {
     console.error("populateProductDropdown error:", err);
   }
 }
-
 // ---------------------------------------------------------
 // 🔍 Barcode Lookup
 // ---------------------------------------------------------
@@ -1698,7 +1707,7 @@ function exportVendorLoanReportPDF() {
 document.getElementById("export-vendor-loan-report")?.addEventListener("click", exportVendorLoanReportPDF);
 
 
-/* ---------------------- 💰 ADD VENDOR LOAN RECORD (Corrected for vendor_id + products table) ---------------------- */
+/* ---------------------- 💰 ADD VENDOR LOAN RECORD + UPDATE STOCK ---------------------- */
 async function addLoanRecord(event) {
   event.preventDefault();
   const supabase = await ensureSupabaseClient();
@@ -1718,27 +1727,21 @@ async function addLoanRecord(event) {
   try {
     const vendorId = vendorSelect.value;
     const productId = productSelect.value;
-    const batchNo = batchSelect.options[batchSelect.selectedIndex]?.text?.trim();
+    let batchNoRaw = batchSelect.options[batchSelect.selectedIndex]?.text?.trim() || "";
+    const batchNo = batchNoRaw.split(" ")[0]; // Extract actual batch number before parentheses
     const quantity = parseFloat(qtyInput.value);
     const sellingPrice = parseFloat(priceInput.value);
     const loanDate = dateInput.value;
 
-    if (
-  !vendorId ||
-  !productId ||
-  !batchNo ||
-  quantity === "" ||
-  isNaN(quantity) ||
-  quantity <= 0 ||
-  sellingPrice === "" ||
-  isNaN(sellingPrice) ||
-  sellingPrice < 0 ||
-  !loanDate
-) {
-  errorEl.textContent = "⚠️ Please fill in all required fields correctly.";
-  return;
-}
+    if (!vendorId || !productId || !batchNo || isNaN(quantity) || quantity <= 0 || isNaN(sellingPrice) || sellingPrice < 0 || !loanDate) {
+      const msg = (document.documentElement.lang === "zh-TW")
+        ? "⚠️ 請正確填寫所有必填欄位。"
+        : "⚠️ Please fill in all required fields correctly.";
+      errorEl.textContent = msg;
+      return;
+    }
 
+    // 1️⃣ Insert loan record
     const newLoan = {
       vendor_id: vendorId,
       product_id: productId,
@@ -1749,16 +1752,36 @@ async function addLoanRecord(event) {
     };
 
     console.log("📦 Inserting vendor loan:", newLoan);
-    const { error } = await supabase.from("vendor_loans").insert([newLoan]);
-    if (error) throw error;
+    const { error: insertErr } = await supabase.from("vendor_loans").insert([newLoan]);
+    if (insertErr) throw insertErr;
 
-    messageEl.textContent = "✅ Loan record added successfully!";
+    // 2️⃣ Update stock in product_batches
+    const { data: batch, error: batchErr } = await supabase
+      .from("product_batches")
+      .select("id, remaining_quantity")
+      .eq("batch_number", batchNo)
+      .single();
+
+    if (batchErr || !batch) throw new Error("Batch not found for update");
+
+    const newQty = Math.max(0, (batch.remaining_quantity || 0) - quantity);
+    await supabase.from("product_batches").update({ remaining_quantity: newQty }).eq("id", batch.id);
+    console.log(`✅ Updated batch ${batchNo} remaining_quantity: ${batch.remaining_quantity} → ${newQty}`);
+
+    // 3️⃣ Reset form and reload table
+    const successMsg = (document.documentElement.lang === "zh-TW")
+      ? "✅ 借貨紀錄已成功新增，庫存已更新！"
+      : "✅ Loan record added successfully and stock updated!";
+    messageEl.textContent = successMsg;
     document.getElementById("add-loan-record-form").reset();
 
-    await loadLoanRecords(); // reload list
+    await loadLoanRecords();
   } catch (err) {
     console.error("❌ addLoanRecord() failed:", err);
-    errorEl.textContent = "❌ Failed to add loan record: " + (err.message || "Unknown error");
+    const msg = (document.documentElement.lang === "zh-TW")
+      ? "❌ 新增借貨紀錄失敗：" + (err.message || "未知錯誤")
+      : "❌ Failed to add loan record: " + (err.message || "Unknown error");
+    errorEl.textContent = msg;
   }
 }
 /* ---------------------- 💰 END ADD VENDOR LOAN RECORD ---------------------- */

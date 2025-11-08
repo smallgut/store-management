@@ -90,6 +90,8 @@
 
   <script>
 document.addEventListener("DOMContentLoaded", async () => {
+  console.log("DOM fully loaded and parsed", new Date().toISOString());
+
   const supabase = await ensureSupabaseClient();
 
   // 🔒 Auth Guard
@@ -109,30 +111,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // 🛠️ Keep each page’s original initialization here
   console.log("✅ Authenticated, initializing page...");
-});
 
+  // 🧩 Initialize page functions ONCE
+  applyTranslations();
+  await loadLoanRecords();
+  await populateProductDropdown();
+  await populateVendorDropdown();
 
-    
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log('DOM fully loaded and parsed', new Date().toISOString());
-      applyTranslations();
-      loadLoanRecords();
-      populateProductDropdown();
-      populateVendorDropdown();
-      document.getElementById('add-loan-record-form').addEventListener('submit', addLoanRecord);
-      document.getElementById('toggle-language').addEventListener('click', toggleLanguage);
+  const form = document.getElementById("add-loan-record-form");
+  if (form) form.addEventListener("submit", addLoanRecord);
 
-      // Add input validation to strip commas
-      const quantityInput = document.getElementById('quantity');
-      const sellingPriceInput = document.getElementById('selling-price');
-      [quantityInput, sellingPriceInput].forEach(input => {
-        input.addEventListener('input', () => {
-          input.value = input.value.replace(/[^0-9.]/g, '');
-        });
+  const langToggle = document.getElementById("toggle-language");
+  if (langToggle) langToggle.addEventListener("click", toggleLanguage);
+
+  // Input validation
+  const quantityInput = document.getElementById("quantity");
+  const sellingPriceInput = document.getElementById("selling-price");
+  [quantityInput, sellingPriceInput].forEach(input => {
+    if (input) {
+      input.addEventListener("input", () => {
+        input.value = input.value.replace(/[^0-9.]/g, '');
       });
-    });
-  </script>
+    }
+  });
+});
+</script>
 </body>
 </html>
