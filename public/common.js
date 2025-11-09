@@ -351,7 +351,6 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
   }
 }
 /* ---------------------- 📦 END LOAD PRODUCT + ALL BATCHES ---------------------- */
-
 // ---------- Barcode handling ----------
 // Called on input (debug) and on Enter (final)
 function handleBarcodeInputEvent(e) {
