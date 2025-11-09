@@ -40,7 +40,8 @@
       </div>
       <div>
         <label for="product-barcode" class="block font-semibold">Product Barcode</label>
-        <input type="text" id="product-barcode" class="border p-2 w-full" />
+        <input type="text" id="product-barcode" class="border p-2 w-full"
+       onkeypress="handleBarcodeInputEvent(event)" />
         <div id="stock-display" class="text-sm text-gray-500"></div>
       </div>
       <div>
