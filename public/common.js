@@ -312,10 +312,15 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
 // Called on input (debug) and on Enter (final)
 function handleBarcodeInputEvent(e) {
   const v = e.target.value.trim();
-  console.log("🔍 Barcode entered:", v);
-  // don't auto-search on each keystroke — only on Enter we'll treat as final.
+  if (e.key === "Enter") {
+    console.log("🔍 Barcode Enter pressed:", v);
+    // Call the unified handler that handles both loan + sales pages
+    handleBarcodeInput(e);
+  } else {
+    // Optional: live feedback only
+    console.log("⌨️ Typing barcode:", v);
+  }
 }
-
 
 // populate vendor dropdown (for vendor-loan form)
 async function populateVendorDropdown() {
