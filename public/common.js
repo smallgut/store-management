@@ -167,22 +167,97 @@ async function populateProductDropdown() {
 // ---------------------------------------------------------
 // 🔍 Barcode Lookup
 // ---------------------------------------------------------
-async function handleBarcodeInput(e) {
-  if (e.key === "Enter") {
-    const barcode = e.target.value.trim();
-    if (!barcode) return;
-    console.log("🔍 Barcode entered:", barcode);
-    const supabase = await ensureSupabaseClient();
-    const { data, error } = await supabase.from("products").select("*").eq("barcode", barcode).single();
-    if (error || !data) {
-      console.warn("❌ Product not found for barcode:", barcode);
-      document.getElementById("stock-display").textContent = "Product not found";
+/* ---------------------- 🔍 UNIFIED BARCODE HANDLER ---------------------- */
+async function handleBarcodeInput(event) {
+  if (event.key !== "Enter") return;
+  const supabase = await ensureSupabaseClient();
+
+  const barcode = event.target.value.trim();
+  if (!barcode) return;
+
+  console.log("🔍 Barcode entered:", barcode);
+
+  // Identify context (customer-sales or vendor-loan-record)
+  const productSelect = document.getElementById("product-select");
+  const batchSelect = document.getElementById("batch-no");
+  const stockDisplay = document.getElementById("stock-display");
+
+  try {
+    // 1️⃣ Find product by barcode
+    const { data: product, error: productErr } = await supabase
+      .from("products")
+      .select("id, name")
+      .eq("barcode", barcode)
+      .maybeSingle();
+
+    if (productErr || !product) {
+      alert(
+        document.documentElement.lang === "zh-TW"
+          ? "⚠️ 找不到此條碼的商品。"
+          : "⚠️ Product not found for this barcode."
+      );
       return;
     }
-    console.log("📦 Product found via barcode:", data);
-    await loadProductAndBatches(data.id, true);
+
+    console.log("✅ Barcode auto-filled:", barcode);
+
+    // 2️⃣ Auto-select product
+    if (productSelect) productSelect.value = product.id;
+
+    // 3️⃣ Load *all batches* with stock > 0 for that product
+    const { data: batches, error: batchErr } = await supabase
+      .from("product_batches")
+      .select("id, batch_number, remaining_quantity")
+      .eq("product_id", product.id)
+      .gt("remaining_quantity", 0)
+      .order("batch_number", { ascending: true });
+
+    if (batchErr) throw batchErr;
+
+    if (!batches || batches.length === 0) {
+      stockDisplay.textContent =
+        document.documentElement.lang === "zh-TW"
+          ? "⚠️ 此商品目前沒有庫存。"
+          : "⚠️ No stock available for this product.";
+      batchSelect.innerHTML =
+        `<option value="">-- ${
+          document.documentElement.lang === "zh-TW" ? "沒有可用批次" : "No available batch"
+        } --</option>`;
+      return;
+    }
+
+    // 4️⃣ Populate all batches dynamically
+    batchSelect.innerHTML =
+      `<option value="">-- ${
+        document.documentElement.lang === "zh-TW" ? "選擇批次號" : "Select Batch No."
+      } --</option>` +
+      batches
+        .map(
+          (b) =>
+            `<option value="${b.batch_number}">${b.batch_number} (Stock: ${b.remaining_quantity})</option>`
+        )
+        .join("");
+
+    // 5️⃣ Update stock display summary
+    const totalStock = batches.reduce(
+      (sum, b) => sum + (b.remaining_quantity || 0),
+      0
+    );
+    stockDisplay.textContent = `${
+      document.documentElement.lang === "zh-TW"
+        ? "庫存總數"
+        : "Total Stock"
+    }: ${totalStock}`;
+  } catch (err) {
+    console.error("❌ handleBarcodeInput() failed:", err);
+    alert(
+      document.documentElement.lang === "zh-TW"
+        ? "❌ 條碼處理發生錯誤。"
+        : "❌ Barcode processing failed."
+    );
   }
 }
+/* ---------------------- 🔍 END UNIFIED BARCODE HANDLER ---------------------- */
 
 // ---------- Product selection handler ----------
 async function handleProductSelection(e) {
@@ -241,44 +316,6 @@ function handleBarcodeInputEvent(e) {
   // don't auto-search on each keystroke — only on Enter we'll treat as final.
 }
 
-async function handleBarcodeEnter(e) {
-  if (e.key !== "Enter") return;
-  e.preventDefault();
-  const val = e.target.value.trim();
-  if (!val) return;
-  const supabase = await ensureSupabaseClient();
-  try {
-    const { data: product } = await supabase
-      .from("products")
-      .select("id,name,barcode,price")
-      .eq("barcode", val)
-      .limit(1)
-      .maybeSingle();
-    if (!product) {
-      document.getElementById("stock-display").textContent = "Product not found";
-      return;
-    }
-    // load batches and auto-fill selects
-    const res = await loadProductAndBatches(product.id, false);
-    // pick defaults and add to cart automatically
-    const batchId = (res?.batches && res.batches.length) ? res.batches[0].id : null;
-    const sellingPrice = product.price || 0;
-    // prepare a quick add: set form fields so addItemToCart works
-    const productSelect = document.getElementById("product-select");
-    if (productSelect) productSelect.value = product.id;
-    const batchSelect = document.getElementById("batch-no");
-    if (batchSelect && batchId) batchSelect.value = batchId;
-    const priceInput = document.getElementById("selling-price");
-    if (priceInput) priceInput.value = sellingPrice;
-    // add one item to cart
-    addItemToCart();
-    // clear barcode input
-    e.target.value = "";
-  } catch (err) {
-    console.error("barcode lookup failed:", err);
-    document.getElementById("stock-display").textContent = "Lookup error";
-  }
-}
 
 // populate vendor dropdown (for vendor-loan form)
 async function populateVendorDropdown() {
