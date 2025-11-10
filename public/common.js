@@ -280,6 +280,7 @@ async function handleProductSelection(e) {
   returns { product, batches } or null on error
   Batches include remaining_quantity
 */
+
 /* ---------------------- 📦 LOAD PRODUCT + ALL BATCHES (FIXED) ---------------------- */
 async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
   const supabase = await ensureSupabaseClient();
@@ -351,6 +352,7 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
   }
 }
 /* ---------------------- 📦 END LOAD PRODUCT + ALL BATCHES ---------------------- */
+
 // ---------- Barcode handling ----------
 // Called on input (debug) and on Enter (final)
 function handleBarcodeInputEvent(e) {
