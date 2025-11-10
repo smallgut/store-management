@@ -118,6 +118,9 @@ function showError(err) {
 // Populate product dropdown (only show products having batches with remaining_quantity > 0)
 /* ---------------------- 📦 POPULATE PRODUCT DROPDOWN ---------------------- */
 async function populateProductDropdown() {
+
+  if (window.__productDropdownPopulated) return;
+window.__productDropdownPopulated = true;
   const supabase = await ensureSupabaseClient();
   try {
     const sel = document.getElementById("product-select");
@@ -181,10 +184,10 @@ async function handleBarcodeInput(event) {
   const stockDisplay = document.getElementById("stock-display");
 
   try {
-    // 1️⃣ Get ALL products with the same barcode
+    // 1️⃣ Get ALL products that share this barcode
     const { data: products, error: productErr } = await supabase
       .from("products")
-      .select("id, name, barcode")
+      .select("id, name, barcode, price")
       .eq("barcode", barcode);
 
     if (productErr || !products || products.length === 0) {
@@ -201,7 +204,7 @@ async function handleBarcodeInput(event) {
     // 2️⃣ Collect product IDs
     const productIds = products.map(p => p.id);
 
-    // 3️⃣ Load all batches from all these product IDs
+    // 3️⃣ Get ALL batches with stock > 0 across these product IDs
     const { data: batches, error: batchErr } = await supabase
       .from("product_batches")
       .select("id, batch_number, remaining_quantity, product_id")
@@ -211,8 +214,9 @@ async function handleBarcodeInput(event) {
 
     if (batchErr) throw batchErr;
 
-    // 4️⃣ Show all batches with stock
+    // 🧹 Reset dropdown
     batchSelect.innerHTML = "";
+
     if (!batches || batches.length === 0) {
       batchSelect.innerHTML = `<option value="">-- ${
         document.documentElement.lang === "zh-TW" ? "沒有可用批次" : "No available batch"
@@ -224,7 +228,7 @@ async function handleBarcodeInput(event) {
       return;
     }
 
-    // 5️⃣ Populate dropdown with all batches from all product IDs
+    // 4️⃣ Populate batch dropdown (grouped by product ID)
     batchSelect.innerHTML =
       `<option value="">-- ${
         document.documentElement.lang === "zh-TW" ? "選擇批次號" : "Select Batch No."
@@ -232,16 +236,18 @@ async function handleBarcodeInput(event) {
       batches
         .map(
           (b) =>
-            `<option value="${b.batch_number}">${b.batch_number} (Stock: ${b.remaining_quantity}, Product ID: ${b.product_id})</option>`
+            `<option value="${b.batch_number}" data-product-id="${b.product_id}">
+              ${b.batch_number} (Stock: ${b.remaining_quantity})
+            </option>`
         )
         .join("");
 
-    // 6️⃣ Auto-select first product in dropdown
+    // 5️⃣ Auto-select the first product in dropdown
     if (productSelect && products.length > 0) {
       productSelect.value = products[0].id;
     }
 
-    // 7️⃣ Show total stock summary
+    // 6️⃣ Display total stock summary
     const totalStock = batches.reduce((sum, b) => sum + (b.remaining_quantity || 0), 0);
     stockDisplay.textContent = `${
       document.documentElement.lang === "zh-TW" ? "庫存總數" : "Total Stock"
@@ -257,7 +263,7 @@ async function handleBarcodeInput(event) {
     );
   }
 }
-/* ---------------------- 🔍 END UNIFIED BARCODE HANDLER (MULTI-PRODUCT FIX) ---------------------- */
+/* ---------------------- 🔍 END UNIFIED BARCODE HANDLER ---------------------- */
 
 // ---------- Product selection handler ----------
 async function handleProductSelection(e) {
