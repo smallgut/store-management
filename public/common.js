@@ -167,30 +167,27 @@ async function populateProductDropdown() {
 // ---------------------------------------------------------
 // 🔍 Barcode Lookup
 // ---------------------------------------------------------
-/* ---------------------- 🔍 UNIFIED BARCODE HANDLER ---------------------- */
+/* ---------------------- 🔍 UNIFIED BARCODE HANDLER (MULTI-PRODUCT FIX) ---------------------- */
 async function handleBarcodeInput(event) {
   if (event.key !== "Enter") return;
   const supabase = await ensureSupabaseClient();
 
   const barcode = event.target.value.trim();
   if (!barcode) return;
-
   console.log("🔍 Barcode entered:", barcode);
 
-  // Identify context (customer-sales or vendor-loan-record)
   const productSelect = document.getElementById("product-select");
   const batchSelect = document.getElementById("batch-no");
   const stockDisplay = document.getElementById("stock-display");
 
   try {
-    // 1️⃣ Find product by barcode
-    const { data: product, error: productErr } = await supabase
+    // 1️⃣ Get ALL products with the same barcode
+    const { data: products, error: productErr } = await supabase
       .from("products")
-      .select("id, name")
-      .eq("barcode", barcode)
-      .maybeSingle();
+      .select("id, name, barcode")
+      .eq("barcode", barcode);
 
-    if (productErr || !product) {
+    if (productErr || !products || products.length === 0) {
       alert(
         document.documentElement.lang === "zh-TW"
           ? "⚠️ 找不到此條碼的商品。"
@@ -199,34 +196,35 @@ async function handleBarcodeInput(event) {
       return;
     }
 
-    console.log("✅ Barcode auto-filled:", barcode);
+    console.log("✅ Products found for barcode:", products);
 
-    // 2️⃣ Auto-select product
-    if (productSelect) productSelect.value = product.id;
+    // 2️⃣ Collect product IDs
+    const productIds = products.map(p => p.id);
 
-    // 3️⃣ Load *all batches* with stock > 0 for that product
+    // 3️⃣ Load all batches from all these product IDs
     const { data: batches, error: batchErr } = await supabase
       .from("product_batches")
-      .select("id, batch_number, remaining_quantity")
-      .eq("product_id", product.id)
+      .select("id, batch_number, remaining_quantity, product_id")
+      .in("product_id", productIds)
       .gt("remaining_quantity", 0)
       .order("batch_number", { ascending: true });
 
     if (batchErr) throw batchErr;
 
+    // 4️⃣ Show all batches with stock
+    batchSelect.innerHTML = "";
     if (!batches || batches.length === 0) {
+      batchSelect.innerHTML = `<option value="">-- ${
+        document.documentElement.lang === "zh-TW" ? "沒有可用批次" : "No available batch"
+      } --</option>`;
       stockDisplay.textContent =
         document.documentElement.lang === "zh-TW"
           ? "⚠️ 此商品目前沒有庫存。"
           : "⚠️ No stock available for this product.";
-      batchSelect.innerHTML =
-        `<option value="">-- ${
-          document.documentElement.lang === "zh-TW" ? "沒有可用批次" : "No available batch"
-        } --</option>`;
       return;
     }
 
-    // 4️⃣ Populate all batches dynamically
+    // 5️⃣ Populate dropdown with all batches from all product IDs
     batchSelect.innerHTML =
       `<option value="">-- ${
         document.documentElement.lang === "zh-TW" ? "選擇批次號" : "Select Batch No."
@@ -234,20 +232,22 @@ async function handleBarcodeInput(event) {
       batches
         .map(
           (b) =>
-            `<option value="${b.batch_number}">${b.batch_number} (Stock: ${b.remaining_quantity})</option>`
+            `<option value="${b.batch_number}">${b.batch_number} (Stock: ${b.remaining_quantity}, Product ID: ${b.product_id})</option>`
         )
         .join("");
 
-    // 5️⃣ Update stock display summary
-    const totalStock = batches.reduce(
-      (sum, b) => sum + (b.remaining_quantity || 0),
-      0
-    );
+    // 6️⃣ Auto-select first product in dropdown
+    if (productSelect && products.length > 0) {
+      productSelect.value = products[0].id;
+    }
+
+    // 7️⃣ Show total stock summary
+    const totalStock = batches.reduce((sum, b) => sum + (b.remaining_quantity || 0), 0);
     stockDisplay.textContent = `${
-      document.documentElement.lang === "zh-TW"
-        ? "庫存總數"
-        : "Total Stock"
+      document.documentElement.lang === "zh-TW" ? "庫存總數" : "Total Stock"
     }: ${totalStock}`;
+
+    console.log("📦 All batches loaded for barcode:", barcode, batches);
   } catch (err) {
     console.error("❌ handleBarcodeInput() failed:", err);
     alert(
@@ -257,7 +257,7 @@ async function handleBarcodeInput(event) {
     );
   }
 }
-/* ---------------------- 🔍 END UNIFIED BARCODE HANDLER ---------------------- */
+/* ---------------------- 🔍 END UNIFIED BARCODE HANDLER (MULTI-PRODUCT FIX) ---------------------- */
 
 // ---------- Product selection handler ----------
 async function handleProductSelection(e) {
