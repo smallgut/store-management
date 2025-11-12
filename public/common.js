@@ -287,39 +287,53 @@ async function handleProductSelection(e) {
   Batches include remaining_quantity
 */
 
-/* ---------------------- 📦 LOAD PRODUCT + ALL BATCHES (FIXED) ---------------------- */
+/* ---------------------- 📦 LOAD PRODUCT + ALL BATCHES (MULTI-PRODUCT BARCODE SUPPORT) ---------------------- */
 async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
   const supabase = await ensureSupabaseClient();
   const batchSelect = document.getElementById("batch-no");
   const stockDisplay = document.getElementById("stock-display");
 
   try {
-    // 1️⃣ Load product (by ID or by barcode)
-    let productQuery = supabase
-      .from("products")
-      .select("id, name, barcode, price, units, vendor_id")
-      .limit(1);
+    let products = [];
 
-    if (byBarcode) productQuery = productQuery.eq("barcode", productIdOrBarcode);
-    else productQuery = productQuery.eq("id", productIdOrBarcode);
+    // 1️⃣ Load one or more products
+    if (byBarcode) {
+      const { data: productArr, error: prodErr } = await supabase
+        .from("products")
+        .select("id, name, barcode, price, units, vendor_id")
+        .eq("barcode", productIdOrBarcode);
 
-    const { data: productArr, error: prodErr } = await productQuery;
-    if (prodErr) throw prodErr;
-    if (!productArr || productArr.length === 0) return null;
+      if (prodErr) throw prodErr;
+      if (!productArr || productArr.length === 0) return null;
 
-    const product = productArr[0];
+      products = productArr; // all with same barcode
+    } else {
+      const { data: productArr, error: prodErr } = await supabase
+        .from("products")
+        .select("id, name, barcode, price, units, vendor_id")
+        .eq("id", productIdOrBarcode)
+        .limit(1);
 
-    // 2️⃣ Load ALL batches with remaining stock > 0
+      if (prodErr) throw prodErr;
+      if (!productArr || productArr.length === 0) return null;
+
+      products = productArr;
+    }
+
+    // 2️⃣ Collect product IDs
+    const productIds = products.map(p => p.id);
+
+    // 3️⃣ Load all batches with stock > 0 across these products
     const { data: batches, error: batchErr } = await supabase
       .from("product_batches")
-      .select("id, batch_number, remaining_quantity")
-      .eq("product_id", product.id)
+      .select("id, batch_number, remaining_quantity, product_id")
+      .in("product_id", productIds)
       .gt("remaining_quantity", 0)
       .order("batch_number", { ascending: true });
 
     if (batchErr) throw batchErr;
 
-    // 3️⃣ Update batch dropdown in UI (if exists)
+    // 4️⃣ Update batch dropdown
     if (batchSelect) {
       batchSelect.innerHTML = "";
 
@@ -333,7 +347,9 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
           batches
             .map(
               (b) =>
-                `<option value="${b.batch_number}">${b.batch_number} (Stock: ${b.remaining_quantity})</option>`
+                `<option value="${b.batch_number}" data-product-id="${b.product_id}">
+                  ${b.batch_number} (Stock: ${b.remaining_quantity})
+                </option>`
             )
             .join("");
 
@@ -346,10 +362,10 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
       }
     }
 
-    console.log("📦 Batches loaded for product:", product.id, batches);
+    console.log("📦 Batches loaded for product(s):", productIds, batches);
 
-    // 4️⃣ Return for barcode auto-fill and cart logic
-    return { product, batches: batches || [] };
+    // 5️⃣ Return structure compatible with barcode autofill logic
+    return { products, batches: batches || [] };
   } catch (err) {
     console.error("❌ loadProductAndBatches() failed:", err);
     if (stockDisplay)
