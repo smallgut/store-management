@@ -243,6 +243,31 @@ async function handleBarcodeInput(event) {
         .join("");
 
     // 5️⃣ Auto-select the first product in dropdown
+    // 🆕 PATCH: Rebuild product dropdown to match scanned barcode
+if (productSelect) {
+  productSelect.innerHTML = "";
+
+  // If multiple products share same barcode → list all
+  if (products.length > 1) {
+    productSelect.innerHTML =
+      `<option value="">-- Select Product --</option>` +
+      products
+        .map(
+          (p) =>
+            `<option value="${p.id}">
+               ${p.name} (${p.barcode})
+             </option>`
+        )
+        .join("");
+  } else {
+    // Single product → auto select
+    const p = products[0];
+    productSelect.innerHTML =
+      `<option value="${p.id}" selected>
+         ${p.name} (${p.barcode})
+       </option>`;
+  }
+}
     if (productSelect && products.length > 0) {
       productSelect.value = products[0].id;
     }
