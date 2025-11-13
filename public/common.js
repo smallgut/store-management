@@ -253,6 +253,15 @@ async function handleBarcodeInput(event) {
       document.documentElement.lang === "zh-TW" ? "庫存總數" : "Total Stock"
     }: ${totalStock}`;
 
+    // 🟢 Auto-select the correct product in the product dropdown
+if (productSelect && batches.length > 0) {
+  const firstBatchProductId = batches[0].product_id;
+
+  // this selects the product in the dropdown
+  productSelect.value = firstBatchProductId;
+
+  console.log("🟢 Auto-selected product:", firstBatchProductId);
+}
     console.log("📦 All batches loaded for barcode:", barcode, batches);
   } catch (err) {
     console.error("❌ handleBarcodeInput() failed:", err);
