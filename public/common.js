@@ -2098,18 +2098,13 @@ if (barcodeInput) {
 }
 
 
-  // Auto-set product when user selects a batch
-const batchSelect = document.getElementById("batch-no");
-const productSelect = document.getElementById("product-select");
-if (batchSelect && productSelect) {
-  batchSelect.addEventListener("change", () => {
-    const selectedOpt = batchSelect.options[batchSelect.selectedIndex];
-    if (selectedOpt && selectedOpt.dataset.productId) {
-      productSelect.value = selectedOpt.dataset.productId;
-      console.log("🟢 Product auto-selected from batch:", selectedOpt.dataset.productId);
-    }
-  });
-}
+ // Auto-select product when batch is chosen
+document.getElementById("batch-no")?.addEventListener("change", function() {
+  const selected = this.options[this.selectedIndex];
+  if (selected && selected.dataset.productId) {
+    document.getElementById("product-select").value = selected.dataset.productId;
+  }
+});
  // ✅ Add Item button — collect inputs safely and call addItemToCart()
 // ✅ Add Item button — collect inputs safely and call addItemToCart()
 const addBtn = document.getElementById("add-item");
