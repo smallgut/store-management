@@ -214,7 +214,7 @@ async function handleBarcodeInput(event) {
 
     if (batchErr) throw batchErr;
 
-    // 4️⃣ Populate batch dropdown
+    // 4️⃣ Populate batch dropdown (use value = id for consistency)
     batchSelect.innerHTML = "";
 
     if (!batches || batches.length === 0) {
@@ -239,45 +239,47 @@ async function handleBarcodeInput(event) {
       batches
         .map(
           (b) =>
-            `<option value="${b.batch_number}" data-product-id="${b.product_id}">
+            `<option value="${b.id}" data-product-id="${b.product_id}">
               ${b.batch_number} (Stock: ${b.remaining_quantity})
             </option>`
         )
         .join("");
 
-    // 🆕 PATCH: Rebuild product dropdown based on products found
-    if (productSelect) {
-      productSelect.innerHTML = "";
+    // 5️⃣ Select the product (without rebuilding dropdown) + handle multiples
+    let selectedProductId;
+    if (products.length > 1) {
+      alert(
+        document.documentElement.lang === "zh-TW"
+          ? "⚠️ 此條碼對應多個商品。自動選擇第一個批次的商品。"
+          : "⚠️ Multiple products found for this barcode. Selecting the one from the first batch."
+      );
+      selectedProductId = batches[0].product_id;
+    } else {
+      selectedProductId = products[0].id;
+    }
+    if (productSelect && selectedProductId) {
+      productSelect.value = selectedProductId;
+      console.log("🟢 Auto-selected product:", selectedProductId);
+    }
 
-      if (products.length > 1) {
-        productSelect.innerHTML =
-          `<option value="">-- Select Product --</option>` +
-          products
-            .map(
-              (p) =>
-                `<option value="${p.id}">
-                  ${p.name} (${p.barcode})
-                </option>`
-            )
-            .join("");
-      } else {
-        const p = products[0];
-        productSelect.innerHTML = `<option value="${p.id}" selected>${p.name} (${p.barcode})</option>`;
+    // 6️⃣ Filter batches to the selected product (enhances UX if multiples)
+    if (selectedProductId) {
+      const options = Array.from(batchSelect.options);
+      for (let i = options.length - 1; i > 0; i--) { // Skip the "-- Select --" option
+        if (options[i].dataset.productId !== selectedProductId) {
+          options[i].remove();
+        }
       }
     }
 
-    // 5️⃣ Auto-select matching product ID based on first batch
-    if (productSelect && batches.length > 0) {
-      const firstBatchProductId = batches[0].product_id;
-      productSelect.value = firstBatchProductId;
-      console.log("🟢 Auto-selected product:", firstBatchProductId);
-    }
-
-    // 6️⃣ Update total stock display
-    const totalStock = batches.reduce(
-      (sum, b) => sum + (b.remaining_quantity || 0),
-      0
-    );
+    // 7️⃣ Update total stock display (recalculate after filter)
+    let totalStock = 0;
+    Array.from(batchSelect.options).forEach(opt => {
+      if (opt.value !== "") {
+        const stockStr = opt.text.match(/Stock: (\d+)/)?.[1] || "0";
+        totalStock += parseInt(stockStr, 10);
+      }
+    });
     stockDisplay.textContent = `${
       document.documentElement.lang === "zh-TW" ? "庫存總數" : "Total Stock"
     }: ${totalStock}`;
@@ -362,7 +364,7 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
 
     if (batchErr) throw batchErr;
 
-    // 4️⃣ Update batch dropdown
+    // 4️⃣ Update batch dropdown (use value = id)
     if (batchSelect) {
       batchSelect.innerHTML = "";
 
@@ -376,7 +378,7 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
           batches
             .map(
               (b) =>
-                `<option value="${b.batch_number}" data-product-id="${b.product_id}">
+                `<option value="${b.id}" data-product-id="${b.product_id}">
                   ${b.batch_number} (Stock: ${b.remaining_quantity})
                 </option>`
             )
@@ -521,9 +523,9 @@ function escapeHtml(s) {
    ============================================================ */
 
 /* ---------------------- 🛒 FIXED ADD ITEM TO CART ---------------------- */
-async function addItemToCart(barcode, batchId, quantity, price, productName) {
+async function addItemToCart(barcode, batchId, quantity, price, productName, batchNumber) {
   try {
-    console.log("🟢 addItemToCart() called", { barcode, batchId, quantity, price, productName });
+    console.log("🟢 addItemToCart() called", { barcode, batchId, quantity, price, productName, batchNumber });
 
     // --- Validation ---
     if (!barcode) return alert("❌ Invalid product barcode.");
@@ -537,7 +539,7 @@ async function addItemToCart(barcode, batchId, quantity, price, productName) {
     const existingRow = Array.from(tbody.querySelectorAll("tr")).find(row => {
       const cellBarcode = row.querySelector("td:nth-child(2)")?.textContent?.trim();
       const cellBatch = row.querySelector("td:nth-child(3)")?.dataset?.batchId;
-      return cellBarcode === barcode && cellBatch === String(batchId);
+      return cellBarcode === barcode && cellBatch === batchId; // Note: batchId is string
     });
 
     if (existingRow) {
@@ -553,7 +555,7 @@ async function addItemToCart(barcode, batchId, quantity, price, productName) {
       row.innerHTML = `
         <td class="border p-2">${productName || ""}</td>
         <td class="border p-2">${barcode}</td>
-        <td class="border p-2" data-batch-id="${batchId || ""}">${batchId || ""}</td>
+        <td class="border p-2" data-batch-id="${batchId || ""}">${batchNumber || ""}</td>
         <td class="border p-2">${quantity}</td>
         <td class="border p-2">${Number(price).toFixed(2)}</td>
         <td class="border p-2">${subtotal}</td>
@@ -2136,13 +2138,16 @@ if (productSelect) {
   }
 
  // ✅ Add Item button — collect inputs safely and call addItemToCart()
+// ✅ Add Item button — collect inputs safely and call addItemToCart()
 const addBtn = document.getElementById("add-item");
 if (addBtn) {
   addBtn.addEventListener("click", (e) => {
     e.preventDefault();
 
     const barcode = document.getElementById("product-barcode")?.value?.trim();
-    const batchNo = document.getElementById("batch-no")?.value?.trim();
+    const batchSelect = document.getElementById("batch-no");
+    const batchId = batchSelect?.value?.trim() || "";
+    const batchNumber = batchSelect?.options[batchSelect.selectedIndex]?.text.split(" (")[0]?.trim() || "";
     const qty = parseFloat(document.getElementById("quantity")?.value || "0");
     const price = parseFloat(document.getElementById("selling-price")?.value || "0");
     const productSelect = document.getElementById("product-select");
@@ -2151,7 +2156,12 @@ if (addBtn) {
       document.getElementById("product-name")?.value ||
       "";
 
-    addItemToCart(barcode, batchNo, qty, price, productName);
+    if (!batchId || qty <= 0 || price <= 0) {
+      alert("⚠️ Please select a batch and enter valid quantity/price.");
+      return;
+    }
+
+    addItemToCart(barcode, batchId, qty, price, productName, batchNumber);
   });
 }
   
