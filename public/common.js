@@ -2113,29 +2113,34 @@ if (productSelect) {
   
   // barcode input Enter handler
   const barcodeInput = document.getElementById("product-barcode");
-  if (barcodeInput) {
-    barcodeInput.addEventListener("keydown", async (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        const code = barcodeInput.value.trim();
-        if (!code) return;
-        debugLog("🔍 Barcode entered:", code);
-        const result = await loadProductAndBatches(code, true);
-        if (!result) {
-          document.getElementById("stock-display").textContent = "Product not found";
-          return;
-        }
-        // set product-select to product.id if present
-        const prodSel = document.getElementById("product-select");
-        if (prodSel) {
-          prodSel.value = result.product.id;
-          // trigger change to populate batches
-          const ev = new Event("change");
-          prodSel.dispatchEvent(ev);
-        }
+if (barcodeInput) {
+  barcodeInput.addEventListener("keydown", async (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const code = barcodeInput.value.trim();
+      if (!code) return;
+
+      console.log("Barcode entered (Enter):", code);
+      const result = await loadProductAndBatches(code, true);
+      if (!result || !result.products || result.products.length === 0) {
+        const stockDisplay = document.getElementById("stock-display");
+        if (stockDisplay) stockDisplay.textContent = "Product not found or no stock";
+        return;
       }
-    });
-  }
+
+      const prodSel = document.getElementById("product-select");
+      if (prodSel && result.products.length > 0) {
+        // Take the first product (most common case)
+        const firstProductId = result.products[0].id;
+        prodSel.value = firstProductId;
+        console.log("Auto-selected product ID:", firstProductId);
+
+        // Trigger change so batches reload
+        prodSel.dispatchEvent(new Event("change"));
+      }
+    }
+  });
+}
 
  // ✅ Add Item button — collect inputs safely and call addItemToCart()
 // ✅ Add Item button — collect inputs safely and call addItemToCart()
@@ -2144,23 +2149,24 @@ if (addBtn) {
   addBtn.addEventListener("click", (e) => {
     e.preventDefault();
 
-    const barcode = document.getElementById("product-barcode")?.value?.trim();
+    const barcode = document.getElementById("product-barcode")?.value?.trim() || "";
     const batchSelect = document.getElementById("batch-no");
-    const batchId = batchSelect?.value?.trim() || "";
-    const batchNumber = batchSelect?.options[batchSelect.selectedIndex]?.text.split(" (")[0]?.trim() || "";
+    const batchId = batchSelect?.value || "";  // now this is numeric ID
+    const batchOption = batchSelect?.options[batchSelect.selectedIndex];
+    const batchNumber = batchOption?.text.split(" (")[0].trim() || "";  // e.g. "B-ABC123-20251101"
+
     const qty = parseFloat(document.getElementById("quantity")?.value || "0");
     const price = parseFloat(document.getElementById("selling-price")?.value || "0");
+
     const productSelect = document.getElementById("product-select");
-    const productName =
-      productSelect?.options[productSelect.selectedIndex]?.text ||
-      document.getElementById("product-name")?.value ||
-      "";
+    const productName = productSelect?.options[productSelect.selectedIndex]?.text || "Unknown Product";
 
     if (!batchId || qty <= 0 || price <= 0) {
-      alert("⚠️ Please select a batch and enter valid quantity/price.");
+      alert("Please select a valid batch, quantity, and price.");
       return;
     }
 
+    // Pass both batchId (for DB) and batchNumber (for display)
     addItemToCart(barcode, batchId, qty, price, productName, batchNumber);
   });
 }
