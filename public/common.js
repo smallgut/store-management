@@ -116,19 +116,9 @@ function showError(err) {
 
 
 // Populate product dropdown (only show products having batches with remaining_quantity > 0)
-/* ---------------------- 📦 POPULATE PRODUCT DROPDOWN ---------------------- */
 async function populateProductDropdown() {
-
-  if (window.__productDropdownPopulated) return;
-window.__productDropdownPopulated = true;
   const supabase = await ensureSupabaseClient();
   try {
-    const sel = document.getElementById("product-select");
-    if (!sel) return;
-
-    // ✅ Clear previous options before reloading to prevent duplicates
-    sel.innerHTML = `<option value="">-- Select a Product --</option>`;
-
     // Get all products
     const { data: products, error } = await supabase
       .from("products")
@@ -144,7 +134,7 @@ window.__productDropdownPopulated = true;
         .from("product_batches")
         .select("id, remaining_quantity")
         .eq("product_id", p.id)
-        .gt("remaining_quantity", 0) // only batches with stock > 0
+        .gt("remaining_quantity", 0)  // only batches with stock > 0
         .limit(1);
 
       if (batchErr) throw batchErr;
@@ -154,102 +144,36 @@ window.__productDropdownPopulated = true;
       }
     }
 
-    // ✅ Add the filtered products
-    out.forEach(p => {
-      const option = document.createElement("option");
-      option.value = p.id;
-      option.textContent = `${p.name} ${p.barcode ? "(" + p.barcode + ")" : ""}`;
-      sel.appendChild(option);
-    });
+    const sel = document.getElementById("product-select");
+    if (!sel) return;
+    sel.innerHTML = `<option value="">-- Select a Product --</option>` +
+      out.map(p => `<option value="${p.id}">${p.name} ${p.barcode ? "(" + p.barcode + ")" : ""}</option>`).join("");
 
     debugLog("📦 Products for dropdown (filtered by stock > 0):", out);
   } catch (err) {
     console.error("populateProductDropdown error:", err);
   }
 }
+
 // ---------------------------------------------------------
 // 🔍 Barcode Lookup
 // ---------------------------------------------------------
-/* ---------------------- 🔍 UNIFIED BARCODE HANDLER (MULTI-PRODUCT FIX) ---------------------- */
-async function handleBarcodeInput(event) {
-  if (event.key !== "Enter") return;
-  const supabase = await ensureSupabaseClient();
-
-  const barcode = event.target.value.trim();
-  if (!barcode) return;
-  console.log("🔍 Barcode entered:", barcode);
-
-  const productSelect = document.getElementById("product-select");
-  const batchSelect = document.getElementById("batch-no");
-  const stockDisplay = document.getElementById("stock-display");
-
-  try {
-    // 1️⃣ Get ALL products with this barcode
-    const { data: products, error: productErr } = await supabase
-      .from("products")
-      .select("id, name, barcode, price")
-      .eq("barcode", barcode);
-
-    if (productErr || !products || products.length === 0) {
-      alert("⚠️ No product found for this barcode.");
+async function handleBarcodeInput(e) {
+  if (e.key === "Enter") {
+    const barcode = e.target.value.trim();
+    if (!barcode) return;
+    console.log("🔍 Barcode entered:", barcode);
+    const supabase = await ensureSupabaseClient();
+    const { data, error } = await supabase.from("products").select("*").eq("barcode", barcode).single();
+    if (error || !data) {
+      console.warn("❌ Product not found for barcode:", barcode);
+      document.getElementById("stock-display").textContent = "Product not found";
       return;
     }
-
-    const productIds = products.map(p => p.id);
-
-    // 2️⃣ Get ALL batches with stock > 0
-    const { data: batches, error: batchErr } = await supabase
-      .from("product_batches")
-      .select("id, batch_number, remaining_quantity, product_id")
-      .in("product_id", productIds)
-      .gt("remaining_quantity", 0)
-      .order("batch_number", { ascending: true });
-
-    if (batchErr) throw batchErr;
-
-    if (!batches || batches.length === 0) {
-      batchSelect.innerHTML = `<option value="">-- No stock --</option>`;
-      stockDisplay.textContent = "⚠️ No stock available.";
-      return;
-    }
-
-    // 3️⃣ Build product name map for prefix
-    const productMap = {};
-    products.forEach(p => { productMap[p.id] = p.name; });
-
-    // 4️⃣ Populate batches with clear prefix when multiple products
-    batchSelect.innerHTML = `<option value="">-- Select Batch --</option>`;
-    let totalStock = 0;
-
-    batches.forEach(b => {
-      const prodName = productMap[b.product_id] || "Unknown";
-      const prefix = products.length > 1 ? `${prodName} - ` : "";
-      const optionText = `${prefix}${b.batch_number} (Stock: ${b.remaining_quantity})`;
-
-      const opt = document.createElement("option");
-      opt.value = b.id;                           // numeric ID for sales
-      opt.textContent = optionText;
-      opt.dataset.productId = b.product_id;
-      opt.dataset.batchNumber = b.batch_number;   // string for loans
-      batchSelect.appendChild(opt);
-
-      totalStock += b.remaining_quantity;
-    });
-
-    stockDisplay.textContent = `Total Stock (all batches): ${totalStock}`;
-
-    // 5️⃣ Alert if multiple products share barcode
-    if (products.length > 1) {
-      alert(`⚠️ ${products.length} products share this barcode!\nBatches are prefixed with product name.\nPlease select the correct one.`);
-    }
-
-    console.log("✅ All batches loaded (no filtering):", batches);
-  } catch (err) {
-    console.error("❌ handleBarcodeInput failed:", err);
-    alert("Barcode processing failed.");
+    console.log("📦 Product found via barcode:", data);
+    await loadProductAndBatches(data.id, true);
   }
 }
-/* ---------------------- 🔍 END UNIFIED BARCODE HANDLER ---------------------- */
 
 // ---------- Product selection handler ----------
 async function handleProductSelection(e) {
@@ -272,106 +196,78 @@ async function handleProductSelection(e) {
   returns { product, batches } or null on error
   Batches include remaining_quantity
 */
-
-/* ---------------------- 📦 LOAD PRODUCT + ALL BATCHES (MULTI-PRODUCT BARCODE SUPPORT) ---------------------- */
 async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
   const supabase = await ensureSupabaseClient();
-  const batchSelect = document.getElementById("batch-no");
-  const stockDisplay = document.getElementById("stock-display");
-
   try {
-    let products = [];
+    let productQuery = supabase.from("products").select("id, name, barcode, price, units, vendor_id").limit(1);
+    if (byBarcode) productQuery = productQuery.eq("barcode", productIdOrBarcode);
+    else productQuery = productQuery.eq("id", productIdOrBarcode);
 
-    // 1️⃣ Load one or more products
-    if (byBarcode) {
-      const { data: productArr, error: prodErr } = await supabase
-        .from("products")
-        .select("id, name, barcode, price, units, vendor_id")
-        .eq("barcode", productIdOrBarcode);
+    const { data: productArr, error: prodErr } = await productQuery;
+    if (prodErr) throw prodErr;
+    if (!productArr || productArr.length === 0) return null;
+    const product = productArr[0];
 
-      if (prodErr) throw prodErr;
-      if (!productArr || productArr.length === 0) return null;
-
-      products = productArr; // all with same barcode
-    } else {
-      const { data: productArr, error: prodErr } = await supabase
-        .from("products")
-        .select("id, name, barcode, price, units, vendor_id")
-        .eq("id", productIdOrBarcode)
-        .limit(1);
-
-      if (prodErr) throw prodErr;
-      if (!productArr || productArr.length === 0) return null;
-
-      products = productArr;
-    }
-
-    // 2️⃣ Collect product IDs
-    const productIds = products.map(p => p.id);
-
-    // 3️⃣ Load all batches with stock > 0 across these products
+    // batches that belong to product and have remaining quantity (we might include zero to allow seeing no stock)
     const { data: batches, error: batchErr } = await supabase
       .from("product_batches")
-      .select("id, batch_number, remaining_quantity, product_id")
-      .in("product_id", productIds)
-      .gt("remaining_quantity", 0)
-      .order("batch_number", { ascending: true });
+      .select("id, batch_number, remaining_quantity")
+      .eq("product_id", product.id)
+      .order("created_at", { ascending: false });
 
     if (batchErr) throw batchErr;
 
-    // 4️⃣ Update batch dropdown (use value = id)
-    if (batchSelect) {
-      batchSelect.innerHTML = "";
-
-      if (!batches || batches.length === 0) {
-        batchSelect.innerHTML = `<option value="">-- No available batch --</option>`;
-        if (stockDisplay)
-          stockDisplay.textContent = "⚠️ No stock available for this product.";
-      } else {
-        batchSelect.innerHTML =
-          `<option value="">-- Select Batch No. --</option>` +
-          batches
-            .map(
-              (b) =>
-                `<option value="${b.id}" data-product-id="${b.product_id}">
-                  ${b.batch_number} (Stock: ${b.remaining_quantity})
-                </option>`
-            )
-            .join("");
-
-        const totalStock = batches.reduce(
-          (sum, b) => sum + (b.remaining_quantity || 0),
-          0
-        );
-        if (stockDisplay)
-          stockDisplay.textContent = `Total Stock: ${totalStock}`;
-      }
-    }
-
-    console.log("📦 Batches loaded for product(s):", productIds, batches);
-
-    // 5️⃣ Return structure compatible with barcode autofill logic
-    return { products, batches: batches || [] };
+    return { product, batches: batches || [] };
   } catch (err) {
-    console.error("❌ loadProductAndBatches() failed:", err);
-    if (stockDisplay)
-      stockDisplay.textContent = "Error loading product or batch info.";
+    console.error("loadProductAndBatches failed:", err);
     return null;
   }
 }
-/* ---------------------- 📦 END LOAD PRODUCT + ALL BATCHES ---------------------- */
 
 // ---------- Barcode handling ----------
 // Called on input (debug) and on Enter (final)
 function handleBarcodeInputEvent(e) {
   const v = e.target.value.trim();
-  if (e.key === "Enter") {
-    console.log("🔍 Barcode Enter pressed:", v);
-    // Call the unified handler that handles both loan + sales pages
-    handleBarcodeInput(e);
-  } else {
-    // Optional: live feedback only
-    console.log("⌨️ Typing barcode:", v);
+  console.log("🔍 Barcode entered:", v);
+  // don't auto-search on each keystroke — only on Enter we'll treat as final.
+}
+
+async function handleBarcodeEnter(e) {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const val = e.target.value.trim();
+  if (!val) return;
+  const supabase = await ensureSupabaseClient();
+  try {
+    const { data: product } = await supabase
+      .from("products")
+      .select("id,name,barcode,price")
+      .eq("barcode", val)
+      .limit(1)
+      .maybeSingle();
+    if (!product) {
+      document.getElementById("stock-display").textContent = "Product not found";
+      return;
+    }
+    // load batches and auto-fill selects
+    const res = await loadProductAndBatches(product.id, false);
+    // pick defaults and add to cart automatically
+    const batchId = (res?.batches && res.batches.length) ? res.batches[0].id : null;
+    const sellingPrice = product.price || 0;
+    // prepare a quick add: set form fields so addItemToCart works
+    const productSelect = document.getElementById("product-select");
+    if (productSelect) productSelect.value = product.id;
+    const batchSelect = document.getElementById("batch-no");
+    if (batchSelect && batchId) batchSelect.value = batchId;
+    const priceInput = document.getElementById("selling-price");
+    if (priceInput) priceInput.value = sellingPrice;
+    // add one item to cart
+    addItemToCart();
+    // clear barcode input
+    e.target.value = "";
+  } catch (err) {
+    console.error("barcode lookup failed:", err);
+    document.getElementById("stock-display").textContent = "Lookup error";
   }
 }
 
@@ -478,9 +374,9 @@ function escapeHtml(s) {
    ============================================================ */
 
 /* ---------------------- 🛒 FIXED ADD ITEM TO CART ---------------------- */
-async function addItemToCart(barcode, batchId, quantity, price, productName, batchNumber) {
+async function addItemToCart(barcode, batchId, quantity, price, productName) {
   try {
-    console.log("🟢 addItemToCart() called", { barcode, batchId, quantity, price, productName, batchNumber });
+    console.log("🟢 addItemToCart() called", { barcode, batchId, quantity, price, productName });
 
     // --- Validation ---
     if (!barcode) return alert("❌ Invalid product barcode.");
@@ -494,7 +390,7 @@ async function addItemToCart(barcode, batchId, quantity, price, productName, bat
     const existingRow = Array.from(tbody.querySelectorAll("tr")).find(row => {
       const cellBarcode = row.querySelector("td:nth-child(2)")?.textContent?.trim();
       const cellBatch = row.querySelector("td:nth-child(3)")?.dataset?.batchId;
-      return cellBarcode === barcode && cellBatch === batchId; // Note: batchId is string
+      return cellBarcode === barcode && cellBatch === String(batchId);
     });
 
     if (existingRow) {
@@ -510,7 +406,7 @@ async function addItemToCart(barcode, batchId, quantity, price, productName, bat
       row.innerHTML = `
         <td class="border p-2">${productName || ""}</td>
         <td class="border p-2">${barcode}</td>
-        <td class="border p-2" data-batch-id="${batchId || ""}">${batchNumber || ""}</td>
+        <td class="border p-2" data-batch-id="${batchId || ""}">${batchId || ""}</td>
         <td class="border p-2">${quantity}</td>
         <td class="border p-2">${Number(price).toFixed(2)}</td>
         <td class="border p-2">${subtotal}</td>
@@ -2068,69 +1964,47 @@ if (productSelect) {
   
   // barcode input Enter handler
   const barcodeInput = document.getElementById("product-barcode");
-if (barcodeInput) {
-  barcodeInput.addEventListener("keydown", async (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const code = barcodeInput.value.trim();
-      if (!code) return;
-
-      console.log("Barcode entered (Enter):", code);
-      const result = await loadProductAndBatches(code, true);
-      if (!result || !result.products || result.products.length === 0) {
-        const stockDisplay = document.getElementById("stock-display");
-        if (stockDisplay) stockDisplay.textContent = "Product not found or no stock";
-        return;
+  if (barcodeInput) {
+    barcodeInput.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const code = barcodeInput.value.trim();
+        if (!code) return;
+        debugLog("🔍 Barcode entered:", code);
+        const result = await loadProductAndBatches(code, true);
+        if (!result) {
+          document.getElementById("stock-display").textContent = "Product not found";
+          return;
+        }
+        // set product-select to product.id if present
+        const prodSel = document.getElementById("product-select");
+        if (prodSel) {
+          prodSel.value = result.product.id;
+          // trigger change to populate batches
+          const ev = new Event("change");
+          prodSel.dispatchEvent(ev);
+        }
       }
-
-      const prodSel = document.getElementById("product-select");
-      if (prodSel && result.products.length > 0) {
-        // Take the first product (most common case)
-        const firstProductId = result.products[0].id;
-        prodSel.value = firstProductId;
-        console.log("Auto-selected product ID:", firstProductId);
-
-        // Trigger change so batches reload
-        prodSel.dispatchEvent(new Event("change"));
-      }
-    }
-  });
-}
-
-
- // Auto-select product when batch is chosen
-document.getElementById("batch-no")?.addEventListener("change", function() {
-  const selected = this.options[this.selectedIndex];
-  if (selected && selected.dataset.productId) {
-    document.getElementById("product-select").value = selected.dataset.productId;
+    });
   }
-});
+
  // ✅ Add Item button — collect inputs safely and call addItemToCart()
-// ✅ Add Item button — collect inputs safely and call addItemToCart()
 const addBtn = document.getElementById("add-item");
 if (addBtn) {
   addBtn.addEventListener("click", (e) => {
     e.preventDefault();
 
-    const barcode = document.getElementById("product-barcode")?.value?.trim() || "";
-    const batchSelect = document.getElementById("batch-no");
-    const batchId = batchSelect?.value || "";  // now this is numeric ID
-    const batchOption = batchSelect?.options[batchSelect.selectedIndex];
-    const batchNumber = batchOption?.text.split(" (")[0].trim() || "";  // e.g. "B-ABC123-20251101"
-
+    const barcode = document.getElementById("product-barcode")?.value?.trim();
+    const batchNo = document.getElementById("batch-no")?.value?.trim();
     const qty = parseFloat(document.getElementById("quantity")?.value || "0");
     const price = parseFloat(document.getElementById("selling-price")?.value || "0");
-
     const productSelect = document.getElementById("product-select");
-    const productName = productSelect?.options[productSelect.selectedIndex]?.text || "Unknown Product";
+    const productName =
+      productSelect?.options[productSelect.selectedIndex]?.text ||
+      document.getElementById("product-name")?.value ||
+      "";
 
-    if (!batchId || qty <= 0 || price <= 0) {
-      alert("Please select a valid batch, quantity, and price.");
-      return;
-    }
-
-    // Pass both batchId (for DB) and batchNumber (for display)
-    addItemToCart(barcode, batchId, qty, price, productName, batchNumber);
+    addItemToCart(barcode, batchNo, qty, price, productName);
   });
 }
   
