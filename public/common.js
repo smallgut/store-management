@@ -184,27 +184,20 @@ async function handleBarcodeInput(event) {
   const stockDisplay = document.getElementById("stock-display");
 
   try {
-    // 1️⃣ Get ALL products with matching barcode
+    // 1️⃣ Get ALL products with this barcode
     const { data: products, error: productErr } = await supabase
       .from("products")
       .select("id, name, barcode, price")
       .eq("barcode", barcode);
 
     if (productErr || !products || products.length === 0) {
-      alert(
-        document.documentElement.lang === "zh-TW"
-          ? "⚠️ 找不到此條碼的商品。"
-          : "⚠️ Product not found for this barcode."
-      );
+      alert("⚠️ No product found for this barcode.");
       return;
     }
 
-    console.log("✅ Products found for barcode:", products);
+    const productIds = products.map(p => p.id);
 
-    // 2️⃣ Collect product IDs
-    const productIds = products.map((p) => p.id);
-
-    // 3️⃣ Load ALL batches across these product IDs
+    // 2️⃣ Get ALL batches with stock > 0
     const { data: batches, error: batchErr } = await supabase
       .from("product_batches")
       .select("id, batch_number, remaining_quantity, product_id")
@@ -214,84 +207,46 @@ async function handleBarcodeInput(event) {
 
     if (batchErr) throw batchErr;
 
-    // 4️⃣ Populate batch dropdown (use value = id for consistency)
-    batchSelect.innerHTML = "";
-
     if (!batches || batches.length === 0) {
-      batchSelect.innerHTML = `<option value="">-- ${
-        document.documentElement.lang === "zh-TW"
-          ? "沒有可用批次"
-          : "No available batch"
-      } --</option>`;
-      stockDisplay.textContent =
-        document.documentElement.lang === "zh-TW"
-          ? "⚠️ 此商品目前沒有庫存。"
-          : "⚠️ No stock available for this product.";
+      batchSelect.innerHTML = `<option value="">-- No stock --</option>`;
+      stockDisplay.textContent = "⚠️ No stock available.";
       return;
     }
 
-    batchSelect.innerHTML =
-      `<option value="">-- ${
-        document.documentElement.lang === "zh-TW"
-          ? "選擇批次號"
-          : "Select Batch No."
-      } --</option>` +
-      batches
-        .map(
-          (b) =>
-            `<option value="${b.id}" data-product-id="${b.product_id}">
-              ${b.batch_number} (Stock: ${b.remaining_quantity})
-            </option>`
-        )
-        .join("");
+    // 3️⃣ Build product name map for prefix
+    const productMap = {};
+    products.forEach(p => { productMap[p.id] = p.name; });
 
-    // 5️⃣ Select the product (without rebuilding dropdown) + handle multiples
-    let selectedProductId;
-    if (products.length > 1) {
-      alert(
-        document.documentElement.lang === "zh-TW"
-          ? "⚠️ 此條碼對應多個商品。自動選擇第一個批次的商品。"
-          : "⚠️ Multiple products found for this barcode. Selecting the one from the first batch."
-      );
-      selectedProductId = batches[0].product_id;
-    } else {
-      selectedProductId = products[0].id;
-    }
-    if (productSelect && selectedProductId) {
-      productSelect.value = selectedProductId;
-      console.log("🟢 Auto-selected product:", selectedProductId);
-    }
-
-    // 6️⃣ Filter batches to the selected product (enhances UX if multiples)
-    if (selectedProductId) {
-      const options = Array.from(batchSelect.options);
-      for (let i = options.length - 1; i > 0; i--) { // Skip the "-- Select --" option
-        if (options[i].dataset.productId !== selectedProductId) {
-          options[i].remove();
-        }
-      }
-    }
-
-    // 7️⃣ Update total stock display (recalculate after filter)
+    // 4️⃣ Populate batches with clear prefix when multiple products
+    batchSelect.innerHTML = `<option value="">-- Select Batch --</option>`;
     let totalStock = 0;
-    Array.from(batchSelect.options).forEach(opt => {
-      if (opt.value !== "") {
-        const stockStr = opt.text.match(/Stock: (\d+)/)?.[1] || "0";
-        totalStock += parseInt(stockStr, 10);
-      }
-    });
-    stockDisplay.textContent = `${
-      document.documentElement.lang === "zh-TW" ? "庫存總數" : "Total Stock"
-    }: ${totalStock}`;
 
-    console.log("📦 All batches loaded for barcode:", barcode, batches);
+    batches.forEach(b => {
+      const prodName = productMap[b.product_id] || "Unknown";
+      const prefix = products.length > 1 ? `${prodName} - ` : "";
+      const optionText = `${prefix}${b.batch_number} (Stock: ${b.remaining_quantity})`;
+
+      const opt = document.createElement("option");
+      opt.value = b.id;                           // numeric ID for sales
+      opt.textContent = optionText;
+      opt.dataset.productId = b.product_id;
+      opt.dataset.batchNumber = b.batch_number;   // string for loans
+      batchSelect.appendChild(opt);
+
+      totalStock += b.remaining_quantity;
+    });
+
+    stockDisplay.textContent = `Total Stock (all batches): ${totalStock}`;
+
+    // 5️⃣ Alert if multiple products share barcode
+    if (products.length > 1) {
+      alert(`⚠️ ${products.length} products share this barcode!\nBatches are prefixed with product name.\nPlease select the correct one.`);
+    }
+
+    console.log("✅ All batches loaded (no filtering):", batches);
   } catch (err) {
-    console.error("❌ handleBarcodeInput() failed:", err);
-    alert(
-      document.documentElement.lang === "zh-TW"
-        ? "❌ 條碼處理發生錯誤。"
-        : "❌ Barcode processing failed."
-    );
+    console.error("❌ handleBarcodeInput failed:", err);
+    alert("Barcode processing failed.");
   }
 }
 /* ---------------------- 🔍 END UNIFIED BARCODE HANDLER ---------------------- */
@@ -2142,6 +2097,19 @@ if (barcodeInput) {
   });
 }
 
+
+  // Auto-set product when user selects a batch
+const batchSelect = document.getElementById("batch-no");
+const productSelect = document.getElementById("product-select");
+if (batchSelect && productSelect) {
+  batchSelect.addEventListener("change", () => {
+    const selectedOpt = batchSelect.options[batchSelect.selectedIndex];
+    if (selectedOpt && selectedOpt.dataset.productId) {
+      productSelect.value = selectedOpt.dataset.productId;
+      console.log("🟢 Product auto-selected from batch:", selectedOpt.dataset.productId);
+    }
+  });
+}
  // ✅ Add Item button — collect inputs safely and call addItemToCart()
 // ✅ Add Item button — collect inputs safely and call addItemToCart()
 const addBtn = document.getElementById("add-item");
