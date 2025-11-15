@@ -2112,83 +2112,29 @@ if (productSelect) {
 
   
   // barcode input Enter handler
-  barcodeInput.addEventListener("keydown", async (e) => {
-  if (e.key !== "Enter") return;
-  e.preventDefault();
-
-  const code = barcodeInput.value.trim();
-  if (!code) return;
-
-  const supabase = await ensureSupabaseClient();
-  const productSelect = document.getElementById("product-select");
-  const batchSelect = document.getElementById("batch-no");
-  const stockDisplay = document.getElementById("stock-display");
-
-  try {
-    // 1️⃣ Load products with matched barcode
-    const { data: products, error: productErr } = await supabase
-      .from("products")
-      .select("id, name, barcode, price")
-      .eq("barcode", code);
-
-    if (!products?.length) {
-      stockDisplay.textContent = "Product not found";
-      return;
-    }
-
-    const productIds = products.map(p => p.id);
-
-    // 2️⃣ Load batches for all matched products
-    const { data: batches, error: batchErr } = await supabase
-      .from("product_batches")
-      .select("id, batch_number, remaining_quantity, product_id")
-      .in("product_id", productIds)
-      .gt("remaining_quantity", 0);
-
-    if (!batches?.length) {
-      batchSelect.innerHTML = `<option value="">-- No batch available --</option>`;
-      stockDisplay.textContent = "No stock available";
-      return;
-    }
-
-    // 3️⃣ Populate product dropdown with matched products only
-    productSelect.innerHTML =
-      `<option value="">-- Select Product --</option>` +
-      products.map(p => `<option value="${p.id}">${p.name} (${p.barcode})</option>`).join("");
-
-    // 4️⃣ Populate batch dropdown properly (with batch ID)
-    batchSelect.innerHTML =
-      `<option value="">-- Select Batch No. --</option>` +
-      batches.map(b =>
-        `<option value="${b.id}" data-product-id="${b.product_id}">
-           ${b.batch_number} (Stock: ${b.remaining_quantity})
-         </option>`
-      ).join("");
-
-    // 5️⃣ Auto-select the first product
-    const selectedProductId = batches[0].product_id;
-    productSelect.value = selectedProductId;
-
-    // 6️⃣ Filter batch list to show only batches for the selected product
-    for (const opt of Array.from(batchSelect.options)) {
-      if (!opt.value) continue;
-      if (opt.dataset.productId !== String(selectedProductId)) opt.remove();
-    }
-
-    // 7️⃣ Update total stock display
-    const totalStock = Array.from(batchSelect.options)
-      .filter(o => o.value)
-      .reduce((s, o) => {
-        const qty = Number(o.textContent.match(/Stock:\s(\d+)/)?.[1] || 0);
-        return s + qty;
-      }, 0);
-
-    stockDisplay.textContent = `Stock: ${totalStock}`;
-  } catch (err) {
-    console.error("Barcode handler error:", err);
-    stockDisplay.textContent = "Error loading product.";
-  }
-});
+  const barcodeInput = document.getElementById("product-barcode");
+  if (barcodeInput) {
+    barcodeInput.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const code = barcodeInput.value.trim();
+        if (!code) return;
+        debugLog("🔍 Barcode entered:", code);
+        const result = await loadProductAndBatches(code, true);
+        if (!result) {
+          document.getElementById("stock-display").textContent = "Product not found";
+          return;
+        }
+        // set product-select to product.id if present
+        const prodSel = document.getElementById("product-select");
+        if (prodSel) {
+          prodSel.value = result.product.id;
+          // trigger change to populate batches
+          const ev = new Event("change");
+          prodSel.dispatchEvent(ev);
+        }
+      }
+    });
   }
 
  // ✅ Add Item button — collect inputs safely and call addItemToCart()
