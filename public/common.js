@@ -197,33 +197,58 @@ async function handleProductSelection(e) {
   Batches include remaining_quantity
 */
 async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
-  const supabase = await ensureSupabaseClient();
-  try {
-    let productQuery = supabase.from("products").select("id, name, barcode, price, units, vendor_id").limit(1);
-    if (byBarcode) productQuery = productQuery.eq("barcode", productIdOrBarcode);
-    else productQuery = productQuery.eq("id", productIdOrBarcode);
+    const supabase = await ensureSupabaseClient();
+    try {
+        let productQuery = supabase.from("products")
+            .select("id, name, barcode, price, units, vendor_id")
+            .limit(1);
 
-    const { data: productArr, error: prodErr } = await productQuery;
-    if (prodErr) throw prodErr;
-    if (!productArr || productArr.length === 0) return null;
-    const product = productArr[0];
+        if (byBarcode)
+            productQuery = productQuery.eq("barcode", productIdOrBarcode);
+        else
+            productQuery = productQuery.eq("id", productIdOrBarcode);
 
-    // batches that belong to product and have remaining quantity (we might include zero to allow seeing no stock)
-    const { data: batches, error: batchErr } = await supabase
-      .from("product_batches")
-      .select("id, batch_number, remaining_quantity")
-      .eq("product_id", product.id)
-      .order("created_at", { ascending: false });
+        const { data: productArr } = await productQuery;
 
-    if (batchErr) throw batchErr;
+        if (!productArr || productArr.length === 0) return null;
 
-    return { product, batches: batches || [] };
-  } catch (err) {
-    console.error("loadProductAndBatches failed:", err);
-    return null;
-  }
+        const product = productArr[0];
+
+        const { data: batches } = await supabase
+            .from("product_batches")
+            .select("id, batch_number, remaining_quantity")
+            .eq("product_id", product.id)
+            .order("created_at", { ascending: false });
+
+        // 🔥 FIX: Automatically populate batch dropdown with ALL batches
+        populateBatchDropdown(batches);
+
+        return { product, batches };
+    } catch (err) {
+        console.error("loadProductAndBatches failed:", err);
+        return null;
+    }
 }
 
+function populateBatchDropdown(batches) {
+    const batchSelect = document.getElementById("batch-no");
+    if (!batchSelect) return;
+
+    batchSelect.innerHTML = "";
+
+    if (!batches || batches.length === 0) {
+        batchSelect.innerHTML = `<option value="">No Batch Available</option>`;
+        return;
+    }
+
+    batchSelect.innerHTML = batches
+        .map(b => 
+            `<option value="${b.id}" data-qty="${b.remaining_quantity}">
+                ${b.batch_number} (Stock: ${b.remaining_quantity})
+            </option>`
+        )
+        .join("");
+}
 // ---------- Barcode handling ----------
 // Called on input (debug) and on Enter (final)
 function handleBarcodeInputEvent(e) {
