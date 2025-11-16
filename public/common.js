@@ -154,6 +154,26 @@ async function populateProductDropdown() {
     console.error("populateProductDropdown error:", err);
   }
 }
+function populateBatchDropdown(batches) {
+    const batchSelect = document.getElementById("batch-no");
+    if (!batchSelect) return;
+
+    batchSelect.innerHTML = "";
+
+    if (!batches || batches.length === 0) {
+        batchSelect.innerHTML = `<option value="">No Batch Available</option>`;
+        return;
+    }
+
+    batchSelect.innerHTML = batches
+        .map(b => 
+            `<option value="${b.id}" data-qty="${b.remaining_quantity}">
+                ${b.batch_number} (Stock: ${b.remaining_quantity})
+            </option>`
+        )
+        .join("");
+}
+
 
 // ---------------------------------------------------------
 // 🔍 Barcode Lookup
@@ -230,25 +250,7 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
     }
 }
 
-function populateBatchDropdown(batches) {
-    const batchSelect = document.getElementById("batch-no");
-    if (!batchSelect) return;
 
-    batchSelect.innerHTML = "";
-
-    if (!batches || batches.length === 0) {
-        batchSelect.innerHTML = `<option value="">No Batch Available</option>`;
-        return;
-    }
-
-    batchSelect.innerHTML = batches
-        .map(b => 
-            `<option value="${b.id}" data-qty="${b.remaining_quantity}">
-                ${b.batch_number} (Stock: ${b.remaining_quantity})
-            </option>`
-        )
-        .join("");
-}
 // ---------- Barcode handling ----------
 // Called on input (debug) and on Enter (final)
 function handleBarcodeInputEvent(e) {
