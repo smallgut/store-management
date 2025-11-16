@@ -229,18 +229,18 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
             productQuery = productQuery.eq("id", productIdOrBarcode);
 
         const { data: productArr } = await productQuery;
-
         if (!productArr || productArr.length === 0) return null;
 
         const product = productArr[0];
 
+        // Fetch all batches for this product
         const { data: batches } = await supabase
             .from("product_batches")
             .select("id, batch_number, remaining_quantity")
             .eq("product_id", product.id)
             .order("created_at", { ascending: false });
 
-        // 🔥 FIX: Automatically populate batch dropdown with ALL batches
+        // Populate batch dropdown (Customer Sales + Vendor Loan Record)
         populateBatchDropdown(batches);
 
         return { product, batches };
