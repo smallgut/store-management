@@ -154,6 +154,43 @@ async function populateProductDropdown() {
     console.error("populateProductDropdown error:", err);
   }
 }
+
+function updateBatchDropdown(batches) {
+    const batchSelect = document.getElementById("batch-no");
+    if (!batchSelect) return;
+
+    batchSelect.innerHTML = "";
+
+    if (!batches || batches.length === 0) {
+        batchSelect.innerHTML = `<option value="">No Batch Available</option>`;
+        return;
+    }
+
+    // If only one batch → auto-select
+    if (batches.length === 1) {
+        batchSelect.innerHTML = `
+            <option value="${batches[0].id}" selected>
+                ${batches[0].batch_number} (Stock: ${batches[0].remaining_quantity})
+            </option>
+        `;
+        return;
+    }
+
+    // If multiple batches → user must choose manually
+    batchSelect.innerHTML = batches
+        .map(b =>
+            `<option value="${b.id}">
+                ${b.batch_number} (Stock: ${b.remaining_quantity})
+            </option>`
+        )
+        .join("");
+
+    // Insert a placeholder to force manual selection
+    batchSelect.insertAdjacentHTML("afterbegin",
+        `<option value="" disabled selected>-- Select Batch No. --</option>`
+    );
+}
+
 function populateBatchDropdown(batches) {
     const batchSelect = document.getElementById("batch-no");
     if (!batchSelect) return;
@@ -241,7 +278,7 @@ async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
             .order("created_at", { ascending: false });
 
         // Populate batch dropdown (Customer Sales + Vendor Loan Record)
-        populateBatchDropdown(batches);
+        updateBatchDropdown(batches);
 
         return { product, batches };
     } catch (err) {
@@ -1997,6 +2034,7 @@ if (productSelect) {
           const ev = new Event("change");
           prodSel.dispatchEvent(ev);
         }
+        if (result?.batches) updateBatchDropdown(result.batches);
       }
     });
   }
