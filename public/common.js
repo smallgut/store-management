@@ -313,10 +313,22 @@ async function handleBarcodeEnter(e) {
       document.getElementById("stock-display").textContent = "Product not found";
       return;
     }
-    // load batches and auto-fill selects
-    const res = await loadProductAndBatches(product.id, false);
-    // pick defaults and add to cart automatically
-    const batchId = (res?.batches && res.batches.length) ? res.batches[0].id : null;
+// load batches (batches are already populated by loadProductAndBatches)
+const res = await loadProductAndBatches(product.id, false);
+
+const batchSelect = document.getElementById("batch-no");
+let batchId = null;
+
+if (res?.batches?.length === 1) {
+    // Only ONE batch → auto-select it
+    batchId = res.batches[0].id;
+    if (batchSelect) batchSelect.value = batchId;
+} else {
+    // MULTIPLE batches → force user to choose
+    if (batchSelect) batchSelect.value = "";
+}
+
+    
     const sellingPrice = product.price || 0;
     // prepare a quick add: set form fields so addItemToCart works
     const productSelect = document.getElementById("product-select");
