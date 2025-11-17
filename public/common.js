@@ -297,69 +297,66 @@ function handleBarcodeInputEvent(e) {
 }
 
 async function handleBarcodeEnter(e) {
-  if (e.key !== "Enter") return;
-  e.preventDefault();
-  const val = e.target.value.trim();
-  if (!val) return;
-  const supabase = await ensureSupabaseClient();
-  try {
-    const { data: product } = await supabase
-      .from("products")
-      .select("id,name,barcode,price")
-      .eq("barcode", val)
-      .limit(1)
-      .maybeSingle();
-    if (!product) {
-      document.getElementById("stock-display").textContent = "Product not found";
-      return;
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+
+    const barcode = e.target.value.trim();
+    if (!barcode) return;
+
+    try {
+        const supabase = await ensureSupabaseClient();
+
+        // 1. Lookup product by barcode
+        const { data: product } = await supabase
+            .from("products")
+            .select("id, name, barcode, price")
+            .eq("barcode", barcode)
+            .limit(1)
+            .maybeSingle();
+
+        if (!product) {
+            document.getElementById("stock-display").textContent = "Product not found";
+            return;
+        }
+
+        // 2. Load product & ALL its batches (this already updates dropdown)
+        const res = await loadProductAndBatches(product.id, false);
+
+        const batchSelect = document.getElementById("batch-no");
+        let batchId = null;
+
+        // 3. Auto-select batch ONLY if exactly one exists
+        if (res?.batches?.length === 1) {
+            batchId = res.batches[0].id;
+            if (batchSelect) batchSelect.value = batchId;
+        } 
+        // If more than one batch, do NOT select anything (user must pick)
+        else if (batchSelect) {
+            batchSelect.value = "";
+        }
+
+        // 4. Update product dropdown for consistency
+        const productSelect = document.getElementById("product-select");
+        if (productSelect) {
+            productSelect.value = product.id;
+        }
+
+        // 5. Set selling price
+        const priceInput = document.getElementById("selling-price");
+        if (priceInput) priceInput.value = product.price || 0;
+
+        // 6. Add item to cart (same behavior as before)
+        addItemToCart();
+
+        // 7. Clear barcode input
+        e.target.value = "";
+
+    } catch (err) {
+        console.error("barcode lookup failed:", err);
+        document.getElementById("stock-display").textContent = "Lookup error";
     }
-// load batches (batches are already populated by loadProductAndBatches)
-const res = await loadProductAndBatches(product.id, false);
-
-// load batches (batches are already populated by loadProductAndBatches)
-const res = await loadProductAndBatches(product.id, false);
-
-// ⚠ Do NOT duplicate this declaration
-const batchSelect = document.getElementById("batch-no");
-let batchId = null;
-
-if (res?.batches?.length === 1) {
-    // Only ONE batch → auto-select it
-    batchId = res.batches[0].id;
-    if (batchSelect) batchSelect.value = batchId;
-} else {
-    // MULTIPLE batches → DO NOT auto-select
-    if (batchSelect) batchSelect.value = "";
 }
 
-const sellingPrice = product.price || 0;
-
-// set product fields so addItemToCart works
-const productSelect = document.getElementById("product-select");
-if (productSelect) productSelect.value = product.id;
-
-// ⚠ Do NOT redeclare batchSelect. Just reuse it.
-if (batchSelect && batchId) batchSelect.value = batchId;
-
-const priceInput = document.getElementById("selling-price");
-if (priceInput) priceInput.value = sellingPrice;
-
-// add item
-addItemToCart();
-
-// clear barcode
-e.target.value = "";
-    const priceInput = document.getElementById("selling-price");
-    if (priceInput) priceInput.value = sellingPrice;
-    // add one item to cart
-    addItemToCart();
-    // clear barcode input
-    e.target.value = "";
-  } catch (err) {
-    console.error("barcode lookup failed:", err);
-    document.getElementById("stock-display").textContent = "Lookup error";
-  }
-}
 
 // populate vendor dropdown (for vendor-loan form)
 async function populateVendorDropdown() {
