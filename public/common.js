@@ -316,6 +316,10 @@ async function handleBarcodeEnter(e) {
 // load batches (batches are already populated by loadProductAndBatches)
 const res = await loadProductAndBatches(product.id, false);
 
+// load batches (batches are already populated by loadProductAndBatches)
+const res = await loadProductAndBatches(product.id, false);
+
+// ⚠ Do NOT duplicate this declaration
 const batchSelect = document.getElementById("batch-no");
 let batchId = null;
 
@@ -324,17 +328,27 @@ if (res?.batches?.length === 1) {
     batchId = res.batches[0].id;
     if (batchSelect) batchSelect.value = batchId;
 } else {
-    // MULTIPLE batches → force user to choose
+    // MULTIPLE batches → DO NOT auto-select
     if (batchSelect) batchSelect.value = "";
 }
 
-    
-    const sellingPrice = product.price || 0;
-    // prepare a quick add: set form fields so addItemToCart works
-    const productSelect = document.getElementById("product-select");
-    if (productSelect) productSelect.value = product.id;
-    const batchSelect = document.getElementById("batch-no");
-    if (batchSelect && batchId) batchSelect.value = batchId;
+const sellingPrice = product.price || 0;
+
+// set product fields so addItemToCart works
+const productSelect = document.getElementById("product-select");
+if (productSelect) productSelect.value = product.id;
+
+// ⚠ Do NOT redeclare batchSelect. Just reuse it.
+if (batchSelect && batchId) batchSelect.value = batchId;
+
+const priceInput = document.getElementById("selling-price");
+if (priceInput) priceInput.value = sellingPrice;
+
+// add item
+addItemToCart();
+
+// clear barcode
+e.target.value = "";
     const priceInput = document.getElementById("selling-price");
     if (priceInput) priceInput.value = sellingPrice;
     // add one item to cart
