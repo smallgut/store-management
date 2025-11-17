@@ -306,7 +306,7 @@ async function handleBarcodeEnter(e) {
     try {
         const supabase = await ensureSupabaseClient();
 
-        // 1. Lookup product by barcode
+        // 1. Lookup product
         const { data: product } = await supabase
             .from("products")
             .select("id, name, barcode, price")
@@ -319,36 +319,30 @@ async function handleBarcodeEnter(e) {
             return;
         }
 
-        // 2. Load product & ALL its batches (this already updates dropdown)
+        // 2. Load product & batches
         const res = await loadProductAndBatches(product.id, false);
 
         const batchSelect = document.getElementById("batch-no");
-        let batchId = null;
 
-        // 3. Auto-select batch ONLY if exactly one exists
+        // 3. Correct batch-selection logic
         if (res?.batches?.length === 1) {
-            batchId = res.batches[0].id;
-            if (batchSelect) batchSelect.value = batchId;
-        } 
-        // If more than one batch, do NOT select anything (user must pick)
-        else if (batchSelect) {
+            batchSelect.value = res.batches[0].id;
+        } else {
             batchSelect.value = "";
         }
 
-        // 4. Update product dropdown for consistency
+        // 4. Update product dropdown
         const productSelect = document.getElementById("product-select");
-        if (productSelect) {
-            productSelect.value = product.id;
-        }
+        if (productSelect) productSelect.value = product.id;
 
-        // 5. Set selling price
+        // 5. Update price
         const priceInput = document.getElementById("selling-price");
         if (priceInput) priceInput.value = product.price || 0;
 
-        // 6. Add item to cart (same behavior as before)
-        addItemToCart();
+        // ❌ REMOVE THIS:
+        // addItemToCart();
 
-        // 7. Clear barcode input
+        // Clear barcode input
         e.target.value = "";
 
     } catch (err) {
