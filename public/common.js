@@ -2002,6 +2002,7 @@ if (res?.batches?.length === 1) {
     });
   }
  /* ---------------------- 🧩 AUTO-FILL BARCODE ON PRODUCT SELECT ---------------------- */
+/* ---------------------- 🟦 UNIFIED PRODUCT SELECT HANDLER ---------------------- */
 const productSelect = document.getElementById("product-select");
 if (productSelect) {
   productSelect.addEventListener("change", async (e) => {
@@ -2010,35 +2011,63 @@ if (productSelect) {
 
     const supabase = await ensureSupabaseClient();
 
-    // Try from "products" first (since that’s what your dropdown uses)
-    let { data, error } = await supabase
+    /* 1️⃣ Load product & batches */
+    const res = await loadProductAndBatches(productId, false);
+
+    const batchEl = document.getElementById("batch-no");
+    const stockDisplay = document.getElementById("stock-display");
+
+    if (batchEl) {
+      // Populate ALL batches
+      batchEl.innerHTML = (res?.batches || []).map(b =>
+        `<option value="${b.id}">
+           ${b.batch_number} (Stock: ${b.remaining_quantity})
+         </option>`
+      ).join("");
+
+      // FIXED LOGIC:
+      if (res?.batches?.length === 1) {
+        batchEl.value = res.batches[0].id;
+      } else {
+        batchEl.insertAdjacentHTML("afterbegin",
+          `<option value="" disabled selected>-- Select Batch No. --</option>`
+        );
+      }
+    }
+
+    if (stockDisplay) {
+      const total = (res?.batches || [])
+        .reduce((sum, b) => sum + (b.remaining_quantity || 0), 0);
+      stockDisplay.textContent = `Stock: ${total}`;
+    }
+
+    /* 2️⃣ Auto-fill barcode */
+    let { data: prod, error } = await supabase
       .from("products")
       .select("barcode")
       .eq("id", productId)
       .single();
 
-    // If not found in "products", fall back to "product_catalog"
-    if (error || !data) {
+    // fallback to catalog
+    if (error || !prod) {
       const alt = await supabase
         .from("product_catalog")
         .select("barcode")
         .eq("id", productId)
-        .maybeSingle(); // handles missing rows gracefully
-      data = alt.data;
+        .maybeSingle();
+      prod = alt.data;
     }
 
-    if (!data || !data.barcode) {
-      console.warn("⚠️ No barcode found for selected product");
-      return;
-    }
-
-    const barcodeField = document.getElementById("product-barcode");
-    if (barcodeField) {
-      barcodeField.value = data.barcode;
-      console.log("✅ Barcode auto-filled:", data.barcode);
+    if (prod?.barcode) {
+      const barcodeInput = document.getElementById("product-barcode");
+      if (barcodeInput) {
+        barcodeInput.value = prod.barcode;
+        console.log("✅ Barcode auto-filled:", prod.barcode);
+      }
     }
   });
 }
+/* ---------------------- 🟦 END UNIFIED HANDLER ---------------------- */
 /* ---------------------- 🧩 END AUTO-FILL BARCODE ---------------------- */
 
   
