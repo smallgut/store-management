@@ -135,7 +135,7 @@ async function populateProductDropdown() {
         .select("id, remaining_quantity")
         .eq("product_id", p.id)
         .gt("remaining_quantity", 0)  // only batches with stock > 0
-        .limit(1);
+        
 
       if (batchErr) throw batchErr;
 
