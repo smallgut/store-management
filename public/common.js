@@ -1986,7 +1986,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       const stockDisplay = document.getElementById("stock-display");
       if (batchEl) {
         batchEl.innerHTML = (res?.batches || []).map(b => `<option value="${b.id}">${b.batch_number} ${b.remaining_quantity != null ? `(Stock: ${b.remaining_quantity})` : ""}</option>`).join("");
-        if ((res?.batches || []).length === 1) batchEl.value = res.batches[0].id;
+        // If only 1 batch → auto-select; if more than 1 → force manual choice
+if (res?.batches?.length === 1) {
+    batchEl.value = res.batches[0].id;
+} else {
+    batchEl.insertAdjacentHTML("afterbegin",
+        `<option value="" disabled selected>-- Select Batch No. --</option>`
+    );
+}
       }
       if (stockDisplay) {
         const sumStock = (res?.batches || []).reduce((s, b) => s + (b.remaining_quantity || 0), 0);
