@@ -104,7 +104,21 @@ function showError(err) {
   }
 }
 
+/* ============================================================
+   SELECTIVE BARCODE HANDLER DISABLER
+   Prevents old barcode handler from running on certain pages
+   ============================================================ */
+const BARCODE_HANDLER_DISABLED_PAGES = [
+    "customer-sales.html",
+    "customer-sales_zh.html",
+    "vendor-loan-record.html",
+    "vendor-loan-record_zh.html"
+];
 
+function isBarcodeHandlerDisabledPage() {
+    const url = window.location.href.toLowerCase();
+    return BARCODE_HANDLER_DISABLED_PAGES.some(p => url.includes(p));
+}
 
 
 // ---------------------------------------------------------
