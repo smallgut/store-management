@@ -257,7 +257,7 @@ async function handleBarcodeEnter(e) {
       .from("products")
       .select("id,name,barcode,price")
       .eq("barcode", val)
-      .limit(1)
+      
       .maybeSingle();
     if (!product) {
       document.getElementById("stock-display").textContent = "Product not found";
