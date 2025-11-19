@@ -210,34 +210,49 @@ async function handleProductSelection(e) {
   returns { product, batches } or null on error
   Batches include remaining_quantity
 */
-async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
-  const supabase = await ensureSupabaseClient();
-  try {
-    let productQuery = supabase.from("products").select("id, name, barcode, price, units, vendor_id");
-    if (byBarcode) productQuery = productQuery.eq("barcode", productIdOrBarcode);
-    else productQuery = productQuery.eq("id", productIdOrBarcode);
+/* ============================================================
+   FIXED — LOAD PRODUCT + ALL BATCHES
+   This version correctly returns ALL batch rows for a product.
+   ============================================================ */
+async function loadProductAndBatches(productId, includeZeroStock = false) {
+    const supabase = await ensureSupabaseClient();
 
-    const { data: productArr, error: prodErr } = await productQuery;
-    if (prodErr) throw prodErr;
-    if (!productArr || productArr.length === 0) return null;
-    const product = productArr[0];
+    console.log("📦 Loading product & batches for productId:", productId);
 
-    // batches that belong to product and have remaining quantity (we might include zero to allow seeing no stock)
-    const { data: batches, error: batchErr } = await supabase
-      .from("product_batches")
-      .select("id, batch_number, remaining_quantity")
-      .eq("product_id", product.id)
-      .order("created_at", { ascending: false });
+    // 1️⃣ Load product basic info
+    const { data: product, error: productErr } = await supabase
+        .from("products")
+        .select("id, name, barcode, price")
+        .eq("id", productId)
+        .maybeSingle();
 
-    if (batchErr) throw batchErr;
+    if (productErr) {
+        console.error("❌ Product load error:", productErr);
+        return { product: null, batches: [] };
+    }
 
-    return { product, batches: batches || [] };
-  } catch (err) {
-    console.error("loadProductAndBatches failed:", err);
-    return null;
-  }
+    // 2️⃣ Load ALL batches for this product
+    let query = supabase
+        .from("product_batches")
+        .select("id, batch_number, remaining_quantity, expiry_date")
+        .eq("product_id", productId)   // ❗ Ensure ALL batches for this product
+        .order("expiry_date", { ascending: true });
+
+    if (!includeZeroStock) {
+        query = query.gt("remaining_quantity", 0);
+    }
+
+    const { data: batches, error: batchErr } = await query;
+
+    if (batchErr) {
+        console.error("❌ Batch load error:", batchErr);
+        return { product, batches: [] };
+    }
+
+    console.log("📦 Batches loaded:", batches);
+
+    return { product, batches };
 }
-
 // ---------- Barcode handling ----------
 // Called on input (debug) and on Enter (final)
 function handleBarcodeInputEvent(e) {
