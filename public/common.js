@@ -60,6 +60,21 @@ function applyTranslations() {
   document.documentElement.lang = CURRENT_LANG === "zh" ? "zh-TW" : "en";
 }
 
+/* ============================================================
+   SELECTIVE BARCODE HANDLER DISABLER
+   Prevents old barcode handler from running on certain pages
+   ============================================================ */
+const BARCODE_HANDLER_DISABLED_PAGES = [
+    "customer-sales.html",
+    "customer-sales_zh.html",
+    "vendor-loan-record.html",
+    "vendor-loan-record_zh.html"
+];
+
+function isBarcodeHandlerDisabledPage() {
+    const url = window.location.href.toLowerCase();
+    return BARCODE_HANDLER_DISABLED_PAGES.some(p => url.includes(p));
+}
 
 // ---------------------------------------------------------
 // 📅 Date Formatter
@@ -104,21 +119,7 @@ function showError(err) {
   }
 }
 
-/* ============================================================
-   SELECTIVE BARCODE HANDLER DISABLER
-   Prevents old barcode handler from running on certain pages
-   ============================================================ */
-const BARCODE_HANDLER_DISABLED_PAGES = [
-    "customer-sales.html",
-    "customer-sales_zh.html",
-    "vendor-loan-record.html",
-    "vendor-loan-record_zh.html"
-];
 
-function isBarcodeHandlerDisabledPage() {
-    const url = window.location.href.toLowerCase();
-    return BARCODE_HANDLER_DISABLED_PAGES.some(p => url.includes(p));
-}
 
 
 // ---------------------------------------------------------
@@ -1977,32 +1978,45 @@ if (productSelect) {
 /* ---------------------- 🧩 END AUTO-FILL BARCODE ---------------------- */
 
   
-  // barcode input Enter handler
-  const barcodeInput = document.getElementById("product-barcode");
-  if (barcodeInput) {
-    barcodeInput.addEventListener("keydown", async (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        const code = barcodeInput.value.trim();
-        if (!code) return;
-        debugLog("🔍 Barcode entered:", code);
-        const result = await loadProductAndBatches(code, true);
-        if (!result) {
-          document.getElementById("stock-display").textContent = "Product not found";
-          return;
-        }
-        // set product-select to product.id if present
-        const prodSel = document.getElementById("product-select");
-        if (prodSel) {
-          prodSel.value = result.product.id;
-          // trigger change to populate batches
-          const ev = new Event("change");
-          prodSel.dispatchEvent(ev);
-        }
-      }
-    });
-  }
+  // ============================================================
+// Disable global barcode handler on pages that use their own
+// ============================================================
+if (!isBarcodeHandlerDisabledPage()) {
 
+    console.log("🟢 Global barcode handler enabled (not disabled page)");
+
+    const barcodeInput = document.getElementById("product-barcode");
+    if (barcodeInput) {
+
+        barcodeInput.addEventListener("keydown", async (e) => {
+
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+
+            const code = barcodeInput.value.trim();
+            if (!code) return;
+
+            debugLog("🔍 [GLOBAL] Barcode entered:", code);
+
+            // 🔥 Only global pages use this old logic
+            const result = await loadProductAndBatches(code, true);
+
+            if (!result) {
+                document.getElementById("stock-display").textContent = "Product not found";
+                return;
+            }
+
+            const prodSel = document.getElementById("product-select");
+            if (prodSel) {
+                prodSel.value = result.product.id;
+                prodSel.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
+} else {
+    console.log("🚫 Global barcode handler disabled on this page.");
+}
  // ✅ Add Item button — collect inputs safely and call addItemToCart()
 const addBtn = document.getElementById("add-item");
 if (addBtn) {
