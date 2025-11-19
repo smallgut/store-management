@@ -213,7 +213,7 @@ async function handleProductSelection(e) {
 async function loadProductAndBatches(productIdOrBarcode, byBarcode = false) {
   const supabase = await ensureSupabaseClient();
   try {
-    let productQuery = supabase.from("products").select("id, name, barcode, price, units, vendor_id").limit(1);
+    let productQuery = supabase.from("products").select("id, name, barcode, price, units, vendor_id");
     if (byBarcode) productQuery = productQuery.eq("barcode", productIdOrBarcode);
     else productQuery = productQuery.eq("id", productIdOrBarcode);
 
