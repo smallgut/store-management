@@ -215,45 +215,83 @@ async function handleProductSelection(e) {
    FIXED — LOAD PRODUCT + ALL BATCHES
    This version correctly returns ALL batch rows for a product.
    ============================================================ */
-async function loadProductAndBatches(productId, includeZeroStock = false) {
-    const supabase = await ensureSupabaseClient();
+// =====================================
+// FIXED loadProductAndBatches()
+// Accepts barcode OR productId
+// =====================================
+async function loadProductAndBatches(inputValue, isBarcode = false) {
+  debugLog("📦 Loading product & batches for:", inputValue);
 
-    console.log("📦 Loading product & batches for productId:", productId);
+  const supabase = await ensureSupabaseClient();
 
-    // 1️⃣ Load product basic info
-    const { data: product, error: productErr } = await supabase
-        .from("products")
-        .select("id, name, barcode, price")
-        .eq("id", productId)
-        .maybeSingle();
+  let product = null;
 
-    if (productErr) {
-        console.error("❌ Product load error:", productErr);
-        return { product: null, batches: [] };
+  // If input is barcode, lookup by barcode
+  if (isBarcode) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, name, barcode, price")
+      .eq("barcode", inputValue)
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Product lookup (barcode) error:", error);
+      return null;
     }
 
-    // 2️⃣ Load ALL batches for this product
-    let query = supabase
-        .from("product_batches")
-        .select("id, batch_number, remaining_quantity, expiry_date")
-        .eq("product_id", productId)   // ❗ Ensure ALL batches for this product
-        .order("expiry_date", { ascending: true });
+    product = data;
+  }
+  else {
+    // Input is productId
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, name, barcode, price")
+      .eq("id", inputValue)
+      .maybeSingle();
 
-    if (!includeZeroStock) {
-        query = query.gt("remaining_quantity", 0);
+    if (error) {
+      console.error("❌ Product lookup (id) error:", error);
+      return null;
     }
 
-    const { data: batches, error: batchErr } = await query;
+    product = data;
+  }
 
-    if (batchErr) {
-        console.error("❌ Batch load error:", batchErr);
-        return { product, batches: [] };
-    }
+  if (!product) {
+    console.warn("❌ No product found.");
+    return null;
+  }
 
-    console.log("📦 Batches loaded:", batches);
+  // Now load batches by product.id (correct)
+  const { data: batches, error: batchError } = await supabase
+    .from("product_batches")
+    .select("*")
+    .eq("product_id", product.id)
+    .order("expiry_date", { ascending: true });
 
-    return { product, batches };
+  if (batchError) {
+    console.error("❌ Batch load error:", batchError);
+    return null;
+  }
+
+  return { product, batches };
 }
+  // Now load batches by product.id (correct)
+  const { data: batches, error: batchError } = await supabase
+    .from("product_batches")
+    .select("*")
+    .eq("product_id", product.id)
+    .order("expiry_date", { ascending: true });
+
+  if (batchError) {
+    console.error("❌ Batch load error:", batchError);
+    return null;
+  }
+
+  return { product, batches };
+}
+
+
 // ---------- Barcode handling ----------
 // Called on input (debug) and on Enter (final)
 function handleBarcodeInputEvent(e) {
