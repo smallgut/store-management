@@ -219,6 +219,10 @@ async function handleProductSelection(e) {
 // FIXED loadProductAndBatches()
 // Accepts barcode OR productId
 // =====================================
+// =====================================
+// FIXED loadProductAndBatches()
+// Accepts barcode OR productId correctly
+// =====================================
 async function loadProductAndBatches(inputValue, isBarcode = false) {
   debugLog("📦 Loading product & batches for:", inputValue);
 
@@ -226,8 +230,8 @@ async function loadProductAndBatches(inputValue, isBarcode = false) {
 
   let product = null;
 
-  // If input is barcode, lookup by barcode
   if (isBarcode) {
+    // 🔥 CORRECT: lookup using barcode
     const { data, error } = await supabase
       .from("products")
       .select("id, name, barcode, price")
@@ -240,9 +244,8 @@ async function loadProductAndBatches(inputValue, isBarcode = false) {
     }
 
     product = data;
-  }
-  else {
-    // Input is productId
+  } else {
+    // 🔥 CORRECT for productId
     const { data, error } = await supabase
       .from("products")
       .select("id, name, barcode, price")
@@ -262,7 +265,7 @@ async function loadProductAndBatches(inputValue, isBarcode = false) {
     return null;
   }
 
-  // Now load batches by product.id (correct)
+  // Load batches
   const { data: batches, error: batchError } = await supabase
     .from("product_batches")
     .select("*")
