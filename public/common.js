@@ -276,21 +276,7 @@ async function loadProductAndBatches(inputValue, isBarcode = false) {
 
   return { product, batches };
 }
-  // Now load batches by product.id (correct)
-  const { data: batches, error: batchError } = await supabase
-    .from("product_batches")
-    .select("*")
-    .eq("product_id", product.id)
-    .order("expiry_date", { ascending: true });
-
-  if (batchError) {
-    console.error("❌ Batch load error:", batchError);
-    return null;
-  }
-
-  return { product, batches };
-}
-
+ 
 
 // ---------- Barcode handling ----------
 // Called on input (debug) and on Enter (final)
