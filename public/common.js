@@ -215,69 +215,64 @@ async function handleProductSelection(e) {
    FIXED — LOAD PRODUCT + ALL BATCHES
    This version correctly returns ALL batch rows for a product.
    ============================================================ */
-// =====================================
-// FIXED loadProductAndBatches()
-// Accepts barcode OR productId
-// =====================================
-// =====================================
-// FIXED loadProductAndBatches()
-// Accepts barcode OR productId correctly
-// =====================================
-async function loadProductAndBatches(inputValue, isBarcode = false) {
-  debugLog("📦 Loading product & batches for:", inputValue);
+// ============================================================
+// FIXED: loadProductAndBatches()
+// productParam can be either productId (number) OR barcode (string)
+// ============================================================
+async function loadProductAndBatches(productParam, isBarcode = false) {
+    debugLog("📦 Loading product & batches for:", productParam);
 
-  const supabase = await ensureSupabaseClient();
+    const supabase = await ensureSupabaseClient();
 
-  let product = null;
+    let product = null;
 
-  if (isBarcode) {
-    // 🔥 CORRECT: lookup using barcode
-    const { data, error } = await supabase
-      .from("products")
-      .select("id, name, barcode, price")
-      .eq("barcode", inputValue)
-      .maybeSingle();
+    if (isBarcode) {
+        // barcode lookup — now returns MULTIPLE rows, so take the lowest id
+        const { data, error } = await supabase
+            .from("products")
+            .select("id, name, barcode, price")
+            .eq("barcode", productParam)
+            .order("id", { ascending: true });
 
-    if (error) {
-      console.error("❌ Product lookup (barcode) error:", error);
-      return null;
+        if (error) {
+            console.error("❌ Product lookup (barcode) error:", error);
+            return null;
+        }
+
+        if (!data || data.length === 0) return null;
+
+        product = data[0]; // canonical row
+    } else {
+        // productId lookup
+        const { data, error } = await supabase
+            .from("products")
+            .select("id, name, barcode, price")
+            .eq("id", productParam)
+            .maybeSingle();
+
+        if (error) {
+            console.error("❌ Product lookup error:", error);
+            return null;
+        }
+
+        if (!data) return null;
+
+        product = data;
     }
 
-    product = data;
-  } else {
-    // 🔥 CORRECT for productId
-    const { data, error } = await supabase
-      .from("products")
-      .select("id, name, barcode, price")
-      .eq("id", inputValue)
-      .maybeSingle();
+    // Load ALL batches linked to canonical product id
+    const { data: batches, error: batchErr } = await supabase
+        .from("product_batches")
+        .select("id, batch_number, remaining_quantity, buy_in_price")
+        .eq("product_id", product.id)
+        .order("batch_number", { ascending: true });
 
-    if (error) {
-      console.error("❌ Product lookup (id) error:", error);
-      return null;
+    if (batchErr) {
+        console.error("❌ Batch load error:", batchErr);
+        return null;
     }
 
-    product = data;
-  }
-
-  if (!product) {
-    console.warn("❌ No product found.");
-    return null;
-  }
-
-  // Load batches
-  const { data: batches, error: batchError } = await supabase
-    .from("product_batches")
-    .select("*")
-    .eq("product_id", product.id)
-    .order("expiry_date", { ascending: true });
-
-  if (batchError) {
-    console.error("❌ Batch load error:", batchError);
-    return null;
-  }
-
-  return { product, batches };
+    return { product, batches };
 }
  
 
