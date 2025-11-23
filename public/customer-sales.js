@@ -86,12 +86,15 @@ function applyBatchSelectionLogic(res) {
 
     batchEl.innerHTML = "";
 
-    const batches = res?.batches || [];
+    let batches = res?.batches || [];
 
-    // Populate ALL batches
-    batchEl.innerHTML = batches
-        .map(b => `<option value="${b.id}">${b.batch_number} (Stock: ${b.remaining_quantity})</option>`)
-        .join("");
+// 🔥 Filter out zero-stock batches
+batches = batches.filter(b => (b.remaining_quantity ?? 0) > 0);
+
+// Populate filtered batches
+batchEl.innerHTML = batches
+    .map(b => `<option value="${b.id}">${b.batch_number} (Stock: ${b.remaining_quantity})</option>`)
+    .join("");
 
     // Auto-select only if EXACTLY ONE batch
     if (batches.length === 1) {
