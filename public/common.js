@@ -506,10 +506,18 @@ function updateCartTotal() {
 async function checkoutOrder(e) {
   if (e) e.preventDefault();
 
+  // 🛑 Prevent double checkout submission
+  if (window.__checkout_in_progress__) {
+    console.warn("⛔ Checkout already in progress — blocked duplicate.");
+    return;
+  }
+  window.__checkout_in_progress__ = true;
+
   try {
     const tbody = document.querySelector("#cart-table tbody");
     if (!tbody || tbody.children.length === 0) {
       alert("🛒 Your cart is empty.");
+      window.__checkout_in_progress__ = false;
       return;
     }
 
@@ -536,6 +544,7 @@ async function checkoutOrder(e) {
     if (orderErr) {
       console.error("❌ Failed to create order:", orderErr);
       alert("Failed to create order. See console.");
+      window.__checkout_in_progress__ = false;
       return;
     }
 
@@ -558,13 +567,20 @@ async function checkoutOrder(e) {
     // ✅ Decrement stock
     for (const it of items) {
       if (!it.batch_id || !it.quantity) continue;
+
       const { data: b } = await supabase
         .from("product_batches")
         .select("remaining_quantity")
         .eq("id", it.batch_id)
         .single();
+
       const newQty = Math.max(0, (b?.remaining_quantity || 0) - it.quantity);
-      await supabase.from("product_batches").update({ remaining_quantity: newQty }).eq("id", it.batch_id);
+
+      await supabase
+        .from("product_batches")
+        .update({ remaining_quantity: newQty })
+        .eq("id", it.batch_id);
+
       console.log(`✅ Batch ${it.batch_id} stock updated to ${newQty}`);
     }
 
@@ -572,11 +588,16 @@ async function checkoutOrder(e) {
     updateCartTotal();
     alert("✅ Checkout complete!");
     console.log("🎉 Order & items saved successfully, stock updated.");
+
     await loadCustomerSales();
+
   } catch (err) {
     console.error("❌ checkoutOrder() failed:", err);
     alert("Checkout failed. See console for details.");
   }
+
+  // 🔓 Allow checkout again for next order
+  window.__checkout_in_progress__ = false;
 }
 /* ---------------------- 🧩 END PATCH 1 ---------------------- */
 /* ---------------------- 💳 END CHECKOUT FIX ---------------------- */
