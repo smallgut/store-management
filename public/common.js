@@ -692,10 +692,10 @@ async function loadProducts(stockOnly = false) {
   console.log("📦 Loading products...");
   const supabase = await ensureSupabaseClient();
 
-  // 1️⃣ Get product info and vendor name
+  // 1️⃣ Get product info + vendor name
   const { data: products, error: prodErr } = await supabase
     .from("products")
-    .select("id, name, barcode, price, units, vendor_id, vendors(name)")
+    .select("id, name, barcode, units, vendor_id, vendors(name)")
     .order("id", { ascending: true });
 
   if (prodErr) {
@@ -703,71 +703,70 @@ async function loadProducts(stockOnly = false) {
     return;
   }
 
-  // 2️⃣ Fetch latest batch info (each product may have multiple)
+  // 2️⃣ Get ALL batches (not grouped)
   const { data: batches, error: batchErr } = await supabase
     .from("product_batches")
-    .select("product_id, batch_number, remaining_quantity, created_at")
-    .order("created_at", { ascending: false });
+    .select("id, product_id, batch_number, remaining_quantity, buy_in_price")
+    .order("product_id", { ascending: true })
+    .order("id", { ascending: true });
 
   if (batchErr) {
-    console.warn("⚠️ Failed to load product_batches:", batchErr.message);
+    console.error("❌ Failed to load batches:", batchErr);
+    return;
   }
 
-  // 🧠 Map product_id → latest batch number + total remaining
-  const batchMap = {};
-  if (batches && batches.length > 0) {
-    for (const b of batches) {
-      if (!batchMap[b.product_id]) {
-        batchMap[b.product_id] = { batch_no: b.batch_number, total: 0 };
-      }
-      batchMap[b.product_id].total += b.remaining_quantity || 0;
-    }
-  }
-
-  // 3️⃣ Render table
   const tbody = document.getElementById("products-body");
   if (!tbody) {
-    console.warn("⚠️ #products-body not found in DOM");
+    console.warn("⚠️ #products-body missing");
     return;
   }
   tbody.innerHTML = "";
 
-  let filtered = products;
-  if (stockOnly) {
-    filtered = products.filter(p => (batchMap[p.id]?.total || 0) > 0);
+  // 3️⃣ Build table rows: ONE ROW PER BATCH
+  const rows = [];
+
+  for (const p of products) {
+    const vendorName = p.vendors?.name || "—";
+
+    // batches for this product
+    const myBatches = batches.filter(b => b.product_id === p.id);
+
+    if (stockOnly) {
+      // only show batches with >0 stock
+      myBatches = myBatches.filter(b => (b.remaining_quantity || 0) > 0);
+    }
+
+    if (myBatches.length === 0) continue;
+
+    for (const b of myBatches) {
+      rows.push(`
+        <tr>
+          <td class="border p-2">${p.id}</td>
+          <td class="border p-2">${p.name}</td>
+          <td class="border p-2">${p.barcode || ""}</td>
+          <td class="border p-2">${parseFloat(b.buy_in_price).toFixed(2)}</td>
+          <td class="border p-2">${p.units}</td>
+          <td class="border p-2">${vendorName}</td>
+          <td class="border p-2">${b.batch_number}</td>
+          <td class="border p-2">${b.remaining_quantity}</td>
+          <td class="border p-2 text-center space-x-2">
+            <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+                    onclick="showAdjustProduct(${b.id})">Adjust</button>
+            <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                    onclick="removeProduct(${p.id})">Remove</button>
+          </td>
+        </tr>
+      `);
+    }
   }
 
-  if (filtered.length === 0) {
-    tbody.innerHTML =
-      `<tr><td colspan="9" class="text-center p-2 text-gray-500">No products found</td></tr>`;
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">No products found</td></tr>`;
     return;
   }
 
-  filtered.forEach(p => {
-    const vendorName = p.vendors?.name || "—";
-    const batch_no = batchMap[p.id]?.batch_no || "—";
-    const remaining = batchMap[p.id]?.total ?? 0;
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="border p-2">${p.id}</td>
-      <td class="border p-2">${p.name}</td>
-      <td class="border p-2">${p.barcode}</td>
-      <td class="border p-2">${parseFloat(p.price).toFixed(2)}</td>
-      <td class="border p-2">${p.units}</td>
-      <td class="border p-2">${vendorName}</td>
-      <td class="border p-2">${batch_no}</td>
-      <td class="border p-2">${remaining}</td>
-      <td class="border p-2 text-center space-x-2">
-        <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-                onclick="showAdjustProduct(${p.id})">Adjust</button>
-        <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-                onclick="removeProduct(${p.id})">Remove</button>
-      </td>`;
-    tbody.appendChild(tr);
-  });
-
-  console.log(`✅ Rendered ${filtered.length} products.`);
+  tbody.innerHTML = rows.join("");
+  console.log(`✅ Rendered ${rows.length} product batches (1 row per batch)`);
 }
 
 async function inStockProductIds() {
