@@ -949,12 +949,6 @@ async function addProduct(event) {
   }
 }
 
-  // 3️⃣ Refresh list
-  await loadProducts();
-  alert(`✅ Product "${name}" added successfully!`);
-  document.getElementById("add-product-form").reset();
-}
-
 
 /* ---------------- VENDORS ---------------- */
 // 🧩 Debug-friendly version of loadVendors()
