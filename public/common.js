@@ -801,73 +801,153 @@ async function autofillProductNameByBarcode(barcode) {
 // Add Product (auto validates and creates initial stock batch)
 // 🧩 Add Product with Auto Batch No. generation
 // --- 🧩 Add Product with Auto Batch & Initial Quantity ---
+// --- corrected addProduct() ---
+// Adds a canonical product (if needed) and always creates a product_batches row.
+// If a product with the same barcode already exists, reuse the existing product.id
+// and create only the product_batches record (prevents duplicate product rows).
 async function addProduct(event) {
-  event.preventDefault();
+  event?.preventDefault?.();
   console.log("🟢 addProduct() triggered");
 
-  const supabase = await ensureSupabaseClient();
+  try {
+    const supabase = await ensureSupabaseClient();
 
-  const name = document.getElementById("name").value.trim();
-  const barcode = document.getElementById("barcode").value.trim();
-  const price = parseFloat(document.getElementById("price").value || 0);
-  const units = document.getElementById("units").value.trim();
-  const vendor_id = parseInt(document.getElementById("vendor").value || 0);
-  const quantity = parseInt(document.getElementById("quantity").value || 0);
+    // read UI
+    const nameEl = document.getElementById("name");
+    const barcodeEl = document.getElementById("barcode");
+    const priceEl = document.getElementById("price");
+    const unitsEl = document.getElementById("units");
+    const vendorEl = document.getElementById("vendor");
+    const qtyEl = document.getElementById("quantity");
 
-  if (!name || !price || !units || !vendor_id || isNaN(quantity)) {
-    alert("⚠️ Please fill in all required fields (barcode optional).");
-    return;
-  }
+    const name = nameEl?.value?.trim() || "";
+    const barcode = barcodeEl?.value?.trim() || "";
+    const price = parseFloat(priceEl?.value || 0) || 0;
+    const units = unitsEl?.value?.trim() || "";
+    const vendor_id = parseInt(vendorEl?.value || "0", 10) || 0;
+    const quantity = parseInt(qtyEl?.value || "0", 10) || 0;
 
- // ✅ Short unique batch number + date code
-const uniqueSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-const today = new Date();
-const ymd = today.getFullYear().toString() +
-            String(today.getMonth() + 1).padStart(2, "0") +
-            String(today.getDate()).padStart(2, "0");
-const batch_no = `B-${uniqueSuffix}-${ymd}`; // e.g. B-CFRABS-20251023
-console.log(`🧾 Generated Batch No: ${batch_no}`);
-
-  // 1️⃣ Insert into products
-  const { data: newProduct, error: prodErr } = await supabase
-    .from("products")
-    .insert([{ name, barcode, price, units, vendor_id, batch_no }])
-    .select()
-    .maybeSingle();
-
-  if (prodErr || !newProduct) {
-    console.error("❌ Failed to add product:", prodErr);
-    if (prodErr?.code === "23505") {
-      alert("⚠️ Duplicate barcode & batch number combination. Try again.");
-    } else if (prodErr?.code === "22001") {
-      alert("⚠️ Batch number too long for database column. Please shorten it.");
-    } else {
-      alert(`Failed to add product: ${prodErr?.message || "Unknown error"}`);
+    if (!name || !price || !units || !vendor_id || Number.isNaN(quantity)) {
+      alert("⚠️ Please fill in all required fields (barcode optional).");
+      return;
     }
-    return;
+
+    // generate short unique-ish batch + date code
+    const uniqueSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const today = new Date();
+    const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+    const batch_no = `B-${uniqueSuffix}-${ymd}`;
+    console.log(`🧾 Generated Batch No: ${batch_no}`);
+
+    // Determine canonical product id:
+    // 1) If barcode supplied: try to find the canonical product with same barcode (lowest id).
+    // 2) If not found (or no barcode), create a new product row and use its id.
+    let productId = null;
+    if (barcode) {
+      // look for existing products with this barcode ordered by id -> take the smallest (canonical)
+      const { data:foundProducts, error:findErr } = await supabase
+        .from("products")
+        .select("id, name, barcode, price")
+        .eq("barcode", barcode)
+        .order("id", { ascending: true });
+
+      if (findErr) {
+        console.error("❌ Error searching existing product by barcode:", findErr);
+        alert("Failed to check existing barcode. See console for details.");
+        return;
+      }
+
+      if (foundProducts && foundProducts.length > 0) {
+        // reuse canonical product id
+        productId = foundProducts[0].id;
+        console.log(`ℹ️ Existing product found for barcode ${barcode}, reusing product id ${productId}`);
+      }
+    }
+
+    // If no productId from barcode lookup, insert new product row
+    if (!productId) {
+      const insertPayload = { name, barcode: barcode || null, price, units, vendor_id, batch_no };
+      const { data: newProduct, error: prodErr } = await supabase
+        .from("products")
+        .insert([insertPayload])
+        .select()
+        .maybeSingle();
+
+      if (prodErr) {
+        console.error("❌ Failed to add product:", prodErr);
+        // common helpful error messages
+        if (prodErr?.code === "23505") {
+          alert("⚠️ Duplicate product (barcode + batch) already exists. Try again with a different barcode or batch.");
+        } else if (prodErr?.code === "22001") {
+          alert("⚠️ Batch number or field too long for DB column. Please shorten.");
+        } else {
+          alert(`Failed to add product: ${prodErr?.message || "Unknown error"}`);
+        }
+        return;
+      }
+
+      if (!newProduct || !newProduct.id) {
+        console.error("❌ insert returned no newProduct.");
+        alert("Failed to create product row.");
+        return;
+      }
+
+      productId = newProduct.id;
+      console.log(`✅ Product added with ID: ${productId}`);
+    }
+
+    // Now create product_batches for this canonical product id.
+    // Avoid inserting duplicate batch_number for same product_id.
+    // We will attempt insert and handle unique constraint error.
+    const batchPayload = {
+      product_id: productId,
+      vendor_id: vendor_id,
+      batch_number: batch_no,
+      buy_in_price: price,
+      remaining_quantity: quantity
+    };
+
+    const { data: insertedBatch, error: batchErr } = await supabase
+      .from("product_batches")
+      .insert([batchPayload])
+      .select()
+      .maybeSingle();
+
+    if (batchErr) {
+      console.error("❌ Failed to create product_batches:", batchErr);
+      if (batchErr?.code === "23505") {
+        alert("⚠️ This batch already exists for the product. Try again or choose a different batch.");
+      } else {
+        alert(`Failed to create batch: ${batchErr?.message || "Unknown error"}`);
+      }
+      return;
+    }
+
+    console.log("✅ Batch created successfully.", insertedBatch);
+
+    // Clear form inputs and reload products list
+    if (nameEl) nameEl.value = "";
+    if (barcodeEl) barcodeEl.value = "";
+    if (priceEl) priceEl.value = "";
+    if (unitsEl) unitsEl.value = "";
+    if (vendorEl) vendorEl.value = "";
+    if (qtyEl) qtyEl.value = "";
+
+    // refresh UI; if you have a loadProducts() helper (as in common.js) call it
+    if (typeof loadProducts === "function") {
+      try {
+        await loadProducts(false); // keep default hide-zero-stock behavior
+      } catch (err) {
+        console.warn("⚠️ loadProducts() failed after add:", err);
+      }
+    }
+
+    alert("✅ Product & batch added successfully.");
+  } catch (err) {
+    console.error("❌ addProduct() unexpected error:", err);
+    alert("Unexpected error while adding product — check console.");
   }
-
-  console.log(`✅ Product added with ID: ${newProduct.id}`);
-
-  // 2️⃣ Insert matching product_batches record
-  const { error: batchErr } = await supabase
-    .from("product_batches")
-    .insert([
-      {
-        product_id: newProduct.id,
-        vendor_id,
-        batch_number: batch_no,
-        buy_in_price: price,
-        remaining_quantity: quantity,
-      },
-    ]);
-
-  if (batchErr) {
-    console.error("⚠️ Failed to insert product_batches:", batchErr);
-    alert("⚠️ Product added but failed to create batch record. See console.");
-  } else {
-    console.log("✅ Batch created successfully.");
-  }
+}
 
   // 3️⃣ Refresh list
   await loadProducts();
