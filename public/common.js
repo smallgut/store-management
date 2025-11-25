@@ -750,11 +750,12 @@ async function loadProducts(stockOnly = false) {
           <td class="border p-2">${b.batch_number}</td>
           <td class="border p-2">${b.remaining_quantity}</td>
           <td class="border p-2 text-center space-x-2">
-            <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-                    onclick="showAdjustProduct(${b.id})">Adjust</button>
-            <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-                    onclick="removeProduct(${p.id})">Remove</button>
-          </td>
+  <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+          onclick="showAdjustProduct(${b.id})">Adjust</button>
+
+  <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+          onclick="removeProduct(${b.id})">Remove</button>
+</td>
         </tr>
       `);
     }
