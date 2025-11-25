@@ -550,15 +550,27 @@ async function checkoutOrder(e) {
 
     const orderId = orderData.id;
     const rows = Array.from(tbody.querySelectorAll("tr"));
-    const items = rows.map((r) => {
-      const c = r.querySelectorAll("td");
-      return {
-        order_id: orderId,
-        batch_id: parseInt(c[2]?.textContent || "0"),
-        quantity: parseFloat(c[3]?.textContent || "0"),
-        selling_price: parseFloat(c[4]?.textContent || "0"),
-      };
-    });
+    const items = await Promise.all(
+  rows.map(async (r) => {
+    const c = r.querySelectorAll("td");
+    const batchId = parseInt(c[2]?.textContent || "0");
+
+    // Fetch product_id for this batch
+    const { data: batchData } = await supabase
+      .from("product_batches")
+      .select("product_id")
+      .eq("id", batchId)
+      .single();
+
+    return {
+      order_id: orderId,
+      batch_id: batchId,
+      product_id: batchData?.product_id || null,
+      quantity: parseFloat(c[3]?.textContent || "0"),
+      selling_price: parseFloat(c[4]?.textContent || "0"),
+    };
+  })
+);
 
     console.log("📦 Inserting order items:", items);
     const { error: itemsErr } = await supabase.from("customer_sales_items").insert(items);
