@@ -1731,7 +1731,7 @@ async function runVendorLoanReport() {
   const supabase = await ensureSupabaseClient();
   const vendorId = document.getElementById("vendor-loan-select").value;
   const from = document.getElementById("vendor-loan-from").value || null;
-  const to = document.getElementById("vendor-loan-to").value || null;
+  const to   = document.getElementById("vendor-loan-to").value || null;
 
   if (!vendorId) return alert("Please select a vendor first.");
   fadeOutSection("#vendor-loan-report-section");
@@ -1739,12 +1739,12 @@ async function runVendorLoanReport() {
   try {
     let query = supabase
       .from("vendor_loans")
-      .select("id, batch_no, quantity, selling_price, date, products(name)")
+      .select("id, product_id, batch_no, quantity, selling_price, date")
       .eq("vendor_id", vendorId)
       .order("date", { ascending: true });
 
     if (from) query = query.gte("date", from);
-    if (to) query = query.lte("date", to);
+    if (to)   query = query.lte("date", to);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -1760,23 +1760,34 @@ async function runVendorLoanReport() {
     }
 
     let totalLoan = 0;
-    data.forEach(row => {
-      const subtotal = (row.quantity || 0) * (row.selling_price || 0);
+
+    for (const row of data) {
+      // 🔹 Fetch product name via product_id
+      const { data: prod } = await supabase
+        .from("products")
+        .select("name")
+        .eq("id", row.product_id)
+        .maybeSingle();
+
+      const productName = prod?.name || "Unknown Product";
+
+      const subtotal = (Number(row.quantity) || 0) * (Number(row.selling_price) || 0);
       totalLoan += subtotal;
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="border p-2">${row.products?.name || "-"}</td>
+        <td class="border p-2">${productName}</td>
         <td class="border p-2">${row.batch_no || "-"}</td>
         <td class="border p-2 text-right">${row.quantity}</td>
-        <td class="border p-2 text-right">${row.selling_price.toFixed(2)}</td>
+        <td class="border p-2 text-right">${Number(row.selling_price).toFixed(2)}</td>
         <td class="border p-2 text-right">${subtotal.toFixed(2)}</td>
         <td class="border p-2">${new Date(row.date).toLocaleDateString("zh-TW")}</td>
       `;
       tbody.appendChild(tr);
-    });
+    }
 
     document.getElementById("vendor-loan-total").textContent = totalLoan.toFixed(2);
+
   } catch (err) {
     console.error("❌ runVendorLoanReport failed:", err);
     alert("Failed to load vendor loan report.");
