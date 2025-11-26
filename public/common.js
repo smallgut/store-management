@@ -741,13 +741,12 @@ async function loadProducts(stockOnly = false) {
     const vendorName = p.vendors?.name || "—";
 
     // batches for this product
-    const myBatches = batches.filter(b => b.product_id === p.id);
+    let myBatches = batches.filter(b => b.product_id === p.id);
 
-    if (stockOnly) {
-      // only show batches with >0 stock
-      myBatches = myBatches.filter(b => (b.remaining_quantity || 0) > 0);
-    }
-
+if (stockOnly === false) {
+  // hide ZERO stock → show only >0
+  myBatches = myBatches.filter(b => Number(b.remaining_quantity) > 0);
+}
     if (myBatches.length === 0) continue;
 
     for (const b of myBatches) {
