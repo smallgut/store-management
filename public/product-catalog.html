@@ -39,7 +39,11 @@
       <form id="add-catalog-form" class="space-y-4">
         <div>
           <label for="catalog-barcode">Barcode</label>
-          <input id="catalog-barcode" type="text" class="border p-2 w-full" required>
+          <input id="catalog-barcode" type="text"
+       class="border p-2 w-full"
+       required
+       pattern="[A-Za-z0-9_-]+"
+       title="Barcode may only contain letters, digits, hyphens (-) and underscores (_)">
         </div>
         <div>
           <label for="catalog-name">Product Name</label>
@@ -216,6 +220,10 @@ document.getElementById("print-labels-btn").addEventListener("click", () => {
     </html>
   `);
   printWindow.document.close();
+});
+
+    document.getElementById("catalog-barcode").addEventListener("input", (e) => {
+  e.target.value = e.target.value.replace(/[^A-Za-z0-9_-]/g, "");
 });
   </script>
   <div id="print-area" style="display:none;"></div>
