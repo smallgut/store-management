@@ -110,13 +110,14 @@
       data.forEach((item) => {
         const row = document.createElement("tr");
         row.innerHTML = `
-          row.innerHTML = `
   <td class="border p-2">${item.barcode}</td>
   <td class="border p-2">${item.name}</td>
   <td class="border p-2">${new Date(item.created_at).toLocaleString()}</td>
 
   <td class="border p-2 text-center">
-    <input type="checkbox" class="print-select" data-barcode="${item.barcode}" data-name="${item.name}">
+    <input type="checkbox" class="print-select" 
+      data-barcode="${item.barcode}" 
+      data-name="${item.name}">
   </td>
 
   <td class="border p-2">
