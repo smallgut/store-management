@@ -109,14 +109,20 @@
       data.forEach((item) => {
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td class="border p-2">${item.barcode}</td>
-          <td class="border p-2">${item.name}</td>
-          <td class="border p-2">${new Date(item.created_at).toLocaleString()}</td>
-          <td class="border p-2">
-            <button class="bg-red-500 text-white px-2 py-1 rounded delete-btn"
-              data-id="${item.id}">Delete</button>
-          </td>
-        `;
+          row.innerHTML = `
+  <td class="border p-2">${item.barcode}</td>
+  <td class="border p-2">${item.name}</td>
+  <td class="border p-2">${new Date(item.created_at).toLocaleString()}</td>
+
+  <td class="border p-2 text-center">
+    <input type="checkbox" class="print-select" data-barcode="${item.barcode}" data-name="${item.name}">
+  </td>
+
+  <td class="border p-2">
+    <button class="bg-red-500 text-white px-2 py-1 rounded delete-btn"
+      data-id="${item.id}">Delete</button>
+  </td>
+`;
         catalogTable.appendChild(row);
       });
 
@@ -159,5 +165,6 @@
     loadCatalog();
   });
   </script>
+  <div id="print-area" style="display:none;"></div>
 </body>
 </html>
