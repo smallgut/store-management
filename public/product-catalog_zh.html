@@ -7,6 +7,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="common.js"></script>
+
+  <!-- JsBarcode -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 
 <body class="bg-gray-100 p-4 transition-opacity duration-700 ease-in-out opacity-0">
@@ -21,7 +24,6 @@
       <li><a href="customer-sales_zh.html">記錄顧客銷售</a></li>
       <li><a href="vendor-loan-record_zh.html">供應商借貨記錄</a></li>
       <li><a href="product-catalog_zh.html">產品目錄</a></li>
-      
     </ul>
     <li><a href="product-catalog.html">English</a></li>
     <button id="logout-btn" class="bg-red-500 px-3 py-1 rounded hover:bg-red-600">登出</button>
@@ -39,18 +41,27 @@
       <form id="add-catalog-form" class="space-y-4">
         <div>
           <label for="catalog-barcode">產品條碼</label>
-          <input id="catalog-barcode" type="text" class="border p-2 w-full" required placeholder="請輸入產品條碼">
+          <input id="catalog-barcode" type="text"
+            class="border p-2 w-full"
+            required
+            pattern="[A-Za-z0-9_-]+"
+            placeholder="請輸入產品條碼（僅限英文、數字、-、_）">
         </div>
         <div>
           <label for="catalog-name">產品名稱</label>
           <input id="catalog-name" type="text" class="border p-2 w-full" required placeholder="請輸入產品名稱">
         </div>
-        <button type="submit"
-          class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+        <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
           ➕ 新增產品
         </button>
       </form>
     </div>
+
+    <!-- ✅ 印列印按鈕 -->
+    <button id="print-labels-btn"
+      class="bg-green-600 text-white px-4 py-2 rounded mb-4 hover:bg-green-700">
+      🖨️ 列印條碼標籤
+    </button>
 
     <!-- ✅ 產品目錄表格 -->
     <h2 class="text-xl font-semibold mb-2">產品清單</h2>
@@ -60,6 +71,7 @@
           <th class="border p-2">產品條碼</th>
           <th class="border p-2">產品名稱</th>
           <th class="border p-2">建立日期</th>
+          <th class="border p-2">選取</th>
           <th class="border p-2">操作</th>
         </tr>
       </thead>
@@ -67,105 +79,164 @@
     </table>
   </div>
 
-  <script>
-  document.addEventListener("DOMContentLoaded", async () => {
-    console.log("📘 初始化產品目錄頁面...");
-    const supabase = await ensureSupabaseClient();
-    const catalogTable = document.querySelector("#catalog-table tbody");
-    const form = document.getElementById("add-catalog-form");
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("📘 初始化產品目錄頁面...");
+  const supabase = await ensureSupabaseClient();
+  const catalogTable = document.querySelector("#catalog-table tbody");
+  const form = document.getElementById("add-catalog-form");
 
-    // 🔒 登入驗證
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      alert("請先登入系統。");
-      window.location.href = "login_zh.html";
+  // 🔒 登入驗證
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    alert("請先登入系統。");
+    window.location.href = "login_zh.html";
+    return;
+  }
+
+  // 🔑 登出按鈕
+  const logoutBtn = document.getElementById("logout-btn");
+  logoutBtn.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    alert("您已成功登出系統。");
+    window.location.href = "login_zh.html";
+  });
+
+  // 🟩 清除不合法條碼（即時）
+  document.getElementById("catalog-barcode").addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/[^A-Za-z0-9_-]/g, "");
+  });
+
+  // 🚀 載入產品目錄
+  async function loadCatalog() {
+    const { data, error } = await supabase
+      .from("product_catalog")
+      .select("id, barcode, name, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("❌ 載入產品錯誤：", error);
       return;
     }
 
-    // 🔑 登出按鈕
-    const logoutBtn = document.getElementById("logout-btn");
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        alert("您已成功登出系統。");
-        window.location.href = "login_zh.html";
-      });
-    }
+    catalogTable.innerHTML = "";
+    data.forEach((item) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td class="border p-2">${item.barcode}</td>
+        <td class="border p-2">${item.name}</td>
+        <td class="border p-2">${new Date(item.created_at).toLocaleString("zh-TW")}</td>
 
-    // ✅ 載入產品目錄
-    async function loadCatalog() {
-      const { data, error } = await supabase
-        .from("product_catalog")
-        .select("id, barcode, name, created_at")
-        .order("created_at", { ascending: false });
+        <td class="border p-2 text-center">
+          <input type="checkbox" class="print-select"
+            data-barcode="${item.barcode}"
+            data-name="${item.name}">
+        </td>
 
-      if (error) {
-        console.error("❌ 載入產品目錄時發生錯誤：", error);
-        document.getElementById("error").textContent = "載入資料時發生錯誤，請稍後再試。";
-        return;
-      }
-
-      catalogTable.innerHTML = "";
-      data.forEach((item) => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td class="border p-2">${item.barcode}</td>
-          <td class="border p-2">${item.name}</td>
-          <td class="border p-2">${new Date(item.created_at).toLocaleString("zh-TW")}</td>
-          <td class="border p-2 text-center">
-            <button class="bg-red-500 text-white px-2 py-1 rounded delete-btn hover:bg-red-600"
-              data-id="${item.id}">刪除</button>
-          </td>
-        `;
-        catalogTable.appendChild(row);
-      });
-
-      // ✅ 綁定刪除按鈕
-      document.querySelectorAll(".delete-btn").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const id = btn.dataset.id;
-          if (confirm("確定要刪除此產品嗎？")) {
-            const { error } = await supabase.from("product_catalog").delete().eq("id", id);
-            if (error) {
-              console.error("❌ 刪除時發生錯誤：", error);
-              alert("刪除失敗，請稍後再試。");
-            } else {
-              alert("✅ 產品已成功刪除。");
-              loadCatalog();
-            }
-          }
-        });
-      });
-    }
-
-    // ✅ 處理新增產品
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const barcode = document.getElementById("catalog-barcode").value.trim();
-      const name = document.getElementById("catalog-name").value.trim();
-
-      if (!barcode || !name) {
-        alert("請填寫所有欄位。");
-        return;
-      }
-
-      const { error } = await supabase.from("product_catalog").insert([{ barcode, name }]);
-      if (error) {
-        console.error("❌ 新增產品時發生錯誤：", error);
-        alert("新增失敗，請稍後再試。");
-      } else {
-        alert("✅ 產品已成功新增。");
-        form.reset();
-        loadCatalog();
-      }
+        <td class="border p-2 text-center">
+          <button class="bg-red-500 text-white px-2 py-1 rounded delete-btn hover:bg-red-600"
+            data-id="${item.id}">刪除</button>
+        </td>
+      `;
+      catalogTable.appendChild(row);
     });
 
-    // 初始載入
-    loadCatalog();
+    // 綁定刪除事件
+    document.querySelectorAll(".delete-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("確定要刪除此產品嗎？")) return;
 
-    // ✨ 頁面淡入效果
-    setTimeout(() => document.body.style.opacity = 1, 100);
+        const { error } = await supabase
+          .from("product_catalog")
+          .delete()
+          .eq("id", btn.dataset.id);
+
+        if (error) {
+          alert("❌ 刪除失敗");
+        } else {
+          loadCatalog();
+        }
+      });
+    });
+  }
+
+  // 新增產品
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const barcode = document.getElementById("catalog-barcode").value.trim();
+    const name = document.getElementById("catalog-name").value.trim();
+
+    if (!barcode || !name) {
+      alert("請填寫所有欄位");
+      return;
+    }
+
+    const { error } = await supabase.from("product_catalog").insert([{ barcode, name }]);
+    if (error) {
+      alert("新增失敗！");
+    } else {
+      form.reset();
+      loadCatalog();
+    }
   });
-  </script>
+
+  loadCatalog();
+
+  setTimeout(() => document.body.style.opacity = 1, 100);
+});
+
+// 🖨️ 列印條碼標籤
+document.getElementById("print-labels-btn").addEventListener("click", () => {
+  const selected = Array.from(document.querySelectorAll(".print-select:checked"));
+
+  if (selected.length === 0) {
+    alert("請選擇至少一項產品");
+    return;
+  }
+
+  const printArea = document.getElementById("print-area");
+  printArea.innerHTML = "";
+
+  selected.forEach(item => {
+    const barcode = item.dataset.barcode;
+    const name = item.dataset.name;
+
+    const div = document.createElement("div");
+    div.style.cssText = "display:inline-block; margin:10px; text-align:center;";
+
+    div.innerHTML = `
+      <svg id="barcode-${barcode}"></svg>
+      <div style="font-size:14px; margin-top:4px;">${name}</div>
+      <div style="font-size:12px; color:#555;">${barcode}</div>
+    `;
+
+    printArea.appendChild(div);
+
+    JsBarcode(`#barcode-${barcode}`, barcode, {
+      format: "CODE128",
+      width: 2,
+      height: 60,
+      displayValue: false
+    });
+  });
+
+  const printWindow = window.open("", "_blank");
+  printWindow.document.write(`
+    <html>
+      <head><title>條碼列印</title></head>
+      <body>
+        ${printArea.innerHTML}
+        <script>
+          window.onload = function() { window.print(); }
+        <\/script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+});
+</script>
+
+<div id="print-area" style="display:none;"></div>
+
 </body>
 </html>
