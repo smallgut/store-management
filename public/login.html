@@ -106,6 +106,30 @@ document.getElementById("reset-password-btn").addEventListener("click", async ()
     alert("✅ Password reset link sent! Check your email.");
   }
 });
+
+// ✅ Forgot password handler
+document.getElementById("forgot-password").addEventListener("click", async () => {
+
+  const email = document.getElementById("email").value.trim();
+
+  if (!email) {
+    alert("Please enter your email first.");
+    return;
+  }
+
+  const supabase = await ensureSupabaseClient();
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: "https://YOUR-NETLIFY-SITE.netlify.app/reset-password.html"
+  });
+
+  if (error) {
+    alert("❌ " + error.message);
+  } else {
+    alert("✅ Password reset email sent. Please check your inbox.");
+  }
+
+});
     
   </script>
 </body>
