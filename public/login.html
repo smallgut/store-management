@@ -97,13 +97,13 @@ document.getElementById("reset-password-btn").addEventListener("click", async ()
   const supabase = await ensureSupabaseClient();
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + "/login.html"
+    redirectTo: "https://calm-malabi-3ca807.netlify.app/reset-password.html"
   });
 
   if (error) {
     alert("❌ Failed to send reset email: " + error.message);
   } else {
-    alert("✅ Password reset link sent! Check your email.");
+    alert("✅ Password reset link sent! Please check your email.");
   }
 });
 
