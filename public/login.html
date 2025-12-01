@@ -69,6 +69,28 @@ if (params.get("signup") === "success") {
   document.getElementById("success").textContent = "✅ Account created. Please log in.";
   document.getElementById("success").classList.remove("hidden");
 }
+
+document.getElementById("reset-password-btn").addEventListener("click", async () => {
+  const email = document.getElementById("email").value.trim();
+
+  if (!email) {
+    alert("Please enter your email first.");
+    return;
+  }
+
+  const supabase = await ensureSupabaseClient();
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + "/login.html"
+  });
+
+  if (error) {
+    alert("❌ Failed to send reset email: " + error.message);
+  } else {
+    alert("✅ Password reset link sent! Check your email.");
+  }
+});
+    
   </script>
 </body>
 </html>
