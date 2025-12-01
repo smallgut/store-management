@@ -21,7 +21,6 @@
       <li><a href="customer-sales_zh.html">記錄顧客銷售</a></li>
       <li><a href="vendor-loan-record_zh.html">供應商借貨記錄</a></li>
       <li><a href="product-catalog_zh.html">產品目錄</a></li>
-      
     </ul>
     <li><a href="login.html">English</a></li>
   </nav>
@@ -35,20 +34,27 @@
         <div>
           <label for="email" class="block mb-1 font-medium">電子郵件</label>
           <input id="email" type="email" required
-                 class="w-full border p-2 rounded focus:ring focus:ring-blue-200"
-                 placeholder="請輸入電子郵件" />
+            class="w-full border p-2 rounded focus:ring focus:ring-blue-200"
+            placeholder="請輸入電子郵件" />
         </div>
 
         <div>
           <label for="password" class="block mb-1 font-medium">密碼</label>
           <input id="password" type="password" required
-                 class="w-full border p-2 rounded focus:ring focus:ring-blue-200"
-                 placeholder="請輸入密碼" />
+            class="w-full border p-2 rounded focus:ring focus:ring-blue-200"
+            placeholder="請輸入密碼" />
         </div>
 
         <button type="submit"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded font-semibold">
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded font-semibold">
           登入
+        </button>
+
+        <!-- 🔐 忘記密碼 -->
+        <button type="button"
+          id="reset-password-btn"
+          class="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-800 p-2 rounded text-sm">
+          忘記密碼？
         </button>
       </form>
 
@@ -56,51 +62,72 @@
       <p id="error" class="text-red-500 mt-3 text-center"></p>
 
       <div class="mt-6 text-center text-sm text-gray-600">
-        <p>尚未登入的話請輸入正確帳號密碼。</p>
+        <p>若忘記密碼，請輸入電子郵件並點選「忘記密碼？」</p>
       </div>
     </div>
   </main>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      console.log("🔐 初始化登入頁面...");
-      const supabase = await ensureSupabaseClient();
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("🔐 初始化登入頁面...");
+  const supabase = await ensureSupabaseClient();
 
-      // ✨ 頁面淡入效果
-      setTimeout(() => document.body.style.opacity = 1, 100);
+  setTimeout(() => document.body.style.opacity = 1, 100);
 
-      // ✅ 顯示註冊成功訊息
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("signup") === "success") {
-        const msg = document.getElementById("success");
-        msg.textContent = "✅ 帳號建立成功，請登入。";
-        msg.classList.remove("hidden");
-      }
+  // ✅ 顯示註冊成功訊息
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("signup") === "success") {
+    const msg = document.getElementById("success");
+    msg.textContent = "✅ 帳號建立成功，請登入。";
+    msg.classList.remove("hidden");
+  }
 
-      // 🧩 登入邏輯
-      const form = document.getElementById("login-form");
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const email = document.getElementById("email").value.trim();
-        const password = document.getElementById("password").value;
+  // ✅ 登入流程
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-        if (!email || !password) {
-          alert("請輸入電子郵件與密碼。");
-          return;
-        }
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
 
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!email || !password) {
+      alert("請輸入電子郵件與密碼。");
+      return;
+    }
 
-        if (error) {
-          console.error("❌ 登入失敗：", error);
-          document.getElementById("error").textContent = "登入失敗，請確認帳號或密碼是否正確。";
-        } else {
-          console.log("✅ 登入成功：", data);
-          alert("登入成功，歡迎使用！");
-          window.location.href = "index_zh.html";
-        }
-      });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      console.error("❌ 登入失敗：", error);
+      document.getElementById("error").textContent = "登入失敗，請確認帳號或密碼是否正確。";
+    } else {
+      alert("✅ 登入成功，歡迎使用！");
+      window.location.href = "index_zh.html";
+    }
+  });
+
+  // 🔐 忘記密碼流程
+  document.getElementById("reset-password-btn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value.trim();
+
+    if (!email) {
+      alert("請先輸入電子郵件。");
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + "/login_zh.html"
     });
-  </script>
+
+    if (error) {
+      console.error("❌ 重設密碼失敗：", error);
+      alert("寄送失敗：" + error.message);
+    } else {
+      alert("✅ 重設密碼連結已寄送至您的電子郵件。");
+    }
+  });
+
+});
+</script>
+
 </body>
 </html>
