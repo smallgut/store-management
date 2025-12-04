@@ -2183,5 +2183,3 @@ if (addBtn) {
   // ✅ Load sales table if applicable
   loadCustomerSales();
 });
-
-

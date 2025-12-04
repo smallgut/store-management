@@ -100,11 +100,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-if (error) {
-  ...
-} else {
-  window.location.href = "index.html";
-}
+    if (error) {
+      document.getElementById("error").textContent = error.message;
+    } else {
+      window.location.href = "index.html";
+    }
+  });
 
   // 🔐 Forgot password handler
   document.getElementById("reset-password-btn").addEventListener("click", async () => {
