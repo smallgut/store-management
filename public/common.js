@@ -2183,3 +2183,58 @@ if (addBtn) {
   // ✅ Load sales table if applicable
   loadCustomerSales();
 });
+
+
+
+// ========================
+// 🔒 Session Timeout System
+// ========================
+
+const SESSION_TIMEOUT_MINUTES = 30;
+
+function startSessionTimer() {
+  let lastActivity = Date.now();
+
+  function resetTimer() {
+    lastActivity = Date.now();
+    localStorage.setItem("lastActivity", lastActivity);
+  }
+
+  // Update activity on user interactions
+  ["click", "mousemove", "keydown", "touchstart"].forEach(evt => {
+    document.addEventListener(evt, resetTimer);
+  });
+
+  // Check for timeout every 60 seconds
+  setInterval(async () => {
+
+    const last = parseInt(localStorage.getItem("lastActivity") || lastActivity);
+    const elapsed = Date.now() - last;
+    const timeout = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+
+    if (elapsed > timeout) {
+
+      console.warn("⏱️ Session timed out.");
+
+      const supabase = await ensureSupabaseClient();
+      await supabase.auth.signOut();
+
+      localStorage.removeItem("lastActivity");
+
+      alert("Session expired. Please login again.");
+
+      window.location.href = "login.html";
+    }
+
+  }, 60 * 1000);
+
+  resetTimer();
+
+  console.log("🔐 Session timeout started");
+}
+
+
+// ✅ Start timer automatically after page load
+document.addEventListener("DOMContentLoaded", () => {
+  startSessionTimer();
+});
