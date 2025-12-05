@@ -2221,7 +2221,7 @@ function startSessionTimer() {
 
       localStorage.removeItem("lastActivity");
 
-      alert("Session expired. Please login again.");
+      alert("⏱️ 工作階段已逾時，請重新登入。\nSession expired. Please login again.");
 
       window.location.href = "login.html";
     }
