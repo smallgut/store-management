@@ -2234,6 +2234,28 @@ function startSessionTimer() {
 }
 
 
+// 🔐 Route protection - prevent access without login
+document.addEventListener("DOMContentLoaded", async () => {
+
+  const supabase = await ensureSupabaseClient();
+
+  const { data } = await supabase.auth.getSession();
+
+  const publicPages = [
+    "/login.html",
+    "/login_zh.html",
+    "/reset-password.html"
+  ];
+
+  const path = window.location.pathname;
+
+  // ✅ Redirect unauthenticated users from all protected pages
+  if (!data.session && !publicPages.some(p => path.endsWith(p))) {
+    window.location.href = "login.html";
+  }
+
+});
+
 // ✅ Start timer automatically after page load
 document.addEventListener("DOMContentLoaded", () => {
   startSessionTimer();
