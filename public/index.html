@@ -49,7 +49,7 @@
       // 🔒 登入驗證
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert("請先登入系統。");
+        alert("請先登入系統。 Please log in to the system first.");
         window.location.href = "login_zh.html";
         return;
       }
