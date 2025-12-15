@@ -111,3 +111,75 @@ batchEl.innerHTML = batches
         stockDisplay.textContent = `Stock: ${total}`;
     }
 }
+
+
+async function addLoanRecord(e) {
+  e.preventDefault();
+
+  const supabase = await ensureSupabaseClient();
+
+  const vendorId = document.getElementById("vendor-name").value;
+  const productId = document.getElementById("product-select").value;
+  const batchId = document.getElementById("batch-no").value;
+  const quantity = parseInt(document.getElementById("quantity").value, 10);
+  const price = parseFloat(document.getElementById("selling-price").value);
+  const loanDate = document.getElementById("loan-date").value;
+
+  if (!vendorId || !productId || !batchId || quantity <= 0) {
+    showError("Invalid input.");
+    return;
+  }
+
+  // 1️⃣ Fetch batch stock
+  const { data: batch, error: batchErr } = await supabase
+    .from("product_batches")
+    .select("remaining_quantity")
+    .eq("id", batchId)
+    .single();
+
+  if (batchErr || !batch) {
+    showError("Batch not found.");
+    return;
+  }
+
+  if (quantity > batch.remaining_quantity) {
+    showError("Not enough stock.");
+    return;
+  }
+
+  // 2️⃣ Insert vendor loan record
+  const { error: loanErr } = await supabase
+    .from("vendor_loans")
+    .insert([{
+      vendor_id: vendorId,
+      product_id: productId,
+      batch_id: batchId,
+      quantity,
+      selling_price: price,
+      loan_date: loanDate
+    }]);
+
+  if (loanErr) {
+    showError(loanErr.message);
+    return;
+  }
+
+  // 3️⃣ Update batch stock
+  const { error: updateErr } = await supabase
+    .from("product_batches")
+    .update({
+      remaining_quantity: batch.remaining_quantity - quantity
+    })
+    .eq("id", batchId);
+
+  if (updateErr) {
+    showError(updateErr.message);
+    return;
+  }
+
+  showMessage("✅ Loan added and stock updated");
+
+  // 4️⃣ Refresh UI
+  await loadLoanRecords();
+  await loadProductAndBatches(productId, false);
+}
