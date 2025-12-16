@@ -142,17 +142,17 @@ async function addLoanRecord(e) {
     return;
   }
 
-  // 2️⃣ Insert vendor loan (MATCHES SCHEMA)
-  const { error: loanErr } = await supabase
-    .from("vendor_loans")
-    .insert([{
-      vendor: vendorId,
-      product_id: productId,
-      batch_no: batch.batch_number,
-      quantity: quantity,
-      selling_price: price,
-      date: loanDate
-    }]);
+  // 2️⃣ Insert vendor loan record (FIXED)
+const { error: loanErr } = await supabase
+  .from("vendor_loans")
+  .insert([{
+    vendor: vendorId,              // ✅ correct column
+    product_id: productId,
+    batch_no: batchId,             // ✅ correct column
+    quantity: quantity,
+    selling_price: price,
+    date: loanDate                 // ✅ correct column
+  }]);
 
   if (loanErr) {
     showError(loanErr.message);
