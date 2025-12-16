@@ -14,6 +14,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (productSelect) {
         productSelect.addEventListener("change", handleVendorLoanProductSelect);
     }
+
+    const form = document.getElementById("add-loan-record-form");
+  if (form) {
+    form.addEventListener("submit", addLoanRecord);
+  } else {
+    console.warn("❌ add-loan-record-form not found");
+  }
 });
 
 /* ---------------------------------------------------------
