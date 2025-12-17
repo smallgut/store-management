@@ -113,9 +113,10 @@ async function addLoanRecord(e) {
 
   const supabase = await ensureSupabaseClient();
 
-  const vendorId = document.getElementById("vendor-name").value;
-  const productId = document.getElementById("product-select").value;
-  const batchId = document.getElementById("batch-no").value;
+  // 🔒 FORCE numeric types
+  const vendorId = parseInt(document.getElementById("vendor-name").value, 10);
+  const productId = parseInt(document.getElementById("product-select").value, 10);
+  const batchId = parseInt(document.getElementById("batch-no").value, 10);
   const quantity = parseInt(document.getElementById("quantity").value, 10);
   const price = parseFloat(document.getElementById("selling-price").value);
   const loanDate = document.getElementById("loan-date").value;
@@ -132,7 +133,8 @@ async function addLoanRecord(e) {
     .eq("id", batchId)
     .single();
 
-  if (batchErr || !batch) {
+  if (batchErr) {
+    console.error("Batch fetch error:", batchErr);
     showError("Batch not found.");
     return;
   }
@@ -142,24 +144,25 @@ async function addLoanRecord(e) {
     return;
   }
 
-  // 2️⃣ Insert vendor loan (FIXED TYPES)
+  // 2️⃣ Insert vendor loan (ALL TYPES CORRECT)
   const { error: loanErr } = await supabase
     .from("vendor_loans")
     .insert([{
-      vendor: vendorId,
-      product_id: productId,
-      batch_no: batch.batch_number,   // ✅ STRING
-      quantity: quantity,
-      selling_price: price,
-      date: loanDate
+      vendor: vendorId,                 // ✅ int
+      product_id: productId,             // ✅ int
+      batch_no: batch.batch_number,       // ✅ varchar
+      quantity: quantity,                // ✅ int
+      selling_price: price,              // ✅ numeric
+      date: loanDate                     // ✅ timestamptz OK
     }]);
 
   if (loanErr) {
+    console.error("Insert error:", loanErr);
     showError(loanErr.message);
     return;
   }
 
-  // 3️⃣ Update batch stock
+  // 3️⃣ Update stock
   const { error: updateErr } = await supabase
     .from("product_batches")
     .update({
@@ -168,6 +171,7 @@ async function addLoanRecord(e) {
     .eq("id", batchId);
 
   if (updateErr) {
+    console.error("Stock update error:", updateErr);
     showError(updateErr.message);
     return;
   }
