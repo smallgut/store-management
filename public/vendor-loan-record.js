@@ -116,8 +116,8 @@ async function addLoanRecord(e) {
   const vendorId = document.getElementById("vendor-name").value;
   const productId = document.getElementById("product-select").value;
   const batchId = document.getElementById("batch-no").value;
-  const quantity = Number(document.getElementById("quantity").value);
-  const price = Number(document.getElementById("selling-price").value);
+  const quantity = parseInt(document.getElementById("quantity").value, 10);
+  const price = parseFloat(document.getElementById("selling-price").value);
   const loanDate = document.getElementById("loan-date").value;
 
   if (!vendorId || !productId || !batchId || quantity <= 0) {
@@ -142,24 +142,24 @@ async function addLoanRecord(e) {
     return;
   }
 
-  // 2️⃣ Insert vendor loan record (FIXED)
-const { error: loanErr } = await supabase
-  .from("vendor_loans")
-  .insert([{
-    vendor: vendorId,              // ✅ correct column
-    product_id: productId,
-    batch_no: batchId,             // ✅ correct column
-    quantity: quantity,
-    selling_price: price,
-    date: loanDate                 // ✅ correct column
-  }]);
+  // 2️⃣ Insert vendor loan (FIXED TYPES)
+  const { error: loanErr } = await supabase
+    .from("vendor_loans")
+    .insert([{
+      vendor: vendorId,
+      product_id: productId,
+      batch_no: batch.batch_number,   // ✅ STRING
+      quantity: quantity,
+      selling_price: price,
+      date: loanDate
+    }]);
 
   if (loanErr) {
     showError(loanErr.message);
     return;
   }
 
-  // 3️⃣ Update stock
+  // 3️⃣ Update batch stock
   const { error: updateErr } = await supabase
     .from("product_batches")
     .update({
@@ -174,6 +174,7 @@ const { error: loanErr } = await supabase
 
   showMessage("✅ Loan added and stock updated");
 
+  // 4️⃣ Refresh UI
   await loadLoanRecords();
   await loadProductAndBatches(productId, false);
 }
