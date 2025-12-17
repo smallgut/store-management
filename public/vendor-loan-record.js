@@ -113,7 +113,6 @@ async function addLoanRecord(e) {
 
   const supabase = await ensureSupabaseClient();
 
-  // 🔒 FORCE numeric types
   const vendorId = parseInt(document.getElementById("vendor-name").value, 10);
   const productId = parseInt(document.getElementById("product-select").value, 10);
   const batchId = parseInt(document.getElementById("batch-no").value, 10);
@@ -126,15 +125,14 @@ async function addLoanRecord(e) {
     return;
   }
 
-  // 1️⃣ Fetch batch info
+  // 1️⃣ Fetch batch stock
   const { data: batch, error: batchErr } = await supabase
     .from("product_batches")
-    .select("remaining_quantity, batch_number")
+    .select("remaining_quantity")
     .eq("id", batchId)
     .single();
 
-  if (batchErr) {
-    console.error("Batch fetch error:", batchErr);
+  if (batchErr || !batch) {
     showError("Batch not found.");
     return;
   }
@@ -144,16 +142,16 @@ async function addLoanRecord(e) {
     return;
   }
 
-  // 2️⃣ Insert vendor loan (ALL TYPES CORRECT)
+  // 2️⃣ INSERT (MATCHES NEW SCHEMA)
   const { error: loanErr } = await supabase
     .from("vendor_loans")
     .insert([{
-      vendor: vendorId,                 // ✅ int
-      product_id: productId,             // ✅ int
-      batch_no: batch.batch_number,       // ✅ varchar
-      quantity: quantity,                // ✅ int
-      selling_price: price,              // ✅ numeric
-      date: loanDate                     // ✅ timestamptz OK
+      vendor_id: vendorId,
+      product_id: productId,
+      batch_id: batchId,
+      quantity,
+      selling_price: price,
+      loan_date: loanDate
     }]);
 
   if (loanErr) {
@@ -163,22 +161,14 @@ async function addLoanRecord(e) {
   }
 
   // 3️⃣ Update stock
-  const { error: updateErr } = await supabase
+  await supabase
     .from("product_batches")
     .update({
       remaining_quantity: batch.remaining_quantity - quantity
     })
     .eq("id", batchId);
 
-  if (updateErr) {
-    console.error("Stock update error:", updateErr);
-    showError(updateErr.message);
-    return;
-  }
+  showMessage("✅ Loan added successfully");
 
-  showMessage("✅ Loan added and stock updated");
-
-  // 4️⃣ Refresh UI
   await loadLoanRecords();
-  await loadProductAndBatches(productId, false);
 }
