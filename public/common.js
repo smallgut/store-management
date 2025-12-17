@@ -1934,59 +1934,52 @@ async function loadLoanRecords() {
   try {
     const { data, error } = await supabase
       .from("vendor_loans")
-      .select("id, vendor_id, product_id, batch_no, quantity, selling_price, date")
+      .select(`
+        id,
+        quantity,
+        selling_price,
+        loan_date,
+        vendors ( name ),
+        products ( name ),
+        product_batches ( batch_number )
+      `)
       .order("id", { ascending: false });
 
     if (error) throw error;
+
     console.log("📊 Vendor loans loaded:", data);
 
     if (!data || data.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-500 p-4">No loan records found.</td></tr>`;
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-gray-500 p-4">
+            No loan records found.
+          </td>
+        </tr>`;
       return;
     }
 
     tableBody.innerHTML = "";
 
-    for (const record of data) {
-      // ✅ fetch vendor + product name properly
-      const [vendorName, productName] = await Promise.all([
-        (async () => {
-          const { data: v } = await supabase
-            .from("vendors")
-            .select("name")
-            .eq("id", record.vendor_id)
-            .single();
-          return v?.name || "Unknown Vendor";
-        })(),
-        (async () => {
-          const { data: p } = await supabase
-            .from("products") // ✅ switched from product_catalog → products
-            .select("name")
-            .eq("id", record.product_id)
-            .single();
-          return p?.name || "Unknown Product";
-        })(),
-      ]);
-
-      const date = new Date(record.date).toLocaleDateString("zh-TW", {
+    data.forEach(row => {
+      const date = new Date(row.loan_date).toLocaleDateString("zh-TW", {
         timeZone: "Asia/Taipei",
       });
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="border p-2">${vendorName}</td>
-        <td class="border p-2">${productName}</td>
-        <td class="border p-2">${record.batch_no}</td>
-        <td class="border p-2 text-center">${record.quantity}</td>
-        <td class="border p-2 text-right">${Number(record.selling_price).toFixed(2)}</td>
+        <td class="border p-2">${row.vendors?.name ?? "—"}</td>
+        <td class="border p-2">${row.products?.name ?? "—"}</td>
+        <td class="border p-2">${row.product_batches?.batch_number ?? "—"}</td>
+        <td class="border p-2 text-center">${row.quantity}</td>
+        <td class="border p-2 text-right">${Number(row.selling_price).toFixed(2)}</td>
         <td class="border p-2 text-center">${date}</td>
-        <td class="border p-2 text-center">
-          <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded" 
-            onclick="deleteLoanRecord(${record.id})">🗑 Delete</button>
-        </td>
+        <td class="border p-2 text-center">—</td>
       `;
+
       tableBody.appendChild(tr);
-    }
+    });
+
   } catch (err) {
     console.error("❌ loadLoanRecords() failed:", err);
   }
