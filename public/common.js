@@ -1974,7 +1974,14 @@ async function loadLoanRecords() {
         <td class="border p-2 text-center">${row.quantity}</td>
         <td class="border p-2 text-right">${Number(row.selling_price).toFixed(2)}</td>
         <td class="border p-2 text-center">${date}</td>
-        <td class="border p-2 text-center">—</td>
+        <td class="border p-2 text-center">
+          <button
+            class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
+            onclick="deleteLoanRecord(${row.id})"
+          >
+            🗑 Delete
+          </button>
+        </td>
       `;
 
       tableBody.appendChild(tr);
