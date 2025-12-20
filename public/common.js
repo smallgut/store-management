@@ -1740,22 +1740,34 @@ async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
 /* ---------------------- 🧩 Vendor Loan Report ---------------------- */
 async function runVendorLoanReport() {
   const supabase = await ensureSupabaseClient();
+
   const vendorId = document.getElementById("vendor-loan-select").value;
   const from = document.getElementById("vendor-loan-from").value || null;
   const to   = document.getElementById("vendor-loan-to").value || null;
 
-  if (!vendorId) return alert("Please select a vendor first.");
+  if (!vendorId) {
+    alert("Please select a vendor first.");
+    return;
+  }
+
   fadeOutSection("#vendor-loan-report-section");
 
   try {
     let query = supabase
       .from("vendor_loans")
-      .select("id, product_id, batch_no, quantity, selling_price, date")
+      .select(`
+        id,
+        quantity,
+        selling_price,
+        loan_date,
+        products ( name ),
+        product_batches ( batch_number )
+      `)
       .eq("vendor_id", vendorId)
-      .order("date", { ascending: true });
+      .order("loan_date", { ascending: true });
 
-    if (from) query = query.gte("date", from);
-    if (to)   query = query.lte("date", to);
+    if (from) query = query.gte("loan_date", from);
+    if (to)   query = query.lte("loan_date", to);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -1763,41 +1775,41 @@ async function runVendorLoanReport() {
     const tbody = document.querySelector("#vendor-loan-report-table tbody");
     tbody.innerHTML = "";
 
-    if (!data?.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No loan data found.</td></tr>`;
+    if (!data || data.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="p-4 text-center text-gray-500">
+            No loan data found.
+          </td>
+        </tr>`;
       document.getElementById("vendor-loan-total").textContent = "0.00";
-      fadeInSection("#vendor-loan-report-section");
       return;
     }
 
     let totalLoan = 0;
 
-    for (const row of data) {
-      // 🔹 Fetch product name via product_id
-      const { data: prod } = await supabase
-        .from("products")
-        .select("name")
-        .eq("id", row.product_id)
-        .maybeSingle();
-
-      const productName = prod?.name || "Unknown Product";
-
-      const subtotal = (Number(row.quantity) || 0) * (Number(row.selling_price) || 0);
+    data.forEach(row => {
+      const subtotal =
+        Number(row.quantity || 0) * Number(row.selling_price || 0);
       totalLoan += subtotal;
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="border p-2">${productName}</td>
-        <td class="border p-2">${row.batch_no || "-"}</td>
+        <td class="border p-2">${row.products?.name ?? "—"}</td>
+        <td class="border p-2">${row.product_batches?.batch_number ?? "—"}</td>
         <td class="border p-2 text-right">${row.quantity}</td>
         <td class="border p-2 text-right">${Number(row.selling_price).toFixed(2)}</td>
         <td class="border p-2 text-right">${subtotal.toFixed(2)}</td>
-        <td class="border p-2">${new Date(row.date).toLocaleDateString("zh-TW")}</td>
+        <td class="border p-2">
+          ${new Date(row.loan_date).toLocaleDateString("zh-TW")}
+        </td>
       `;
-      tbody.appendChild(tr);
-    }
 
-    document.getElementById("vendor-loan-total").textContent = totalLoan.toFixed(2);
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("vendor-loan-total").textContent =
+      totalLoan.toFixed(2);
 
   } catch (err) {
     console.error("❌ runVendorLoanReport failed:", err);
