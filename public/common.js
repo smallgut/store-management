@@ -1687,37 +1687,43 @@ async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
   const resultRows = [];
   let grandTotal = 0;
 
-  // Step 2️⃣ — Loop through each batch to calculate sold + loaned + remaining
+  // Step 2️⃣ — Loop through each batch
   for (const b of batches) {
     const batchId = b.id;
 
-    // 🧾 Fetch product name
-    const { data: prod, error: prodErr } = await supabase
+    // 🧾 Product name
+    const { data: prod } = await supabase
       .from("products")
       .select("name")
       .eq("id", b.product_id)
       .maybeSingle();
-    if (prodErr) console.warn("⚠️ Failed to load product for batch", batchId, prodErr);
 
     const productName = prod?.name || "Unknown Product";
 
-    // 💰 Total sold quantity from customer_sales_items
+    // 💰 Sold quantity
     const { data: soldItems, error: soldErr } = await supabase
       .from("customer_sales_items")
       .select("quantity")
       .eq("batch_id", batchId);
-    const soldQty = soldErr ? 0 : soldItems.reduce((sum, i) => sum + Number(i.quantity || 0), 0);
 
-    // 💰 Total loaned quantity from vendor_loans
+    const soldQty = soldErr
+      ? 0
+      : (soldItems || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0);
+
+    // ✅ FIXED: Loaned quantity (by batch_id)
     const { data: loanItems, error: loanErr } = await supabase
       .from("vendor_loans")
       .select("quantity")
-      .eq("batch_no", b.batch_number);
-    const loanQty = loanErr ? 0 : loanItems.reduce((sum, i) => sum + Number(i.quantity || 0), 0);
+      .eq("batch_id", batchId);
+
+    const loanQty = loanErr
+      ? 0
+      : (loanItems || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0);
 
     const remainingQty = Number(b.remaining_quantity || 0);
     const buyInQty = soldQty + loanQty + remainingQty;
     const subtotal = buyInQty * Number(b.buy_in_price || 0);
+
     grandTotal += subtotal;
 
     resultRows.push({
@@ -1735,7 +1741,6 @@ async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
   console.log("✅ Vendor Purchase Report generated:", resultRows);
   return { rows: resultRows, total: grandTotal };
 }
-/* ---------------------- 📊 END FIXED VENDOR PURCHASE REPORT ---------------------- */
 
 /* ---------------------- 🧩 Vendor Loan Report ---------------------- */
 async function runVendorLoanReport() {
