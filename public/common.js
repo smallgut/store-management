@@ -1740,13 +1740,13 @@ async function analyticsVendorPurchases(vendorId = null, dateFrom = null, dateTo
 async function runVendorLoanReport() {
   const supabase = await ensureSupabaseClient();
 
-  const vendorId = document.getElementById("vendor-loan-select").value;
+  const vendorId = document.getElementById("vendor-loan-select").value || null;
   const from = document.getElementById("vendor-loan-from").value || null;
   const to   = document.getElementById("vendor-loan-to").value || null;
 
-  if (!vendorId) {
-    alert("Please select a vendor first.");
-    return;
+  // ❗ Prevent empty search
+  if (!vendorId && !from && !to) {
+    return alert("Please select a vendor or a date range.");
   }
 
   fadeOutSection("#vendor-loan-report-section");
@@ -1762,9 +1762,10 @@ async function runVendorLoanReport() {
         products ( name ),
         product_batches ( batch_number )
       `)
-      .eq("vendor_id", vendorId)
       .order("loan_date", { ascending: true });
 
+    // ✅ Apply filters only when provided
+    if (vendorId) query = query.eq("vendor_id", vendorId);
     if (from) query = query.gte("loan_date", from);
     if (to)   query = query.lte("loan_date", to);
 
@@ -1774,7 +1775,7 @@ async function runVendorLoanReport() {
     const tbody = document.querySelector("#vendor-loan-report-table tbody");
     tbody.innerHTML = "";
 
-    if (!data || data.length === 0) {
+    if (!data?.length) {
       tbody.innerHTML = `
         <tr>
           <td colspan="6" class="p-4 text-center text-gray-500">
@@ -1803,7 +1804,6 @@ async function runVendorLoanReport() {
           ${new Date(row.loan_date).toLocaleDateString("zh-TW")}
         </td>
       `;
-
       tbody.appendChild(tr);
     });
 
