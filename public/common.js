@@ -1667,15 +1667,18 @@ async function analyticsSalesByProduct(from, to) {
 
 /* ---------------------- 📊 ANALYTICS: VENDOR PURCHASE REPORT ---------------------- */
 /* ---------------------- 📊 ANALYTICS: FIXED VENDOR PURCHASE REPORT ---------------------- */
-async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
+async function analyticsVendorPurchases(vendorId = null, dateFrom = null, dateTo = null) {
   const supabase = await ensureSupabaseClient();
-  console.log("📊 Generating Vendor Purchase Report for vendor:", vendorId, dateFrom, dateTo);
+  console.log("📊 Generating Vendor Purchase Report:", { vendorId, dateFrom, dateTo });
 
-  // Step 1️⃣ — Fetch all batches for this vendor within the date range
   let batchQuery = supabase
     .from("product_batches")
-    .select("id, product_id, batch_number, buy_in_price, remaining_quantity, created_at")
-    .eq("vendor_id", vendorId);
+    .select("id, product_id, vendor_id, batch_number, buy_in_price, remaining_quantity, created_at");
+
+  // ✅ Apply vendor filter ONLY if vendor is selected
+  if (vendorId) {
+    batchQuery = batchQuery.eq("vendor_id", vendorId);
+  }
 
   if (dateFrom) batchQuery = batchQuery.gte("created_at", dateFrom);
   if (dateTo) batchQuery = batchQuery.lte("created_at", dateTo);
@@ -1687,11 +1690,9 @@ async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
   const resultRows = [];
   let grandTotal = 0;
 
-  // Step 2️⃣ — Loop through each batch
   for (const b of batches) {
     const batchId = b.id;
 
-    // 🧾 Product name
     const { data: prod } = await supabase
       .from("products")
       .select("name")
@@ -1700,25 +1701,19 @@ async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
 
     const productName = prod?.name || "Unknown Product";
 
-    // 💰 Sold quantity
-    const { data: soldItems, error: soldErr } = await supabase
+    const { data: soldItems } = await supabase
       .from("customer_sales_items")
       .select("quantity")
       .eq("batch_id", batchId);
 
-    const soldQty = soldErr
-      ? 0
-      : (soldItems || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0);
+    const soldQty = (soldItems || []).reduce((s, i) => s + Number(i.quantity || 0), 0);
 
-    // ✅ FIXED: Loaned quantity (by batch_id)
-    const { data: loanItems, error: loanErr } = await supabase
+    const { data: loanItems } = await supabase
       .from("vendor_loans")
       .select("quantity")
       .eq("batch_id", batchId);
 
-    const loanQty = loanErr
-      ? 0
-      : (loanItems || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0);
+    const loanQty = (loanItems || []).reduce((s, i) => s + Number(i.quantity || 0), 0);
 
     const remainingQty = Number(b.remaining_quantity || 0);
     const buyInQty = soldQty + loanQty + remainingQty;
@@ -1738,7 +1733,6 @@ async function analyticsVendorPurchases(vendorId, dateFrom, dateTo) {
     });
   }
 
-  console.log("✅ Vendor Purchase Report generated:", resultRows);
   return { rows: resultRows, total: grandTotal };
 }
 
