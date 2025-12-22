@@ -429,7 +429,7 @@ function exportVendorReportPDF() {
       <h1 style="text-align:center;">供應商進貨報表</h1>
       <h3 style="text-align:center;">${vendorName}</h3>
       <table><thead><tr>
-        <th>產品</th><th>批次號</th><th>進貨價</th><th>進貨數量</th>
+        <th>供應商</th><th>產品</th><th>批次號</th><th>進貨價</th><th>進貨數量</th>
         <th>已售出</th><th>已借出</th><th>剩餘</th><th>小計</th>
       </tr></thead><tbody>
       ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
@@ -470,7 +470,7 @@ function exportVendorLoanReportPDF() {
       <h1 style="text-align:center;">供應商借貸報表</h1>
       <h3 style="text-align:center;">${vendorName}</h3>
       <table><thead><tr>
-        <th>產品</th><th>批次號</th><th>數量</th><th>售價</th><th>總額</th><th>借出日期</th>
+        <th>供應商</th><th>產品</th><th>批次號</th><th>數量</th><th>售價</th><th>總額</th><th>借出日期</th>
       </tr></thead><tbody>
       ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
       </tbody></table>
