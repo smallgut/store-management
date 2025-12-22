@@ -398,6 +398,7 @@ async function runVendorPurchaseReport() {
     report.rows.forEach(r => {
       tbody.insertAdjacentHTML("beforeend", `
         <tr>
+          <td class="border p-2">${r.vendor}</td>
           <td class="border p-2">${r.product}</td>
           <td class="border p-2">${r.batch}</td>
           <td class="border p-2">${r.price}</td>
