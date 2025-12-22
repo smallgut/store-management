@@ -449,7 +449,7 @@ function exportVendorReportPDF() {
       <h1 style="text-align:center;">Vendor Purchase Report</h1>
       <h3 style="text-align:center;">${vendorName}<br>Period: ${from} → ${to}</h3>
       <table><thead><tr>
-        <th>Product</th><th>Batch No.</th><th>Buy-In Price</th><th>Buy-In Qty</th>
+        <th>Vendor</th><th>Product</th><th>Batch No.</th><th>Buy-In Price</th><th>Buy-In Qty</th>
         <th>Sold</th><th>Loaned</th><th>Remaining</th><th>Subtotal</th>
       </tr></thead><tbody>
       ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
@@ -501,7 +501,7 @@ function exportVendorLoanReportPDF() {
       <h1 style="text-align:center;">Vendor Loan Report</h1>
       <h3 style="text-align:center;">${vendorName}<br>Period: ${from} → ${to}</h3>
       <table><thead><tr>
-        <th>Product</th><th>Batch No.</th><th>Quantity</th><th>Selling Price</th><th>Total</th><th>Loan Date</th>
+        <th>Vendor</th><th>Product</th><th>Batch No.</th><th>Quantity</th><th>Selling Price</th><th>Total</th><th>Loan Date</th>
       </tr></thead><tbody>
       ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
       </tbody></table>
