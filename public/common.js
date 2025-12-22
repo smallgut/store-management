@@ -1669,71 +1669,70 @@ async function analyticsSalesByProduct(from, to) {
 /* ---------------------- 📊 ANALYTICS: FIXED VENDOR PURCHASE REPORT ---------------------- */
 async function analyticsVendorPurchases(vendorId = null, dateFrom = null, dateTo = null) {
   const supabase = await ensureSupabaseClient();
-  console.log("📊 Generating Vendor Purchase Report:", { vendorId, dateFrom, dateTo });
 
   let batchQuery = supabase
     .from("product_batches")
-    .select("id, product_id, vendor_id, batch_number, buy_in_price, remaining_quantity, created_at");
+    .select(`
+      id,
+      product_id,
+      vendor_id,
+      batch_number,
+      buy_in_price,
+      remaining_quantity,
+      created_at,
+      vendors ( name )
+    `);
 
-  // ✅ Apply vendor filter ONLY if vendor is selected
-  if (vendorId) {
-    batchQuery = batchQuery.eq("vendor_id", vendorId);
-  }
-
+  if (vendorId) batchQuery = batchQuery.eq("vendor_id", vendorId);
   if (dateFrom) batchQuery = batchQuery.gte("created_at", dateFrom);
   if (dateTo) batchQuery = batchQuery.lte("created_at", dateTo);
 
-  const { data: batches, error: batchErr } = await batchQuery;
-  if (batchErr) throw batchErr;
+  const { data: batches, error } = await batchQuery;
+  if (error) throw error;
   if (!batches?.length) return { rows: [], total: 0 };
 
-  const resultRows = [];
-  let grandTotal = 0;
+  const rows = [];
+  let total = 0;
 
   for (const b of batches) {
-    const batchId = b.id;
-
     const { data: prod } = await supabase
       .from("products")
       .select("name")
       .eq("id", b.product_id)
       .maybeSingle();
 
-    const productName = prod?.name || "Unknown Product";
-
     const { data: soldItems } = await supabase
       .from("customer_sales_items")
       .select("quantity")
-      .eq("batch_id", batchId);
-
-    const soldQty = (soldItems || []).reduce((s, i) => s + Number(i.quantity || 0), 0);
+      .eq("batch_id", b.id);
 
     const { data: loanItems } = await supabase
       .from("vendor_loans")
       .select("quantity")
-      .eq("batch_id", batchId);
+      .eq("batch_id", b.id);
 
-    const loanQty = (loanItems || []).reduce((s, i) => s + Number(i.quantity || 0), 0);
+    const sold = (soldItems || []).reduce((s, i) => s + Number(i.quantity || 0), 0);
+    const loaned = (loanItems || []).reduce((s, i) => s + Number(i.quantity || 0), 0);
+    const remaining = Number(b.remaining_quantity || 0);
+    const qty = sold + loaned + remaining;
+    const subtotal = qty * Number(b.buy_in_price || 0);
 
-    const remainingQty = Number(b.remaining_quantity || 0);
-    const buyInQty = soldQty + loanQty + remainingQty;
-    const subtotal = buyInQty * Number(b.buy_in_price || 0);
+    total += subtotal;
 
-    grandTotal += subtotal;
-
-    resultRows.push({
-      product: productName,
+    rows.push({
+      vendor: b.vendors?.name || "—",
+      product: prod?.name || "Unknown",
       batch: b.batch_number,
-      price: Number(b.buy_in_price || 0).toFixed(2),
-      qty: buyInQty,
-      sold: soldQty,
-      loaned: loanQty,
-      remaining: remainingQty,
-      subtotal: subtotal.toFixed(2),
+      price: Number(b.buy_in_price).toFixed(2),
+      qty,
+      sold,
+      loaned,
+      remaining,
+      subtotal: subtotal.toFixed(2)
     });
   }
 
-  return { rows: resultRows, total: grandTotal };
+  return { rows, total };
 }
 
 /* ---------------------- 🧩 Vendor Loan Report ---------------------- */
@@ -1744,7 +1743,6 @@ async function runVendorLoanReport() {
   const from = document.getElementById("vendor-loan-from").value || null;
   const to   = document.getElementById("vendor-loan-to").value || null;
 
-  // ❗ Prevent empty search
   if (!vendorId && !from && !to) {
     return alert("Please select a vendor or a date range.");
   }
@@ -1759,15 +1757,15 @@ async function runVendorLoanReport() {
         quantity,
         selling_price,
         loan_date,
+        vendors ( name ),
         products ( name ),
         product_batches ( batch_number )
       `)
       .order("loan_date", { ascending: true });
 
-    // ✅ Apply filters only when provided
     if (vendorId) query = query.eq("vendor_id", vendorId);
     if (from) query = query.gte("loan_date", from);
-    if (to)   query = query.lte("loan_date", to);
+    if (to) query = query.lte("loan_date", to);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -1778,7 +1776,7 @@ async function runVendorLoanReport() {
     if (!data?.length) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" class="p-4 text-center text-gray-500">
+          <td colspan="7" class="p-4 text-center text-gray-500">
             No loan data found.
           </td>
         </tr>`;
@@ -1789,26 +1787,23 @@ async function runVendorLoanReport() {
     let totalLoan = 0;
 
     data.forEach(row => {
-      const subtotal =
-        Number(row.quantity || 0) * Number(row.selling_price || 0);
+      const subtotal = Number(row.quantity) * Number(row.selling_price);
       totalLoan += subtotal;
 
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${row.products?.name ?? "—"}</td>
-        <td class="border p-2">${row.product_batches?.batch_number ?? "—"}</td>
-        <td class="border p-2 text-right">${row.quantity}</td>
-        <td class="border p-2 text-right">${Number(row.selling_price).toFixed(2)}</td>
-        <td class="border p-2 text-right">${subtotal.toFixed(2)}</td>
-        <td class="border p-2">
-          ${new Date(row.loan_date).toLocaleDateString("zh-TW")}
-        </td>
-      `;
-      tbody.appendChild(tr);
+      tbody.insertAdjacentHTML("beforeend", `
+        <tr>
+          <td class="border p-2">${row.vendors?.name ?? "—"}</td>
+          <td class="border p-2">${row.products?.name ?? "—"}</td>
+          <td class="border p-2">${row.product_batches?.batch_number ?? "—"}</td>
+          <td class="border p-2 text-right">${row.quantity}</td>
+          <td class="border p-2 text-right">${Number(row.selling_price).toFixed(2)}</td>
+          <td class="border p-2 text-right">${subtotal.toFixed(2)}</td>
+          <td class="border p-2">${new Date(row.loan_date).toLocaleDateString("zh-TW")}</td>
+        </tr>
+      `);
     });
 
-    document.getElementById("vendor-loan-total").textContent =
-      totalLoan.toFixed(2);
+    document.getElementById("vendor-loan-total").textContent = totalLoan.toFixed(2);
 
   } catch (err) {
     console.error("❌ runVendorLoanReport failed:", err);
