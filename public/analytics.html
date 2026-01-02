@@ -430,6 +430,18 @@ async function runVendorPurchaseReport() {
   }
 }
 
+
+    function applyRoleRestrictions(role) {
+  // Hide Analytics tab for staff
+  if (role === "staff") {
+    document.querySelector('a[href="analytics.html"]')?.parentElement.remove();
+  }
+
+  // Hide Vendor Loan Record for staff
+  if (role === "staff") {
+    document.querySelector('a[href="vendor-loan-record.html"]')?.parentElement.remove();
+  }
+}
 /* ---------------------- 🧾 Export Vendor Report to PDF ---------------------- */
 function exportVendorReportPDF() {
   const table = document.getElementById("vendor-report-table");
