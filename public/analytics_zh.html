@@ -180,6 +180,8 @@
   </div>
 
   <script>
+
+    
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("📊 初始化分析報表頁面...");
   const supabase = await ensureSupabaseClient();
@@ -190,10 +192,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  // 🚨 ROLE-BASED ACCESS CHECK
+  const role = await getUserRole();
+  if (!role || (role !== "admin" && role !== "manager")) {
+    alert("Access denied! You don’t have permission to view analytics.");
+    window.location.href = "index_zh.html";
+    return;
+  }
+
   document.getElementById("logout-btn")?.addEventListener("click", async () => {
     await supabase.auth.signOut();
     window.location.href = "login_zh.html";
   });
+
+  applyTranslations();
 
   try {
     await loadAnalyticsCharts();
