@@ -119,7 +119,24 @@ function showError(err) {
   }
 }
 
+async function getUserRole() {
+  const supabase = await ensureSupabaseClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
 
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to fetch user role:", error);
+    return null;
+  }
+
+  return data?.role || "staff"; // default fallback
+}
 
 
 // ---------------------------------------------------------
