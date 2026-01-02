@@ -206,7 +206,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   applyTranslations();
-
+const role = await getUserRole();
+  applyRoleRestrictions(role);
+  
   try {
     await loadAnalyticsCharts();
     await loadSalesTable();
