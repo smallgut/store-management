@@ -121,21 +121,30 @@ function showError(err) {
 
 async function getUserRole() {
   const supabase = await ensureSupabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return null;
+
+  const { data: { session }, error: sessionError } =
+    await supabase.auth.getSession();
+
+  if (sessionError || !session?.user) {
+    console.warn("⚠️ No active session");
+    return null;
+  }
+
+  const userId = session.user.id;
 
   const { data, error } = await supabase
     .from("user_roles")
     .select("role")
-    .eq("user_id", session.user.id)
-    .maybeSingle();
+    .eq("user_id", userId)
+    .maybeSingle(); // ⚠️ important
 
   if (error) {
-    console.error("Failed to fetch user role:", error);
+    console.error("❌ Failed to fetch user role:", error);
     return null;
   }
 
-  return data?.role || "staff"; // default fallback
+  console.log("✅ User role:", data?.role);
+  return data?.role ?? null;
 }
 
 
