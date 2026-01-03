@@ -206,7 +206,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   applyTranslations();
-const role = await getUserRole();
   applyRoleRestrictions(role);
   
   try {
@@ -421,14 +420,9 @@ async function runVendorPurchaseReport() {
 }
 
 function applyRoleRestrictions(role) {
-  // Hide Analytics tab for staff
   if (role === "staff") {
-    document.querySelector('a[href="analytics.html"]')?.parentElement.remove();
-  }
-
-  // Hide Vendor Loan Record for staff
-  if (role === "staff") {
-    document.querySelector('a[href="vendor-loan-record.html"]')?.parentElement.remove();
+    document.querySelector('a[href="analytics_zh.html"]')?.parentElement.remove();
+    document.querySelector('a[href="vendor-loan-record_zh.html"]')?.parentElement.remove();
   }
 }
     
