@@ -194,6 +194,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // 🚨 ROLE-BASED ACCESS CHECK
   const role = await getUserRole();
+  console.log("🔐 Analytics page role =", role);
   if (!role || (role !== "admin" && role !== "manager")) {
     alert("Access denied! You don’t have permission to view analytics.");
     window.location.href = "index.html";
