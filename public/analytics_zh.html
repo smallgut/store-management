@@ -195,7 +195,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 🚨 ROLE-BASED ACCESS CHECK
   const role = await getUserRole();
   if (!role || (role !== "admin" && role !== "manager")) {
-    alert("Access denied! You don’t have permission to view analytics.");
+    alert("存取被拒絕！您沒有權限查看分析報表。");
     window.location.href = "index_zh.html";
     return;
   }
