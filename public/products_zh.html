@@ -181,12 +181,7 @@ const role = await getUserRole();
     return;
   }
 
-  applyRoleRestrictions(role);
-
-  // existing logic
-  await loadVendors();
-  await loadProducts(false);
-});
+  
       // 🔑 登出
       const logoutBtn = document.getElementById("logout-btn");
       if (logoutBtn) {
