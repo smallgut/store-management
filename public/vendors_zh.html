@@ -112,6 +112,7 @@ if (!role || (role !== "admin" && role !== "manager")) {
   window.location.href = "index_zh.html";
   return;
 }
+      applyRoleRestrictions(role);
       // 🔑 登出邏輯
       const logoutBtn = document.getElementById("logout-btn");
       if (logoutBtn) {
