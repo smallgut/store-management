@@ -53,7 +53,8 @@
         window.location.href = "login_zh.html";
         return;
       }
-
+const role = await getUserRole();
+applyRoleRestrictions(role);
       // 🔑 登出按鈕
       const logoutBtn = document.getElementById("logout-btn");
       if (logoutBtn) {
