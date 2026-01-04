@@ -180,7 +180,7 @@ const role = await getUserRole();
     window.location.href = "index_zh.html";
     return;
   }
-
+applyRoleRestrictions(role);
   
       // 🔑 登出
       const logoutBtn = document.getElementById("logout-btn");
