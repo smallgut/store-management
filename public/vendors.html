@@ -111,7 +111,8 @@ if (!role || (role !== "admin" && role !== "manager")) {
   window.location.href = "index.html";
   return;
 }
-  const logoutBtn = document.getElementById("logout-btn");
+applyRoleRestrictions(role);
+      const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
       await supabase.auth.signOut();
