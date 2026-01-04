@@ -174,7 +174,19 @@
         window.location.href = "login_zh.html";
         return;
       }
+const role = await getUserRole();
+  if (!role || (role !== "admin" && role !== "manager")) {
+    alert("Access denied! You don’t have permission to manage products.");
+    window.location.href = "index.html";
+    return;
+  }
 
+  applyRoleRestrictions(role);
+
+  // existing logic
+  await loadVendors();
+  await loadProducts(false);
+});
       // 🔑 登出
       const logoutBtn = document.getElementById("logout-btn");
       if (logoutBtn) {
