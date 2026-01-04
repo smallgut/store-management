@@ -105,7 +105,12 @@
     window.location.href = "login.html";
     return;
   }
-
+const role = await getUserRole();
+if (!role || (role !== "admin" && role !== "manager")) {
+  alert("Access denied! You don’t have permission to manage vendors.");
+  window.location.href = "index.html";
+  return;
+}
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
