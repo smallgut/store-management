@@ -147,12 +147,23 @@ async function getUserRole() {
   return data?.role ?? null;
 }
 
+function hideNavLink(href) {
+  const link = document.querySelector(`a[href="${href}"]`);
+  if (!link) return;
+
+  const li = link.closest("li");
+  if (li) li.remove();
+  else link.remove(); // fallback
+}
+
 function applyRoleRestrictions(role) {
+  console.log("🔒 Applying role restrictions for:", role);
+
   if (role === "staff") {
-    document.querySelector('a[href="analytics.html"]')?.parentElement.remove();
-    document.querySelector('a[href="products.html"]')?.parentElement.remove();
-    document.querySelector('a[href="vendors.html"]')?.parentElement.remove();
-    document.querySelector('a[href="vendor-loan-record.html"]')?.parentElement.remove();
+    hideNavLink("analytics.html");
+    hideNavLink("products.html");
+    hideNavLink("vendors.html");
+    hideNavLink("vendor-loan-record.html");
   }
 }
 // ---------------------------------------------------------
