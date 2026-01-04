@@ -419,12 +419,7 @@ async function runVendorPurchaseReport() {
   }
 }
 
-function applyRoleRestrictions(role) {
-  if (role === "staff") {
-    document.querySelector('a[href="analytics_zh.html"]')?.parentElement.remove();
-    document.querySelector('a[href="vendor-loan-record_zh.html"]')?.parentElement.remove();
-  }
-}
+
     
 function exportVendorReportPDF() {
   const table = document.getElementById("vendor-report-table");
