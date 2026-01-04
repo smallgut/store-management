@@ -147,7 +147,14 @@ async function getUserRole() {
   return data?.role ?? null;
 }
 
-
+function applyRoleRestrictions(role) {
+  if (role === "staff") {
+    document.querySelector('a[href="analytics.html"]')?.parentElement.remove();
+    document.querySelector('a[href="products.html"]')?.parentElement.remove();
+    document.querySelector('a[href="vendors.html"]')?.parentElement.remove();
+    document.querySelector('a[href="vendor-loan-record.html"]')?.parentElement.remove();
+  }
+}
 // ---------------------------------------------------------
 // 📦 Products + Batches
 // ---------------------------------------------------------
