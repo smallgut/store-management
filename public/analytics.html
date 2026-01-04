@@ -243,12 +243,7 @@ function fadeInSection(selector) {
   el.style.opacity = 1;
 }
 
-    function applyRoleRestrictions(role) {
-  if (role === "staff") {
-    document.querySelector('a[href="analytics.html"]')?.parentElement.remove();
-    document.querySelector('a[href="vendor-loan-record.html"]')?.parentElement.remove();
-  }
-}
+    
 /* ---------------------- 📊 Main Analytics ---------------------- */
 async function loadAnalyticsCharts() {
   const from = document.getElementById("analytics-from")?.value || null;
