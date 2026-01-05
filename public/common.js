@@ -159,12 +159,12 @@ function hideNavLink(href) {
 function applyRoleRestrictions(role) {
   console.log("🔒 Applying role restrictions for:", role);
 
-  if (role === "staff") {
-    hideNavLink("analytics.html");
-    hideNavLink("products.html");
-    hideNavLink("vendors.html");
-    hideNavLink("vendor-loan-record.html");
-  }
+  document.querySelectorAll("[data-role]").forEach(el => {
+    const allowedRoles = el.dataset.role.split(",").map(r => r.trim());
+    if (!allowedRoles.includes(role)) {
+      el.style.display = "none";
+    }
+  });
 }
 // ---------------------------------------------------------
 // 📦 Products + Batches
