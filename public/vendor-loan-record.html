@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "login.html";
     return;
   }
-const role = await getUserRole();
+
 applyRoleRestrictions(role);
   // 🔑 Logout button
   const logoutBtn = document.getElementById("logout-btn");
