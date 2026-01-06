@@ -103,7 +103,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+const role = await getUserRole();
 applyRoleRestrictions(role);
+  
   // 🔑 Logout button
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) {
