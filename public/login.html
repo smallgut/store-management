@@ -97,7 +97,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       alert("Please enter both email and password.");
       return;
     }
-
+const role = await getUserRole();
+applyRoleRestrictions(role);
     const { data, error } = await supabase.auth.signInWithPassword({
   email,
   password
