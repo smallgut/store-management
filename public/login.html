@@ -97,8 +97,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       alert("Please enter both email and password.");
       return;
     }
-const role = await getUserRole();
-applyRoleRestrictions(role);
+
     const { data, error } = await supabase.auth.signInWithPassword({
   email,
   password
@@ -110,7 +109,10 @@ if (error) {
 }
 
 const user = data.user;
-
+    
+const role = await getUserRole();
+applyRoleRestrictions(role);
+    
 // ✅ BLOCK unverified emails
 if (!user.email_confirmed_at) {
   await supabase.auth.signOut();
