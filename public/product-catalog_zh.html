@@ -18,9 +18,9 @@
     <ul class="flex space-x-4">
       <li><a href="index_zh.html">首頁</a></li>
       <li><a href="login_zh.html">登入</a></li>
-      <li data-role="admin,manager"><a href="analytics_zh.html">分析</a></li>
-      <li data-role="admin,manager"><a href="products_zh.html">管理產品</a></li>
-      <li data-role="admin,manager"><a href="vendors_zh.html">管理供應商</a></li>
+      <li data-role="admin,manager">  <a href="analytics_zh.html">分析</a></li>
+      <li data-role="admin,manager">  <a href="products_zh.html">管理產品</a></li>
+      <li data-role="admin,manager">  <a href="vendors_zh.html">管理供應商</a></li>
       <li><a href="customer-sales_zh.html">記錄顧客銷售</a></li>
       <li><a href="vendor-loan-record_zh.html">供應商借貨記錄</a></li>
       <li><a href="product-catalog_zh.html">產品目錄</a></li>
@@ -93,7 +93,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "login_zh.html";
     return;
   }
-
+  
+const role = await getUserRole();
+applyRoleRestrictions(role);
+  
   // 🔑 登出按鈕
   const logoutBtn = document.getElementById("logout-btn");
   logoutBtn.addEventListener("click", async () => {
