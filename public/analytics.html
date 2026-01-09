@@ -209,6 +209,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   applyTranslations();
   applyRoleRestrictions(role);
   
+  // ✅ reveal page here
+requestAnimationFrame(() => {
+  document.body.style.opacity = 1;
+});
   try {
     await loadAnalyticsCharts();
     await loadSalesTable();
@@ -532,12 +536,7 @@ function exportVendorLoanReportPDF() {
 }
 document.getElementById("export-vendor-loan-report")?.addEventListener("click", exportVendorLoanReportPDF);
 
-/* ---------------------- ✨ Fade helpers ---------------------- */
-window.addEventListener("load", () => {
-  document.body.style.opacity = 0;
-  document.body.style.transition = "opacity 0.8s ease";
-  setTimeout(() => (document.body.style.opacity = 1), 100);
-});
+
   </script>
 </body>
 </html>
