@@ -128,7 +128,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   
 const role = await getUserRole();
 applyRoleRestrictions(role);
-  
+ // ✅ Reveal page AFTER everything is ready
+requestAnimationFrame(() => {
+  document.body.style.opacity = 1;
+}); 
   // 🔑 Logout handler
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) {
